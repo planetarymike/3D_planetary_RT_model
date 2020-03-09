@@ -27,8 +27,8 @@ int main(int argc, char* argv[]) {
   // grid.setup_voxels(160, atm);
   // grid.setup_rays(10);
   spherical_azimuthally_symmetric_grid grid(n_emissions, hol);
-  grid.save_intersections = true;
-  grid.setup_voxels(10, 20/*20 for 10 deg increments*/, atm);
+  //grid.save_intersections = true;
+  grid.setup_voxels(80, 20/*20 for 10 deg increments*/, atm);
   grid.setup_rays(6, 12);
 
   
