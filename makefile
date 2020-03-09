@@ -1,8 +1,7 @@
 BINDIR=-I./bin/
 BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_72_0/
 EIGENDIR=-I/home/mike/Documents/Utilities/eigen-3.3.7/
-GEOMDIR=-I/home/mike/Documents/Utilities/GeometricTools/
-IDIR=$(BINDIR) $(BOOSTDIR) $(EIGENDIR) $(GEOMDIR)
+IDIR=$(BINDIR) $(BOOSTDIR) $(EIGENDIR)
 
 CC=g++
 LIBS=-lm -fPIC
