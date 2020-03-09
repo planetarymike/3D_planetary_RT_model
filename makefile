@@ -14,7 +14,7 @@ generate_source_function:
 	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) $(MPFLAGS) -O2 -ftree-vectorize -march=native -o generate_source_function.x
 
 generate_source_function_profile:
-	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) -Og -g -p -o generate_source_function.x
+	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) $(MPFLAGS) -Og -g -p -o generate_source_function.x
 
 generate_source_function_debug_warn:
 	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) -O0 -g -Wall -o generate_source_function.x
