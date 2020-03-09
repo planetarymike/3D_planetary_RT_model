@@ -7,26 +7,18 @@
 #include "coordinate_generation.h"
 #include "boundaries.h"
 #include "atmosphere.h"
-//#include "geometric_tools_interface.h"
 #include <type_traits> // std::is_scalar
 #include <fstream>
 #include <cmath>
 #include "intersections.h"
-
-// using gte::FIQuery;
-// using gte::Plane3;
-// using gte::Ray3;
 
 struct plane_parallel_grid : RT_grid
 {
 
   vector<double> radial_boundaries;
   vector<double> pts_radii;
-  //vector<Plane3<double>> radial_boundary_planes;
   vector<plane> radial_boundary_planes;
   
-  //ray_plane_query ray_plane;
-
   plane_parallel_grid(int n_emissions,
 		      influence &transmissionn)
     : RT_grid(n_emissions,transmissionn)
@@ -57,12 +49,8 @@ struct plane_parallel_grid : RT_grid
 
 
     radial_boundary_planes.resize(n_radial_boundaries);
-    //array<double,3> normal = {0., 0., 1.};
-    for (int i=0; i<n_radial_boundaries; i++) {
+    for (int i=0; i<n_radial_boundaries; i++) 
       radial_boundary_planes[i].z = radial_boundaries[i];
-      // radial_boundary_planes[i].normal = normal;
-      // radial_boundary_planes[i].constant = radial_boundaries[i];
-    }
 
     voxels_init=true;
     if (rays_init)
@@ -145,11 +133,6 @@ struct plane_parallel_grid : RT_grid
     //do the intersections for each coordinate
     vector<double> temp_distances;
     for (unsigned int ir=0;ir<radial_boundaries.size();ir++) {
-      //ray_plane(vec.GT_ray3, radial_boundary_planes[ir]);
-      // if (ray_plane.intersect) 
-      // 	boundaries.add_intersections(vec.pt.r, 0,
-      // 				     ir, radial_boundaries[ir], ray_plane.distance);
-
       temp_distances = radial_boundary_planes[ir].intersections(vec);
       if (temp_distances.size()>0) 
 	boundaries.add_intersections(vec.pt.r, 0,

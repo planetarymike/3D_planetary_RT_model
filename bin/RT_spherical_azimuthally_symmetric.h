@@ -7,7 +7,6 @@
 #include "coordinate_generation.h"
 #include "boundaries.h"
 #include "atmosphere.h"
-//#include "geometric_tools_interface.h"
 #include "intersections.h"
 #include <type_traits> 
 #include <fstream>
@@ -21,16 +20,12 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
   vector<double> radial_boundaries;
   vector<double> pts_radii;
   vector<sphere> radial_boundary_spheres;
-  // vector<Sphere3<double>> radial_boundary_spheres;
-  // ray_sphere_query ray_sphere;
 
   const int sza_dimension;
   int n_sza_boundaries;
   vector<double> sza_boundaries;
   vector<double> pts_sza;
   vector<cone> sza_boundary_cones;
-  // vector<Cone3<double>> sza_boundary_cones;
-  // ray_cone_query ray_cone;
 
 
   vector<int> n_boundaries;
@@ -76,12 +71,8 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     }
 
     radial_boundary_spheres.resize(n_radial_boundaries);
-    // array<double,3> origin = {0.,0.,0.};
-    for (int i=0; i<n_radial_boundaries; i++) {
+    for (int i=0; i<n_radial_boundaries; i++) 
       radial_boundary_spheres[i].set_radius(radial_boundaries[i]);
-      // radial_boundary_spheres[i].center = origin; 
-      // radial_boundary_spheres[i].radius = radial_boundaries[i];
-    }
 
 
 
@@ -99,18 +90,9 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     }
     
     sza_boundary_cones.resize(n_sza_boundaries-2);
-    for (int i=0;i<n_sza_boundaries-2;i++) {
+    for (int i=0;i<n_sza_boundaries-2;i++)
       sza_boundary_cones[i].set_angle(sza_boundaries[i+1]);
-	
-      // assert (sza_boundaries[i+1] != pi/2 && "sza_boundary = pi/2; choose an even number of sza boundaries.\n");
-      // if (sza_boundaries[i+1] < pi/2) {
-      // 	array<double,3> sun = {0.,0.,1.};
-      // 	sza_boundary_cones[i] = Cone3<double>(Ray3<double>(origin, sun), sza_boundaries[i+1]);
-      // } else (sza_boundaries[i+1] > pi/2) {
-      // 	array<double,3> sun = {0.,0.,-1.};
-      // 	sza_boundary_cones[i] = Cone3<double>(Ray3<double>(origin, sun), pi-sza_boundaries[i+1]);
-      // }
-    }
+
 
 
     int n_voxelss = pts_radii.size()*pts_sza.size();
@@ -229,10 +211,6 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       if (temp_distances.size()>0) 
 	boundaries.add_intersections(vec.pt.r, r_dimension,
 				     ir, radial_boundaries[ir], temp_distances);
-      // ray_sphere(vec.GT_ray3, radial_boundary_spheres[ir]);
-      // if (ray_sphere.intersect) 
-      // 	boundaries.add_intersections(vec.pt.r, 0,
-      // 				     ir, radial_boundaries[ir], ray_sphere.distances);
     }
 
     for (unsigned int isza=0;isza<sza_boundary_cones.size();isza++) {
@@ -240,10 +218,6 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       if (temp_distances.size() > 0)
       	boundaries.add_intersections(vec.pt.t, sza_dimension,
       				     isza+1, sza_boundaries[isza+1], temp_distances);
-      // ray_cone(vec.GT_ray3, sza_boundary_cones[isza]);
-      // if (ray_cone.intersect)
-      // 	boundaries.add_intersections(vec.pt.t, 1,
-      // 				     isza+1, sza_boundaries[isza+1], ray_cone.distances);
     }
 
     //sort the list of intersections by distance & trim

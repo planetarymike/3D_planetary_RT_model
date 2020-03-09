@@ -7,12 +7,9 @@
 #include <array>
 #include <cmath>
 #include <cassert>
-#include <Mathematics/Ray.h>
 
 using std::vector;
 using std::array;
-using gte::Ray3;
-
 
 struct atmo_point {
   double x, y, z;
@@ -89,8 +86,6 @@ struct atmo_vector {
   double line_x, line_y, line_z;//cartesian vector elements 
   bool init;
 
-  Ray3<double> GT_ray3;
-
   atmo_vector() {init=false;}
 
   atmo_vector(atmo_point ptt, atmo_ray rayy) : pt(ptt), ray(rayy)
@@ -108,11 +103,6 @@ struct atmo_vector {
       +ray.sint*sin(ray.p)*cos(pt.p);
     line_z = ray.cost*cos(pt.t)-cos(ray.p)*ray.sint*sin(pt.t);
 
-    array<double,3> xyz{pt.x,pt.y,pt.z};
-    array<double,3> line_xyz{line_x,line_y,line_z};
-    GT_ray3.origin=xyz;
-    GT_ray3.direction=line_xyz;
-    
     init = true;
   }
 
@@ -140,12 +130,6 @@ struct atmo_vector {
     
     ray.domega=1.0;
     ray.init=true;
-
-    array<double,3> xyz = {pt.x,pt.y,pt.z};
-    array<double,3> line_xyz = {line_x,line_y,line_z};
-    GT_ray3.origin=xyz;
-    GT_ray3.direction=line_xyz;
-
 
     init=true;
   }
