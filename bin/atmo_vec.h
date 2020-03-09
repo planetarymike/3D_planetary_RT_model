@@ -6,6 +6,7 @@
 #include <vector>
 #include <array>
 #include <cmath>
+#include <cassert>
 #include <Mathematics/Ray.h>
 
 using std::vector;
@@ -43,12 +44,9 @@ struct atmo_point {
   }
 
   void set_voxel_index(const int ii) {
-    if (init)
-      i_voxel = ii;
-    else
-      throw(99);
-  }
-  
+    assert(init && "point must be initialized to assign a voxel index.");
+    i_voxel = ii;
+  }  
 };
 
 struct atmo_ray {

@@ -14,6 +14,7 @@
 #include <Eigen/Dense> //matrix solvers
 #include <Eigen/StdVector>
 #include <string>
+#include <cassert>
 
 using std::string;
 using Eigen::VectorXd;
@@ -136,10 +137,7 @@ struct RT_grid {
   //given voxel, storing the result in v
   template <typename C, typename V>
   void voxel_function(C &obj, double (C::*function)(const atmo_point pt), V &v) {
-    if (!grid_init) {
-      std::cout << "initialize grid before calling member function";
-      throw(10);
-    }
+    assert(grid_init && "initialize grid before calling member function");
       
     for (int row=0;row<n_voxels;row++)
       v[row]=(obj.*function)(pts[row]);
@@ -155,15 +153,8 @@ struct RT_grid {
 		       double (C::*species_sigma_function)(const atmo_point),
 		       double (C::*absorber_density_function)(const atmo_point),
 		       double (C::*absorber_sigma_function)(const atmo_point)) {
-    if (n>n_emissions-1) {
-      std::cout << "attempt to set emissions greater than n_emissions in define_emitter.\n";
-      throw(0);
-    }
-
-    if (!grid_init) {
-      std::cout << "attempt to set emissions before initializing grid in define_emitter.\n";
-      throw(0);
-    }
+    assert(n<n_emissions && n>=0 && "attempt to set invalid emission in define_emitter");
+    assert(grid_init && "attempt to set emissions before initializing grid in define_emitter.");
 
     emission_names[n] = emission_name;
   
@@ -195,11 +186,7 @@ struct RT_grid {
 		      void (RT_grid::*function)(boundary_intersection_stepper& ,R& ),
 		      R &retval)
   {
-  
-    if (!all_emissions_init) {
-      std::cout << "!nitialize grid and influence function before calling voxel_traverse.\n";
-      throw(99);
-    }
+    assert(all_emissions_init && "!nitialize grid and influence function before calling voxel_traverse.");
   
     //get boundary intersections
     boundary_intersection_stepper stepper = ray_voxel_intersections(v);
@@ -294,10 +281,7 @@ struct RT_grid {
   }
 
   void solve() {
-    if (!all_emissions_init || !influence_matrix_init || !singlescat_init) {
-      std::cout << "initialize before solving!\n";
-      throw(99);
-    }
+    assert(all_emissions_init && influence_matrix_init && singlescat_init && "initialize before solving!");
   
     MatrixXd kernel(n_voxels,n_voxels);
   
@@ -368,10 +352,10 @@ struct RT_grid {
       
 	voxel_traverse(vec, &RT_grid::influence_update, max_tau_species);
       }
-    
-      if (omega-1.0 > 1e-6) {
+
+      if ((omega - 1.0 > 1e-6) || (omega - 1.0 < -1e-6)) {
 	std::cout << "omega != 4*pi\n";
-	throw(99);
+	throw(10);
       }
     
       //now compute the single scattering function:

@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <vector>
+#include <cassert>
 #include <boost/math/quadrature/exp_sinh.hpp>
 #include <boost/math/quadrature/tanh_sinh.hpp>
 //#include <boost/math/interpolators/cardinal_cubic_b_spline.hpp>
@@ -36,13 +37,16 @@ struct holstein_integrand {
   
   double operator()(double x) const {
     double phi = exp(-x*x);
-    if (order == 1) {
-      return phi*exp(-tau*phi);
-    } else if (order == 2) {
-      return phi*phi*exp(-tau*phi);
-    } else {
-      throw(99);
-    }
+    
+    assert((order == 1 || order == 2));
+
+    double retval;
+    if (order == 1)
+      retval = phi*exp(-tau*phi);
+    if (order == 2)
+      retval = phi*phi*exp(-tau*phi);
+
+    return retval;
   }    
 
 };

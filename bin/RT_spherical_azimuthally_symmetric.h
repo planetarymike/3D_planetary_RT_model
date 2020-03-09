@@ -32,6 +32,8 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
   // vector<Cone3<double>> sza_boundary_cones;
   // ray_cone_query ray_cone;
 
+
+  vector<int> n_boundaries;
   intersection_writer saver;
   bool save_intersections;
 
@@ -47,7 +49,9 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     r_dimension(0), sza_dimension(1)
     {
       n_dimensions = 2;
+      n_boundaries.resize(n_dimensions);
       sun_direction = {0.,0.,1.};
+      
       
       save_intersections = false;
       saver.fname = "intersections.dat";
@@ -98,20 +102,20 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     for (int i=0;i<n_sza_boundaries-2;i++) {
       sza_boundary_cones[i].set_angle(sza_boundaries[i+1]);
 	
+      // assert (sza_boundaries[i+1] != pi/2 && "sza_boundary = pi/2; choose an even number of sza boundaries.\n");
       // if (sza_boundaries[i+1] < pi/2) {
       // 	array<double,3> sun = {0.,0.,1.};
       // 	sza_boundary_cones[i] = Cone3<double>(Ray3<double>(origin, sun), sza_boundaries[i+1]);
-      // } else if (sza_boundaries[i+1] > pi/2) {
+      // } else (sza_boundaries[i+1] > pi/2) {
       // 	array<double,3> sun = {0.,0.,-1.};
       // 	sza_boundary_cones[i] = Cone3<double>(Ray3<double>(origin, sun), pi-sza_boundaries[i+1]);
-      // } else {
-      // 	std::cout << "sza_boundary = pi/2; choose an even number of sza boundaries.\n";
-      // 	throw(10);
       // }
     }
 
 
     int n_voxelss = pts_radii.size()*pts_sza.size();
+    n_boundaries[r_dimension] = n_radial_boundaries-1;
+    n_boundaries[sza_dimension] = n_sza_boundaries-1;
     init_arrays(n_voxelss);
     
     pts.resize(n_voxels);
@@ -247,7 +251,8 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     boundaries.propagate_indices();
     boundaries.assign_voxel_indices(this, &spherical_azimuthally_symmetric_grid::indices_to_voxel);
     boundaries.trim();
-
+    boundaries.check(n_boundaries,n_voxels);
+    
     if (save_intersections)
       saver.append_intersections(vec,boundaries);
 

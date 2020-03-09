@@ -7,6 +7,7 @@
 #include "atmo_vec.h"
 #include <vector>
 #include <cmath>
+#include <cassert>
 #include <iostream>
 #include <type_traits>
 #include <boost/numeric/odeint/integrate/integrate.hpp>
@@ -314,12 +315,8 @@ struct chamb_diff_1d : atmosphere {
     if (r>rexo)
       return 0.0;
     else {
-      if (r>=rmin)
-	return exp(lognCO2_thermosphere_spline(r));
-      else {
-	std::cout << "r<rmin in nCO2\n";
-	throw(99);
-      }
+      assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
+      return exp(lognCO2_thermosphere_spline(r));
     }
   }
 
@@ -332,23 +329,19 @@ struct chamb_diff_1d : atmosphere {
     if (r>rexo)
       return 0.0;
     else {
-      if (r>=rmin) {
-	vector<double> lognCO2thermosphere_tmp;
-	vector<double> lognHthermosphere_tmp;
-	vector<double> r_thermosphere_tmp;
+      assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
+      vector<double> lognCO2thermosphere_tmp;
+      vector<double> lognHthermosphere_tmp;
+      vector<double> r_thermosphere_tmp;
 
-	vector<double> nexo(2);
-	nexo[0] = log(nCO2exo);
-	nexo[1] = log(nHexo);
-	integrate( diffeq , nexo , rexo , r , thermosphere_step_r,
-		   push_back_quantities( &lognCO2thermosphere_tmp,
-					 &lognHthermosphere_tmp,
-					 &r_thermosphere_tmp ));
-	return exp(lognCO2thermosphere_tmp.back());
-      } else {
-	std::cout << "r<rmin in nCO2_exact\n";
-	throw(99);
-      }
+      vector<double> nexo(2);
+      nexo[0] = log(nCO2exo);
+      nexo[1] = log(nHexo);
+      integrate( diffeq , nexo , rexo , r , thermosphere_step_r,
+		 push_back_quantities( &lognCO2thermosphere_tmp,
+				       &lognHthermosphere_tmp,
+				       &r_thermosphere_tmp ));
+      return exp(lognCO2thermosphere_tmp.back());
     }
   }
 
@@ -360,12 +353,8 @@ struct chamb_diff_1d : atmosphere {
       if (r>rmindiffusion)
 	return exp(lognH_thermosphere_spline(r));
       else {
-	if (r>=rmin)
-	  return exp(lognH_thermosphere_spline(rmindiffusion));
-	else {
-	  std::cout << "r<rmin in nH\n";
-	  throw(99);
-	}
+	assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
+	return exp(lognH_thermosphere_spline(rmindiffusion));
       }
     }
   }
@@ -378,6 +367,7 @@ struct chamb_diff_1d : atmosphere {
     if (r>=rexo)
       return exosphere(r);
     else {
+      assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
       if (r>=rmindiffusion) {
 	vector<double> lognCO2thermosphere_tmp;
 	vector<double> lognHthermosphere_tmp;
@@ -390,15 +380,9 @@ struct chamb_diff_1d : atmosphere {
 		   push_back_quantities( &lognCO2thermosphere_tmp,
 					 &lognHthermosphere_tmp, 
 					 &r_thermosphere_tmp ));
-	return exp(lognHthermosphere_tmp.back());
-      } else {
-	if (r>=rmin)
-	  return nH_exact(rmindiffusion);
-	else {
-	  std::cout << "r<rmin in nH_exact\n";
-	  throw(99);
-	}
-      }
+	return  exp(lognHthermosphere_tmp.back());
+      } else 
+	return nH_exact(rmindiffusion);
     }
   }
 

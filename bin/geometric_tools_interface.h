@@ -30,10 +30,8 @@ public:
     distance.clear();
 
     if (Result.intersect) {
-      if (Result.numIntersections > 1) {
-	std::cout << "ray embedded in plane.\n";
-	throw(2);
-      }
+      assert(Result.numIntersections == 1
+	     && "Only one intersection is possible between a ray ans a plane.");
       intersect = true;
       distance.resize(1);
       distance[0]=Result.parameter;
@@ -53,16 +51,18 @@ public:
     distances.clear();
     
     if (Result.intersect) {
+      assert((Result.numIntersections==1||Result.numIntersection==2)
+	     && "only 1 or 2 intersections are possible between a ray and a sphere");
+
+      
       vector<double> test_distances;
-      if (Result.numIntersections == 1) {
+      if (Result.numIntersections == 1)
 	test_distances.push_back(Result.parameter[0]);
-      } else if (Result.numIntersections == 2) {
+      if (Result.numIntersections == 2) {
 	test_distances.push_back(Result.parameter[0]);
 	test_distances.push_back(Result.parameter[1]);
-      } else {
-	std::cout << "problem, more than two sphere intersections\n";
-	throw(2);
       }
+      
       for (auto d: test_distances) {
 	if ((d>tol) && !(distances.size() > 0 && d-distances.back()>tol) )
 	  distances.push_back(d);

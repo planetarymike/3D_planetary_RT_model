@@ -76,7 +76,7 @@ private:
   double cosangle2;
 
   bool samesign(double a, double b) {
-    if ((a>=0&&b>=0) || (a<0&&b<0))
+    if ((a>0&&b>0) || (a<0&&b<0) || (a==0&&b==0))
       return true;
     else
       return false;
@@ -84,7 +84,7 @@ private:
 
   bool is_zero(double a) {
     double tol = 1e-10;
-    if (a>tol || -a < -tol)
+    if (a > tol || a < -tol)
       return false;
     else
       return true;
@@ -106,7 +106,7 @@ public:
     double C = vec.pt.z * vec.pt.z - vec.pt.r * vec.pt.r * cosangle2;
     
     if (!is_zero(A)) {
-      double discr = B*B-C;
+      double discr = B*B-A*C;
 
       if (discr > 0) {
 	discr = std::sqrt(discr);

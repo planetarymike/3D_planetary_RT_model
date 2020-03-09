@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <vector>
 #include <limits>
+#include <iostream>
+#include <stdexcept>
 
 using std::vector;
 
@@ -54,12 +56,8 @@ struct boundary_set {
   }
 
   void append(boundary b) {
-    if (b.entering_indices.size() == n_dimensions) {
-      boundaries.push_back(b);
-    } else {
-      std::cout << "boundary does not match dimensions of set.\n";
-      throw(99);
-    }
+    assert(b.entering_indices.size() == n_dimensions && "boundary must match dimensions of set.");
+    boundaries.push_back(b);
   }
 
   template<class T>
@@ -115,13 +113,45 @@ struct boundary_set {
       end++;
     } while (boundaries[end].entering != -1 && end < boundaries.size()-1);
     
-    if (begin == boundaries.size() || end == begin || boundaries[end].entering != -1) {
-      std::cout << "boundary errors in ray_voxel_intersections.\n";
-      throw(99);
-    }
+    assert(begin < boundaries.size() && "trim error in boundary_set: no valid voxels.");
+    assert(end != begin && "trim error in boundary_set: only one valid intersection.");
+    assert(boundaries[end].entering == -1 && "trim error in boundary_set: ray does not exit grid");
 
     boundaries = vector<boundary>(boundaries.begin()+begin, boundaries.begin()+end+1);
   }
+
+  
+  void check(const vector<int> &n_bounds, const int &n_voxels) {
+    assert(boundaries.size() > 1 && "there must be more than one boundary crossing for each ray");
+
+    for (unsigned int i=1;i<boundaries.size();i++) {
+      int n_dims_changing = 0;
+      for (unsigned int j=0;j<n_dimensions;j++) {
+	assert(boundaries[i].entering_indices[j] >= -1
+	       && "entering index must be greater than -1.");
+	assert(boundaries[i].entering_indices[j] <= n_bounds[j]
+	       && "entering index must be less than the number of voxels in this dimension.");
+		  
+	int diff = boundaries[i].entering_indices[j] - boundaries[i-1].entering_indices[j];
+
+	if (diff==0)
+	  continue;
+
+	//we only get here if this boundary index is changing
+	n_dims_changing++;
+	assert(n_dims_changing <=1 && "only one boundary can be crossed at a time.");
+	assert((diff==1||diff==-1) && "changes in each dimension must be continuous.");
+      }	
+
+      assert(boundaries[i].entering < n_voxels
+	     && boundaries[i].entering >= -1
+	     && "voxel index must be in bounds.");
+
+    }
+
+
+  }
+  
 };
 
 
@@ -163,20 +193,18 @@ struct boundary_intersection_stepper {
   }
 
   void origin() {
-    if (init) {
-      inside = true;
-      i_boundary = 1;
+    assert(init && "boundary_stepper must be initialized before calling origin().");
+
+    inside = true;
+    i_boundary = 1;
       
-      current_voxel = start_voxel;
-      pathlength = boundaries[1].distance - boundaries[0].distance;
+    current_voxel = start_voxel;
+    pathlength = boundaries[1].distance - boundaries[0].distance;
       
-      tau_species_initial.resize(n_emissions,0.);
-      tau_species_final.resize(n_emissions,0.);
-      tau_absorber_initial.resize(n_emissions,0.);
-      tau_absorber_final.resize(n_emissions,0.);
-    } else {
-      throw(99);
-    }
+    tau_species_initial.resize(n_emissions,0.);
+    tau_species_final.resize(n_emissions,0.);
+    tau_absorber_initial.resize(n_emissions,0.);
+    tau_absorber_final.resize(n_emissions,0.);
   }
 
   void next() {
