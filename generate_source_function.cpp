@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
   double exobase_temp = 200;//K
   krasnopolsky_temperature temp(exobase_temp);
 
-  double H_exobase_density = 1e6;// cm-3
+  double H_exobase_density = 1e5;// cm-3
   double CO2_exobase_density = 2e8;//cm-3
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,
@@ -27,8 +27,13 @@ int main(int argc, char* argv[]) {
   // grid.setup_voxels(160, atm);
   // grid.setup_rays(10);
   spherical_azimuthally_symmetric_grid grid(n_emissions, hol);
+
   //grid.save_intersections = true;
-  grid.setup_voxels(80, 20/*20 for 10 deg increments*/, atm);
+
+  grid.rmethod = grid.rmethod_altitude;
+  //grid.rmethod = grid.rmethod_lognH;
+
+  grid.setup_voxels(20, 20/*20 for 10 deg increments*/, atm);
   grid.setup_rays(6, 12);
 
   
