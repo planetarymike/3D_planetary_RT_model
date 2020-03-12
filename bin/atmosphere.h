@@ -5,6 +5,7 @@
 
 #include "constants.h"
 #include "atmo_vec.h"
+#include "interp.h"
 #include <vector>
 #include <cmath>
 #include <cassert>
@@ -15,6 +16,7 @@
 #include <boost/numeric/odeint/stepper/runge_kutta4.hpp>
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/interpolators/cardinal_cubic_b_spline.hpp>
+#include <boost/math/tools/roots.hpp>
 
 using std::exp;
 using std::log;
@@ -193,6 +195,15 @@ struct atmosphere {
       ret[i] = nH(pts[i]);
     return ret;
   }
+  virtual double nH(const double r) {
+    //return subsolar densities if not overridden
+    atmo_point p;
+    p.rtp(r,0.,0.);
+    return nH(p);
+  }
+
+  virtual double r_from_nH(const double nH) { return 0; }
+
   virtual double nCO2(const atmo_point pt) { return 0; };
   virtual vector<double> nCO2(const vector<atmo_point> pts) {
     vector<double> ret;
@@ -201,12 +212,40 @@ struct atmosphere {
       ret[i] = nCO2(pts[i]);
     return ret;
   }
-  
+  virtual double nCO2(const double r) {
+    //return subsolar densities if not overridden
+    atmo_point p;
+    p.rtp(r,0.,0.);
+    return nCO2(p);
+  }
+
   atmosphere(double rminn, double rexoo, double rmaxx)
     : rmin(rminn), rexo(rexoo), rmax(rmaxx) { }
 
   double s_null(const atmo_point pt) {
     return 0.0;
+  }
+
+  //really ought to refactor so cross section info is stored in a
+  //totally seperate object
+  virtual double sH_lya(const atmo_point pt) {
+    return 0.0;
+  }
+  virtual double sH_lya(const double r) {
+    //return subsolar densities if not overridden
+    atmo_point p;
+    p.rtp(r,0.,0.);
+    return sH_lya(p);
+  }
+  
+  virtual double sCO2_lya(const atmo_point pt) {
+    return 0.0;
+  }
+  virtual double sCO2_lya(const double r) {
+    //return subsolar densities if not overridden
+    atmo_point p;
+    p.rtp(r,0.,0.);
+    return sCO2_lya(p);
   }
 
 };
@@ -215,11 +254,13 @@ struct atmosphere {
 //now a structure to hold the atmosphere and interpolate when
 //necessary
 struct chamb_diff_1d : atmosphere {
-  double rmindiffusion; // cm, minimum altitude to solve the diffusion equation 
-
   double nHexo;   // cm-3, H density at exobase
   double nCO2exo; // cm-3, CO2 density at exobase
 
+  double rmindiffusion; // cm, minimum altitude to solve the diffusion equation 
+  double nHrmindiffusion; // nH at this altitude
+  double nCO2rmindiffusion;
+  
   temperature &temp;
   chamberlain_exosphere exosphere;
   thermosphere_diffeq diffeq;
@@ -231,10 +272,9 @@ struct chamb_diff_1d : atmosphere {
   vector<double> lognHthermosphere;
   vector<double> r_thermosphere;
   cardinal_cubic_b_spline<double> lognCO2_thermosphere_spline;
+  Linear_interp invlognCO2_thermosphere;
   cardinal_cubic_b_spline<double> lognH_thermosphere_spline;
-  cardinal_cubic_b_spline<double> tauH_spline;
-  cardinal_cubic_b_spline<double> tauCO2_spline;
-  cardinal_cubic_b_spline<double> taueff_spline;
+  Linear_interp invlognH_thermosphere;
   
   //exosphere interpolation
   int n_exosphere_steps;
@@ -242,6 +282,7 @@ struct chamb_diff_1d : atmosphere {
   vector<double> lognHexosphere;
   vector<double> logr_exosphere;
   cardinal_cubic_b_spline<double> lognH_exosphere_spline;
+  Linear_interp invlognH_exosphere;
 
   chamb_diff_1d(double nHexoo, // a good number is 10^5-6
 		double nCO2exoo, //a good number is 10^9 (?)
@@ -262,9 +303,9 @@ struct chamb_diff_1d : atmosphere {
 		double nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp)
     : atmosphere(rminn,rexoo,rmaxx),
-      rmindiffusion(rmindiffusionn),
       nHexo(nHexoo),
       nCO2exo(nCO2exoo),
+      rmindiffusion(rmindiffusionn),
       temp(tempp), 
       exosphere(rexo, temp.T_exo, nHexo),
       diffeq(tempp, exosphere.H_escape_flux, rexo)      
@@ -290,10 +331,15 @@ struct chamb_diff_1d : atmosphere {
 								  lognCO2thermosphere.rend(),
 								  rmin,
 								  -thermosphere_step_r);
+    invlognCO2_thermosphere = Linear_interp(lognCO2thermosphere,r_thermosphere);
     lognH_thermosphere_spline = cardinal_cubic_b_spline<double>(lognHthermosphere.rbegin(),
 								lognHthermosphere.rend(),
 								rmin,
 								-thermosphere_step_r);
+    invlognH_thermosphere = Linear_interp(lognHthermosphere,r_thermosphere);
+
+    nHrmindiffusion = nH(rmindiffusion);
+    nCO2rmindiffusion = nCO2(rmindiffusion);
     
     //now get the interpolation points in the exosphere
     n_exosphere_steps = 20;
@@ -306,8 +352,8 @@ struct chamb_diff_1d : atmosphere {
 							     lognHexosphere.end(),
 							     log(rexo),
 							     exosphere_step_logr);
+    invlognH_exosphere = Linear_interp(lognHexosphere,logr_exosphere);
 
-    compute_optical_depths();
   }
 
 
@@ -324,6 +370,52 @@ struct chamb_diff_1d : atmosphere {
     return nCO2(pt.r);
   }
 
+
+  double nH(const double &r) {
+    if (r>=rexo)
+      return exp(lognH_exosphere_spline(log(r)));
+    else {
+      if (r>=rmindiffusion)
+	return exp(lognH_thermosphere_spline(r));
+      else {
+	assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
+	return nHrmindiffusion/nCO2rmindiffusion*nCO2(r);
+      }
+    }
+  }
+
+  double nH(const atmo_point pt) {
+    return nH(pt.r);
+  }
+
+  double sH_lya(const double r) {
+    temp.get(r);
+    return lyman_alpha_line_center_cross_section_coef/sqrt(temp.T);
+  }    
+  double sH_lya(const atmo_point pt) {
+    return sH_lya(pt.r);
+  }
+
+  double sCO2_lya(const double r) {
+    return CO2_lyman_alpha_absorption_cross_section;
+  }
+  double sCO2_lya(const atmo_point pt) {
+    return sCO2_lya(pt.r);
+  }
+
+
+  double r_from_nH(double nHtarget) {
+    if (nHtarget==nHexo) {
+      return rexo;
+    } else if (nHtarget<nHexo) {
+      return exp(invlognH_exosphere(log(nHtarget)));
+    } else if (nHtarget>nHrmindiffusion) {
+      return invlognCO2_thermosphere(log(nHtarget*nCO2rmindiffusion/nHrmindiffusion));
+    } else {
+      return invlognH_thermosphere(log(nHtarget));
+    }
+  }
+  
 
   double nCO2_exact(const double &r) {
     if (r>rexo)
@@ -346,23 +438,6 @@ struct chamb_diff_1d : atmosphere {
   }
 
 
-  double nH(const double &r) {
-    if (r>=rexo)
-      return exp(lognH_exosphere_spline(log(r)));
-    else {
-      if (r>rmindiffusion)
-	return exp(lognH_thermosphere_spline(r));
-      else {
-	assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
-	return exp(lognH_thermosphere_spline(rmindiffusion));
-      }
-    }
-  }
-
-  double nH(const atmo_point pt) {
-    return nH(pt.r);
-  }
-  
   double nH_exact(const double &r) {
     if (r>=rexo)
       return exosphere(r);
@@ -382,84 +457,14 @@ struct chamb_diff_1d : atmosphere {
 					 &r_thermosphere_tmp ));
 	return  exp(lognHthermosphere_tmp.back());
       } else 
-	return nH_exact(rmindiffusion);
+	return nH_exact(rmindiffusion)/nCO2_exact(rmindiffusion)*nCO2_exact(r);
     }
   }
 
-  double sH_lya(const double r) {
-    temp.get(r);
-    return lyman_alpha_line_center_cross_section_coef/sqrt(temp.T);
-  }    
-  double sH_lya(const atmo_point pt) {
-    return sH_lya(pt.r);
-  }
-
-  double sCO2_lya(const double r) {
-    return CO2_lyman_alpha_absorption_cross_section;
-  }
-  double sCO2_lya(const atmo_point pt) {
-    return sCO2_lya(pt.r);
-  }
-
-
-  
-  template <typename T>
-  struct optical_depth_integrator {
-    T *atm;
-    
-    optical_depth_integrator(T* atmm) : atm(atmm) { }
-    
-    void operator()( const vector<double> &x , vector<double> &dxdr , const double &r ) {
-      dxdr[0] = -1*atm->nH(r)*atm->sH_lya(r);
-      dxdr[1] = -1*atm->nCO2(r)*atm->sCO2_lya(r);
-      dxdr[2] = dxdr[0]*exp(-x[1]);
-    }
-  };
-
-  void compute_optical_depths() {
-    optical_depth_integrator<chamb_diff_1d> opt(this);
-
-    vector<double> tau(3,0);
-    runge_kutta4< vector<double> > stepper;
-    double km_step = -2.5e5;
-
-    vector<double> tauH;
-    vector<double> tauCO2;
-    vector<double> taueff;
-    vector<double> r;
-    
-    integrate_const( stepper , opt,
-		     tau , rmax , rmin , km_step,
-		     push_back_quantities( &tauH,
-					   &tauCO2,
-					   &taueff,
-					   &r)
-		     );
-		     
-    //interpolate the densities in the thermosphere
-    tauH_spline = cardinal_cubic_b_spline<double>(tauH.rbegin(),
-						  tauH.rend(),
-						  rmax,
-						  -km_step);
-    tauCO2_spline = cardinal_cubic_b_spline<double>(tauCO2.rbegin(),
-						    tauCO2.rend(),
-						    rmax,
-						    -km_step);
-    taueff_spline = cardinal_cubic_b_spline<double>(taueff.rbegin(),
-						    taueff.rend(),
-						    rmax,
-						    -km_step);
-  }
-    
 
 
   
 };
-
-
-
-
-
 
 
 

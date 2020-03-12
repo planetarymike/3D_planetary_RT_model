@@ -11,12 +11,18 @@
 #include <type_traits> 
 #include <fstream>
 #include <cmath>
+#include <string>
+#include <boost/math/interpolators/barycentric_rational.hpp> // for spacing gridpoints in optical depth
 
 struct spherical_azimuthally_symmetric_grid : RT_grid
 {
 
   const int r_dimension;
   int n_radial_boundaries;
+  int rmethod;
+  static const int rmethod_altitude = 0;
+  static const int rmethod_lognH = 1;
+  
   vector<double> radial_boundaries;
   vector<double> pts_radii;
   vector<sphere> radial_boundary_spheres;
@@ -46,25 +52,43 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       n_dimensions = 2;
       n_boundaries.resize(n_dimensions);
       sun_direction = {0.,0.,1.};
-      
+      rmethod = rmethod_altitude;
+      //rmethod = rmethod_tauH;
       
       save_intersections = false;
       saver.fname = "intersections.dat";
     }
-  
+
   void setup_voxels(int n_radial_boundariess,
 		    int n_sza_boundariess,
-		    atmosphere atm)    
+		    atmosphere &atm)    
   {
     n_radial_boundaries = n_radial_boundariess;
-      
+    
     rmin = atm.rmin;
     rmax = atm.rmax;
 
-    get_radial_log_linear_points(radial_boundaries, 
-				 n_radial_boundaries,
-				 atm.rmin, atm.rexo, atm.rmax);
+    assert((rmethod == rmethod_altitude || rmethod == rmethod_lognH)
+	   && "rmethod must match a defined radial points method");
 
+    // don't define a tau radial points method; tau < 0.1 is
+    // important and max(tau) > 10; this leads to many required
+    // gridpoints
+    
+    if (rmethod == rmethod_altitude)
+      get_radial_log_linear_points(radial_boundaries, n_radial_boundaries,
+				   atm.rmin, atm.rexo, atm.rmax);
+    if (rmethod == rmethod_lognH) {
+      double lognH_max = log(atm.nH(atm.rmin));
+      double lognH_min = log(atm.nH(atm.rmax));
+      double lognH_step = (lognH_max-lognH_min)/(n_radial_boundaries-1.);
+      
+      for(int i=0;i<n_radial_boundaries;i++) {
+	double nH_target=exp(lognH_max-i*lognH_step);
+	radial_boundaries.push_back(atm.r_from_nH(nH_target));
+      }
+    }
+    
     pts_radii.resize(n_radial_boundaries-1);
     for (int i=0; i<n_radial_boundaries-1; i++) {
       pts_radii[i]=sqrt(radial_boundaries[i]*radial_boundaries[i+1]);
