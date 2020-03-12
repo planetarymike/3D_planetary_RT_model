@@ -246,8 +246,7 @@ struct RT_grid {
 
 
   void get_single_scattering_optical_depths(boundary_intersection_stepper& stepper, double& max_tau_species) {
-    //update the influence matrix for each emission
-  
+    
     for (int i_emission=0; i_emission < n_emissions; i_emission++) {
       tau_species_single_scattering[i_emission](stepper.start_voxel) += (dtau_species[i_emission](stepper.current_voxel)
 									 * stepper.pathlength);
@@ -369,16 +368,80 @@ struct RT_grid {
   
     //solve for the source function
     solve();
-  
+    solved = true;
+
     //std::cout << "max_tau_species = " << max_tau_species << std::endl;
   
     // print time elapsed
     clk.stop();
     clk.print_elapsed();
-  
+    
     return;
   }
+  
+  struct los_container {
+    vector<double> tau_species;
+    vector<double> tau_absorber;
+    vector<double> brightness;
+    
+    los_container(int n_emissionss) {
+      tau_species.resize(n_emissionss,0.);
+      tau_absorber.resize(n_emissionss,0.);
+      brightness.resize(n_emissionss,0.);
+    }
+  };
 
+  void brightness_traverse(boundary_intersection_stepper& stepper, los_container &los) {
+    for (int i_emission=0; i_emission < n_emissions; i_emission++) {
+      los.tau_species[i_emission] += (dtau_species[i_emission](stepper.current_voxel)
+				      * stepper.pathlength);
+
+      if (stepper.exits_top) {
+	los.tau_absorber[i_emission] += (dtau_absorber[i_emission](stepper.current_voxel)
+					 * stepper.pathlength);
+      } else {
+	los.tau_absorber[i_emission] = -1;
+      }
+
+      los.brightness[i_emission] += (sourcefn[i_emission](stepper.current_voxel)
+
+				     *(transmission.Tint(stepper.tau_species_initial[i_emission])
+				       - transmission.Tint(stepper.tau_species_final[i_emission]) 
+
+				       - (abs[i_emission](stepper.current_voxel)
+
+					  *(transmission.Tintint(stepper.tau_species_final[i_emission])
+					    - transmission.Tintint(stepper.tau_species_initial[i_emission])))));
+    }
+  }
+
+
+  vector<double> brightness(atmo_vector &vec) {
+    assert(solved && "equation must be solved before brightness can be integrated!");
+    
+    los_container los(n_emissions);
+    
+    voxel_traverse(vec,
+		   &RT_grid::brightness_traverse,
+		   los);
+
+    
+    return los.brightness;
+  }
+  vector<vector<double>> brightness(vector<atmo_vector> &vecs) {
+    vector<vector<double>> retval;
+    
+    retval.resize(vecs.size());
+    for(unsigned int i=0; i<vecs.size(); i++) {
+      retval[i].resize(n_emissions);
+      retval[i] = brightness(vecs[i]);
+    }
+
+    return retval;
+  }
+  
+
+  
 };
 
 

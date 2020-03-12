@@ -22,8 +22,29 @@ using boost::math::quadrature::tanh_sinh;
 using boost::math::interpolators::cardinal_cubic_b_spline;
 
 struct influence {
+  virtual double Tintint(const double /*tau*/) { return 0; };
+  vector<double> Tintint(vector<double> tau) {
+    vector<double> retval;
+    for( auto t: tau)
+      retval.push_back(Tintint(t));
+    return retval;
+  }
+
   virtual double Tint(const double /*tau*/) { return 0; };
+  vector<double> Tint(vector<double> tau) {
+    vector<double> retval;
+    for( auto t: tau)
+      retval.push_back(Tint(t));
+    return retval;
+  }
+
   virtual double T(const double /*tau*/) { return 0; };
+  vector<double> T(vector<double> tau) {
+    vector<double> retval;
+    for( auto t: tau)
+      retval.push_back(T(t));
+    return retval;
+  }
 };
 
 struct holstein_integrand {
@@ -79,24 +100,41 @@ struct holstein_exact {
 //make faster somehow?? startup takes ~0.5s
 //also, still not sure how to prove this integral is convergent
 struct holstein_T_integral_exact {
-  holstein_exact exact;
-  tanh_sinh<double> integrator;
 
   holstein_T_integral_exact() { }
 
-  double operator()(double tau) {
-    
-    double result = integrator.integrate(exact, 0.0, tau);
+  double operator()(double tau) const {
+    holstein_exact exact;
+    tanh_sinh<double> integrator;
+
+    double result = integrator.integrate(exact, 0.0, tau, 0.01);
 
     return result;
   }
 
 };
 
+struct holstein_Tint_integral_exact {
+
+  holstein_Tint_integral_exact() { }
+
+  double operator()(double tau) const {
+    holstein_T_integral_exact exact;
+    tanh_sinh<double> integrator;
+    
+    double result = integrator.integrate(exact, 0.0, tau, 0.01);
+
+    return result;
+  }
+
+};
+
+
 struct holstein_approx : influence {
   holstein_exact exact;
   holstein_T_integral_exact Tint_exact;
-  
+  holstein_Tint_integral_exact Tintint_exact;
+
   double taumin;
   double taumax;
   double ntau;
@@ -105,10 +143,12 @@ struct holstein_approx : influence {
   vector<double> logG;
   vector<double> logT;
   vector<double> logTint;
+  vector<double> logTintint;
 
   cardinal_cubic_b_spline<double> loglogGspline;
   cardinal_cubic_b_spline<double> loglogTspline;
   cardinal_cubic_b_spline<double> loglogTintspline;
+  cardinal_cubic_b_spline<double> loglogTintintspline;
 
   holstein_approx(double tauminn=1e-6,
 		  double taumaxx=1e6,
@@ -123,6 +163,7 @@ struct holstein_approx : influence {
       logG.push_back(    log( exact.result(       exp( logtau[itau] ), 2)));
       logT.push_back(    log( exact.result(       exp( logtau[itau] ), 1)));
       logTint.push_back( log(   Tint_exact(       exp( logtau[itau] )   )));
+      logTintint.push_back( log(   Tintint_exact(       exp( logtau[itau] )   )));
     }
 
     loglogGspline = cardinal_cubic_b_spline<double>(logG.begin(),
@@ -137,37 +178,51 @@ struct holstein_approx : influence {
     						       logTint.end(),
     						       logtaumin,
     						       logtaustep);
+    loglogTintintspline = cardinal_cubic_b_spline<double>(logTint.begin(),
+							  logTint.end(),
+							  logtaumin,
+							  logtaustep);
 
     
   }
 
 
 
-  double Tint(const double tau) {
+  double Tintint(const double tau) {
+    assert(tau<taumax && "tau must be in the simulated range.");
+
     if (tau < taumin) {
       return 0.0;
-    } else if (tau > taumax) {
-      return exp(loglogTintspline(log(taumax)));;
     } else {
       return exp(loglogTintspline(log(tau)));
     }
   }
 
+  double Tint(const double tau) {
+    assert(tau<taumax && "tau must be in the simulated range.");
+
+    if (tau < taumin) {
+      return 0.0;
+    }  else {
+      return exp(loglogTintspline(log(tau)));
+    }
+  }
+
   double T(const double tau) {
+    assert(tau<taumax && "tau must be in the simulated range.");
+
     if (tau < taumin) {
       return 1.0;
-    } else if (tau > taumax) {
-      return 0.0;
     } else {
       return exp(loglogTspline(log(tau)));
     }
   }
 
   double G(const double tau) {
+    assert(tau<taumax && "tau must be in the simulated range.");
+
     if (tau < taumin) {
       return M_SQRT1_2; // 1/sqrt(2)
-    } else if (tau > taumax) {
-      return 0.0;
     } else {
       return exp(loglogGspline(log(tau)));
     }

@@ -47,6 +47,10 @@ struct boundary_set {
     return boundaries[i];
   }
 
+  boundary back() {
+    return boundaries.back();
+  }
+  
   unsigned int size() {
     return boundaries.size();
   }
@@ -143,6 +147,11 @@ struct boundary_set {
 	assert((diff==1||diff==-1) && "changes in each dimension must be continuous.");
       }	
 
+      assert((boundaries.back().entering_indices[0] == -1 ||
+	      boundaries.back().entering_indices[0] == n_bounds[0])
+	     && "ray must exit grid radially via the top or bottom");
+
+
       assert(boundaries[i].entering < n_voxels
 	     && boundaries[i].entering >= -1
 	     && "voxel index must be in bounds.");
@@ -165,6 +174,8 @@ struct boundary_intersection_stepper {
   boundary_set boundaries;
 
   bool inside;
+  bool exits_bottom;
+  bool exits_top;
   unsigned int i_boundary;
 
   int start_voxel;
@@ -189,6 +200,14 @@ struct boundary_intersection_stepper {
     tau_absorber_initial.resize(n_emissions,0.);
     tau_absorber_final.resize(n_emissions,0.);
 
+    if (boundaries.back().entering_indices[0] == -1) {
+      exits_bottom = true;
+      exits_top = false;
+    } else {
+      exits_bottom = false;
+      exits_top = false;
+    }
+    
     init=true;
   }
 
