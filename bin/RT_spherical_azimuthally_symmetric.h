@@ -359,6 +359,21 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     spherical_azimuthally_symmetric_interp dtau_absorber;
     spherical_azimuthally_symmetric_interp abs;
     spherical_azimuthally_symmetric_interp sourcefn;
+
+    spherical_azimuthally_symmetric_grid_interpolator() { }
+    
+    template <typename T>
+    spherical_azimuthally_symmetric_grid_interpolator(VectorXd &dtau_speciess,
+						      VectorXd &dtau_absorberr,
+						      VectorXd &abss,
+						      VectorXd &sourcefnn,
+						      T *parent) {
+      dtau_species = spherical_azimuthally_symmetric_interp(dtau_speciess, parent);
+      dtau_absorber = spherical_azimuthally_symmetric_interp(dtau_absorberr, parent);
+      abs = spherical_azimuthally_symmetric_interp(abss, parent);
+      sourcefn = spherical_azimuthally_symmetric_interp(sourcefnn, parent);
+    }
+
   }; 
 
   vector<spherical_azimuthally_symmetric_grid_interpolator> internal_interp;
@@ -368,20 +383,14 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     internal_interp.resize(n_emissions);
 
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      internal_interp[i_emission].dtau_species  = spherical_azimuthally_symmetric_interp(dtau_species[i_emission],
-											 this);
+      internal_interp[i_emission] = spherical_azimuthally_symmetric_grid_interpolator(dtau_species[i_emission],
+										      dtau_absorber[i_emission],
+										      abs[i_emission],
+										      sourcefn[i_emission],
+										      this);
       interp[i_emission].dtau_species = &internal_interp[i_emission].dtau_species;
-      
-      internal_interp[i_emission].dtau_absorber = spherical_azimuthally_symmetric_interp(dtau_absorber[i_emission],
-											 this);
       interp[i_emission].dtau_absorber = &internal_interp[i_emission].dtau_absorber;
-      
-      internal_interp[i_emission].abs           = spherical_azimuthally_symmetric_interp(abs[i_emission],
-											 this);
       interp[i_emission].abs = &internal_interp[i_emission].abs;
-      
-      internal_interp[i_emission].sourcefn      = spherical_azimuthally_symmetric_interp(sourcefn[i_emission],
-											 this);
       interp[i_emission].sourcefn = &internal_interp[i_emission].sourcefn;
     }
     interp_init=true;
