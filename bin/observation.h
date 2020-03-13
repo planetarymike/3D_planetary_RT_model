@@ -63,14 +63,15 @@ struct observation {
       }
   }
 
-  void fake(double angle_deg, int nsamples) {
+  void fake(vector<double> loc = {0.,-30*rMars,0.},
+	    double angle_deg = 30,
+	    int nsamples = 300) {
     
     double angle_rad = M_PI/180. * angle_deg;
     double dangle_rad = 2*angle_rad/(nsamples-1);
     
     n_obs = nsamples*nsamples;
     
-    vector<double> loc = {0.,-20*rMars,0.};
     location_model.resize(n_obs,loc);
 
     atmo_point pt;

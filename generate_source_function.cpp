@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
   grid.szamethod = grid.szamethod_uniform_cos;
   
   
-  grid.setup_voxels(20, 20/*20 for 10 deg increments*/, atm);
+  grid.setup_voxels(60, 20/*20 for 10 deg increments with sza_uniform*/, atm);
   grid.setup_rays(6, 12);
 
   
@@ -56,7 +56,8 @@ int main(int argc, char* argv[]) {
 
   //get some fake coordinates
   observation obs(n_emissions, grid.emission_names);
-  obs.fake(30,600);
+  vector<double> loc = {0.,-30*rMars,0.};
+  obs.fake(loc,30,300);
   grid.brightness(obs);
   obs.save_brightness("test/test_brightness.dat");
   grid.interp_brightness(obs);
