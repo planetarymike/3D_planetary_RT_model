@@ -7,12 +7,12 @@
 #include "coordinate_generation.h"
 #include "boundaries.h"
 #include "atmosphere.h"
+#include "interp.h"
 #include "intersections.h"
 #include <type_traits> 
 #include <fstream>
 #include <cmath>
 #include <string>
-#include <boost/math/interpolators/barycentric_rational.hpp> // for spacing gridpoints in optical depth
 
 struct spherical_azimuthally_symmetric_grid : RT_grid
 {
@@ -203,7 +203,14 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       if (pt_coord < boundaries[i])
 	break;
 
-    return i--;
+    i--;
+
+    assert((boundaries.back()<=pt_coord ||
+	    pt_coord < boundaries[0] ||
+	    (boundaries[i]<=pt_coord &&pt_coord<boundaries[i+1]))
+	   && "we have found the appropriate point index");
+    
+    return i;
   }
 
   vector<int> point_to_indices(const atmo_point pt) {
@@ -220,11 +227,13 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 
     //define the origin
     boundary origin(n_dimensions);
-    origin.entering = vec.pt.i_voxel;
-    if (vec.pt.i_voxel == -1)
+    if (vec.pt.i_voxel == -1) {
       origin.entering_indices = point_to_indices(vec.pt);
-    else
+      origin.entering = indices_to_voxel(origin.entering_indices);
+    } else {
+      origin.entering = vec.pt.i_voxel;
       origin.entering_indices = voxel_to_indices(origin.entering);
+    }
     origin.distance = 0.0;
     boundaries.append(origin);
 
@@ -254,18 +263,9 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     if (save_intersections)
       saver.append_intersections(vec,boundaries);
 
-    boundary_intersection_stepper stepper(vec,
-					  boundaries,
-					  n_emissions);
-
-    
-
-    return stepper;
+    return boundary_intersection_stepper(vec, boundaries);
   }
 
-
-
-  
   VectorXd sza_slice(VectorXd quantity, int i_sza) {
     VectorXd ret;
     vector<int> indices(n_dimensions,i_sza);
@@ -278,7 +278,93 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     
     return ret;
   }
+
+
   
+  class spherical_azimuthally_symmetric_interp : public qinterp {
+    Bilinear_interp terp;
+  public:
+    spherical_azimuthally_symmetric_interp() : qinterp() { }
+
+    template <class T>
+    spherical_azimuthally_symmetric_interp(VectorXd &input,
+					   T *parent)
+    {
+      MatrixXd data;
+      vector<double> log_radii;
+      vector<double> szas;
+
+      int nrpts = parent->pts_radii.size();
+      int nlogradii = nrpts+2;
+      int nsza = parent->pts_sza.size();
+      
+      data.resize(nlogradii,nsza);
+
+      log_radii.push_back(log(parent->radial_boundaries[0]));
+      for (int i=0;i<nrpts;i++) 
+	log_radii.push_back(log(parent->pts_radii[i]));
+      log_radii.push_back(log(parent->radial_boundaries.back()));
+
+      for (int j=0;j<nsza;j++) 
+	szas.push_back(parent->pts_sza[j]);
+
+      vector<int> idx(2,0);
+      for (int i=0;i<nlogradii;i++) {
+	for (int j=0;j<nsza;j++) {
+	  if (i==0) {
+	    idx[0]=0; idx[1]=j;
+	  } else if (i==nlogradii-1) {
+	    idx[0]=nrpts-1; idx[1]=j;
+	  } else {
+	    idx[0]=i-1; idx[1]=j;
+	  }
+	  data(i,j) = input(parent->indices_to_voxel(idx));
+	}
+      }
+
+      terp = Bilinear_interp(log_radii, szas, data);
+    }
+
+    double interp(const atmo_point pt) { 
+      return terp.interp(log(pt.r),pt.t);
+    }
+
+  };
+
+  class spherical_azimuthally_symmetric_grid_interpolator {
+  public:
+    spherical_azimuthally_symmetric_interp dtau_species;
+    spherical_azimuthally_symmetric_interp dtau_absorber;
+    spherical_azimuthally_symmetric_interp abs;
+    spherical_azimuthally_symmetric_interp sourcefn;
+  }; 
+
+  vector<spherical_azimuthally_symmetric_grid_interpolator> internal_interp;
+  
+  void setup_interp() {
+    interp.resize(n_emissions);
+    internal_interp.resize(n_emissions);
+
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      internal_interp[i_emission].dtau_species  = spherical_azimuthally_symmetric_interp(dtau_species[i_emission],
+											 this);
+      interp[i_emission].dtau_species = &internal_interp[i_emission].dtau_species;
+      
+      internal_interp[i_emission].dtau_absorber = spherical_azimuthally_symmetric_interp(dtau_absorber[i_emission],
+											 this);
+      interp[i_emission].dtau_absorber = &internal_interp[i_emission].dtau_absorber;
+      
+      internal_interp[i_emission].abs           = spherical_azimuthally_symmetric_interp(abs[i_emission],
+											 this);
+      interp[i_emission].abs = &internal_interp[i_emission].abs;
+      
+      internal_interp[i_emission].sourcefn      = spherical_azimuthally_symmetric_interp(sourcefn[i_emission],
+											 this);
+      interp[i_emission].sourcefn = &internal_interp[i_emission].sourcefn;
+    }
+    interp_init=true;
+  }
+    
   void save_S(string fname) {
     std::ofstream file(fname.c_str());
     if (file.is_open())
@@ -331,6 +417,7 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     file.close();
   }
 
+  
 };
 
 
