@@ -107,7 +107,7 @@ struct holstein_T_integral_exact {
     holstein_exact exact;
     tanh_sinh<double> integrator;
 
-    double result = integrator.integrate(exact, 0.0, tau, 0.01);
+    double result = integrator.integrate(exact, 0.0, tau, 1e-6);
 
     return result;
   }
@@ -122,7 +122,7 @@ struct holstein_Tint_integral_exact {
     holstein_T_integral_exact exact;
     tanh_sinh<double> integrator;
     
-    double result = integrator.integrate(exact, 0.0, tau, 0.01);
+    double result = integrator.integrate(exact, 0.0, tau, 1e-3);
 
     return result;
   }

@@ -403,6 +403,21 @@ struct chamb_diff_1d : atmosphere {
     return sCO2_lya(pt.r);
   }
 
+  double sH_lyb(const double r) {
+    temp.get(r);
+    return lyman_beta_line_center_cross_section_coef/sqrt(temp.T);
+  }    
+  double sH_lyb(const atmo_point pt) {
+    return sH_lyb(pt.r);
+  }
+
+  double sCO2_lyb(const double r) {
+    return CO2_lyman_beta_absorption_cross_section;
+  }
+  double sCO2_lyb(const atmo_point pt) {
+    return sCO2_lyb(pt.r);
+  }
+
 
   double r_from_nH(double nHtarget) {
     if (nHtarget==nHexo) {

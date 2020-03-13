@@ -17,7 +17,8 @@ using Eigen::AngleAxisd;
 struct observation {
 
   int &n_emissions;
-  vector<string> &emission_names;
+  vector<string> emission_names;
+  vector<double> emission_g_factors;
   int n_obs;
   
   // there are two coordinate systems,
@@ -35,8 +36,8 @@ struct observation {
 
   vector<vector<double>> brightness;
 
-  observation(int &n_emissionss, vector<string> &emission_namess)
-    : n_emissions(n_emissionss), emission_names(emission_namess), n_obs(0)
+  observation(int &n_emissionss, vector<string> &emission_namess, vector<double> &emission_g_factorss)
+    : n_emissions(n_emissionss), emission_names(emission_namess), emission_g_factors(emission_g_factorss), n_obs(0)
   { }
   
   void resize(int n_obss) {
@@ -66,7 +67,7 @@ struct observation {
   void fake(vector<double> loc = {0.,-30*rMars,0.},
 	    double angle_deg = 30,
 	    int nsamples = 300) {
-    
+
     double angle_rad = M_PI/180. * angle_deg;
     double dangle_rad = 2*angle_rad/(nsamples-1);
     
