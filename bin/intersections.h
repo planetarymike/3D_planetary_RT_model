@@ -120,7 +120,7 @@ public:
 	  distances.push_back(d1);
       }
     } else {
-      double d = -C/B;
+      double d = -C/(2*B);
       if (d>0 && samesign(vec.pt.z + d*vec.line_z, cosangle)) 
 	distances.push_back(d);
     }
