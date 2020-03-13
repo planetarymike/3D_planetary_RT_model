@@ -1,10 +1,13 @@
 //interp_1d.h -- base class for interpolation routines
-#include <cmath>
 
 #ifndef __Interp_H_
 #define __Interp_H_
 
+#include <cmath>
+#include <Eigen/Dense>
+
 using std::pow;
+
 
 struct Base_interp
 // Abstract base class used by all interpolation routines in this
@@ -206,5 +209,38 @@ struct Linear_interp : Base_interp
   }
 };
 
+using Eigen::MatrixXd;
+
+struct Bilinear_interp
+// object for bilinear interpolation on a matrix. Construct with a
+// vector of x1 values, a vector of x2 values, and a matrix of
+// tabulated function values yij. Then call interp for interpolated
+// values.
+{
+  int m, n;
+  MatrixXd y;
+  Linear_interp x1terp, x2terp;
+
+  Bilinear_interp() { }
+  
+  Bilinear_interp(vector<double> &x1v, vector<double> &x2v, MatrixXd &ym)
+    : m(x1v.size()), n(x2v.size()), x1terp(x1v,x1v), x2terp(x2v,x2v) { y = ym; }
+    // we need dummy 1 dim interp objects for their locate and hunt functions
+
+  double interp(double x1p, double x2p) {
+    int i, j;
+    double yy, t, u;
+    //find the grid square:
+    i = x1terp.cor ? x1terp.hunt(x1p) : x1terp.locate(x1p);
+    j = x2terp.cor ? x2terp.hunt(x2p) : x2terp.locate(x2p);
+
+    //interpolate:
+    t = (x1p-x1terp.xx[i])/(x1terp.xx[i+1]-x1terp.xx[i]);
+    u = (x2p-x2terp.xx[j])/(x2terp.xx[j+1]-x2terp.xx[j]);
+    yy = (1.-t)*(1.-u)*y(i,j) + t*(1.-u)*y(i+1,j) + (1.-t)*u*y(i,j+1) + t*u*y(i+1,j+1);
+    return yy;
+  }
+
+};
 
 #endif
