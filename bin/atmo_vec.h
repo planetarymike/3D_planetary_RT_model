@@ -134,6 +134,18 @@ struct atmo_vector {
     init=true;
   }
 
+  atmo_point extend(double dist) {
+    atmo_point retpt;
+
+    retpt.xyz(pt.x+line_x*dist,
+	      pt.y+line_y*dist,
+	      pt.z+line_z*dist);
+
+    return retpt;
+
+      
+  }
+  
 };
 
 #endif
