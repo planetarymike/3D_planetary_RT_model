@@ -33,7 +33,11 @@ int main(int argc, char* argv[]) {
   grid.rmethod = grid.rmethod_altitude;
   //grid.rmethod = grid.rmethod_lognH;
 
-  grid.setup_voxels(60, 20/*20 for 10 deg increments*/, atm);
+  //grid.szamethod = grid.szamethod_uniform;
+  grid.szamethod = grid.szamethod_uniform_cos;
+  
+  
+  grid.setup_voxels(20, 20/*20 for 10 deg increments*/, atm);
   grid.setup_rays(6, 12);
 
   
@@ -48,15 +52,15 @@ int main(int argc, char* argv[]) {
   grid.generate_S();
   
   //now print out the output
-  grid.save_S("test_source_function.dat");
+  grid.save_S("test/test_source_function.dat");
 
   //get some fake coordinates
   observation obs(n_emissions, grid.emission_names);
   obs.fake(30,600);
   grid.brightness(obs);
-  obs.save_brightness("test_brightness.dat");
+  obs.save_brightness("test/test_brightness.dat");
   grid.interp_brightness(obs);
-  obs.save_brightness("test_interp_brightness.dat");
+  obs.save_brightness("test/test_interp_brightness.dat");
 
   
   

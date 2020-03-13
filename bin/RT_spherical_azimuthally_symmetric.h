@@ -29,6 +29,10 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 
   const int sza_dimension;
   int n_sza_boundaries;
+  int szamethod;
+  static const int szamethod_uniform = 0;
+  static const int szamethod_uniform_cos = 1;
+
   vector<double> sza_boundaries;
   vector<double> pts_sza;
   vector<cone> sza_boundary_cones;
@@ -53,7 +57,7 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       n_boundaries.resize(n_dimensions);
       sun_direction = {0.,0.,1.};
       rmethod = rmethod_altitude;
-      //rmethod = rmethod_tauH;
+      szamethod = szamethod_uniform;
       
       save_intersections = false;
       saver.fname = "intersections.dat";
@@ -101,12 +105,30 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 
 
     n_sza_boundaries = n_sza_boundariess;
+
+    assert((szamethod == szamethod_uniform || szamethod == szamethod_uniform_cos)
+	   && "szamethod must match a defined sza points method");
     
-    double sza_spacing = pi / (n_sza_boundaries - 2.);
-    sza_boundaries.resize(n_sza_boundaries);
-    for (int i=0;i<n_sza_boundaries;i++) {
-      sza_boundaries[i]=(i-0.5)*sza_spacing;
+    
+    if (szamethod == szamethod_uniform) {
+      double sza_spacing = pi / (n_sza_boundaries - 2.);
+      sza_boundaries.resize(n_sza_boundaries);
+      for (int i=0;i<n_sza_boundaries;i++) {
+	sza_boundaries[i]=(i-0.5)*sza_spacing;
+      }
     }
+    if (szamethod == szamethod_uniform_cos) {
+      double cos_sza_spacing = 2.0 / (n_sza_boundaries - 2.);
+      using std::acos;
+      
+      sza_boundaries.resize(n_sza_boundaries);
+      sza_boundaries[0] = -acos(1.0-0.5*cos_sza_spacing);
+      for (int i=1;i<n_sza_boundaries-1;i++) {
+	sza_boundaries[i]=acos(1.0-(i-0.5)*cos_sza_spacing);
+      }
+      sza_boundaries[n_sza_boundaries-1] = pi + acos(1.0-0.5*cos_sza_spacing);
+    }
+    
 
     pts_sza.resize(n_sza_boundaries-1);
     for (unsigned int i=0;i<pts_sza.size();i++) {
