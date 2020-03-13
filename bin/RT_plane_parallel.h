@@ -146,8 +146,7 @@ struct plane_parallel_grid : RT_grid
     boundaries.trim();
 
     return boundary_intersection_stepper(vec,
-					 boundaries,
-					 n_dimensions);
+					 boundaries);
   }
   
   void save_S(string fname) {
