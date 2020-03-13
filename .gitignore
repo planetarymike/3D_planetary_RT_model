@@ -2,8 +2,6 @@ callgrind*
 gmon.out
 profile.txt
 generate_source_function.x
-intersections.dat
-test_source_function.dat
 test
 test/*
 python
