@@ -1,0 +1,15 @@
+// things to improve/change in code
+
+--python wrapper
+--IPH background
+--fix Bishop formulation (needs 2d holstein interps with absorption)
+--use monotone cubic interpolation in brightness calculation
+--fix illumination of zones that straddle the planetary shadow (following Bishop)
+--deuterium and hot H physical densities
+--switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
+  (should be relatively easy, add line profile to tau_tracker)
+--include single-scattering anisotropy
+
+long-term
+--frequency redistribution
+--anisotropy??
