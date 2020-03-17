@@ -6,11 +6,15 @@ IDIR=$(BINDIR) $(BOOSTDIR) $(EIGENDIR)
 CC=g++
 LIBS=-lm -fPIC
 MPFLAGS=-fopenmp
+OFLAGS=-O2 -ftree-vectorize -march=native
 
 #Eigen and the GNU scientific library need to be installed to compile and run this code. 
 
 generate_source_function:
-	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) $(MPFLAGS) -O2 -ftree-vectorize -march=native -o generate_source_function.x
+	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
+
+generate_source_function_noassert:
+	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -DNDEBUG -o generate_source_function.x
 
 generate_source_function_profile:
 	$(CC) generate_source_function.cpp $(IDIR) $(LIBS) $(MPFLAGS) -Og -g -p -o generate_source_function.x

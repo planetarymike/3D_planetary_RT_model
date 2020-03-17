@@ -19,9 +19,9 @@ struct plane_parallel_grid : RT_grid
   vector<double> pts_radii;
   vector<plane> radial_boundary_planes;
   
-  plane_parallel_grid(int n_emissions,
+  plane_parallel_grid(const vector<string> &emission_names,
 		      influence &transmissionn)
-    : RT_grid(n_emissions,transmissionn)
+    : RT_grid(emission_names,transmissionn)
   {
     n_dimensions = 1;
     sun_direction = {0.,0.,1.};

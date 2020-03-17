@@ -8,10 +8,32 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <string>
 
 using std::vector;
 
-struct plane {
+class geom_primitive {
+ protected:
+  bool samesign(double a, double b) {
+    if ((a>0&&b>0) || (a<0&&b<0) || (a==0&&b==0))
+      return true;
+    else
+      return false;
+  }
+
+  bool is_zero(double a) {
+    double tol = 1e-10;
+    if (a > tol || a < -tol)
+      return false;
+    else
+      return true;
+  }
+};
+
+
+class plane : geom_primitive {
+ public:
+
   double z;
 
   vector<double> intersections(const atmo_vector & vec) {
@@ -23,6 +45,9 @@ struct plane {
 	distances.push_back(d);
     }
 
+    for (auto d: distances) 
+      assert(is_zero(vec.extend(d).z/z-1.0) && "vector must intersect plane at specified distance.");
+    
     return distances;    
   }
   
@@ -30,7 +55,7 @@ struct plane {
 
 
 
-class sphere {
+class sphere : geom_primitive {
 private:
   double r;
   double r2;
@@ -62,6 +87,10 @@ public:
       if (d1>0) 
 	distances.push_back(d1);
     }
+
+    for (auto d: distances) 
+      assert(is_zero(vec.extend(d).r/r-1.0) && "vector must intersect sphere at specified distance.");
+
     return distances;
   }
 
@@ -69,27 +98,12 @@ public:
 };
 
 
-class cone {
+class cone : geom_primitive {
 private:  
   double angle;
   double cosangle;
   double cosangle2;
 
-  bool samesign(double a, double b) {
-    if ((a>0&&b>0) || (a<0&&b<0) || (a==0&&b==0))
-      return true;
-    else
-      return false;
-  }
-
-  bool is_zero(double a) {
-    double tol = 1e-10;
-    if (a > tol || a < -tol)
-      return false;
-    else
-      return true;
-  }
-  
 public:
   
   void set_angle(const double &a) {
@@ -124,8 +138,12 @@ public:
       if (d>0 && samesign(vec.pt.z + d*vec.line_z, cosangle)) 
 	distances.push_back(d);
     }
-    
     std::sort(distances.begin(),distances.end());
+
+    for (auto d: distances) {
+      assert(is_zero(vec.extend(d).t/angle-1.0) && "vector must intersect cone at specified distance.");
+    }
+    
     return distances;
   }
 };

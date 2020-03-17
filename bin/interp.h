@@ -237,7 +237,11 @@ struct Bilinear_interp
     //interpolate:
     t = (x1p-x1terp.xx[i])/(x1terp.xx[i+1]-x1terp.xx[i]);
     u = (x2p-x2terp.xx[j])/(x2terp.xx[j+1]-x2terp.xx[j]);
-    yy = (1.-t)*(1.-u)*y(i,j) + t*(1.-u)*y(i+1,j) + (1.-t)*u*y(i,j+1) + t*u*y(i+1,j+1);
+    yy =  (1.-t)*(1.-u) * y(i  ,j  )
+	 +    t *(1.-u) * y(i+1,j  )
+	 +(1.-t)*    u  * y(i  ,j+1)
+	 +    t *    u  * y(i+1,j+1);
+
     return yy;
   }
 

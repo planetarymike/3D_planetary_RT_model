@@ -129,7 +129,7 @@ struct boundary_set {
   }
 
   
-  void check(const vector<int> &n_bounds, const int &n_voxels) {
+  bool check(const vector<int> &n_bounds, const int &n_voxels) {
     if (boundaries.size() > 0) {
       assert(boundaries.size() > 1 && "there must be more than one boundary crossing for each ray");
       
@@ -163,6 +163,7 @@ struct boundary_set {
 
       }
     }
+    return true;
   }
 };
 

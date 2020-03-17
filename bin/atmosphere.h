@@ -46,9 +46,7 @@ struct krasnopolsky_temperature : public temperature {
   double r_tropo;
   double shape_parameter;
 
-  krasnopolsky_temperature() { }
-  
-  krasnopolsky_temperature(double T_exoo,
+  krasnopolsky_temperature(double T_exoo = 200.0,
 			   double T_tropoo = 125.0,
 			   double r_tropoo = rMars + 90e5,
 			   double shape_parameterr = 11.4) {
@@ -84,21 +82,21 @@ struct diffusion_coefs {
 // number densities in the themosphere
 struct thermosphere_diffeq {
   diffusion_coefs diff;
-  temperature &temp;
-  double &H_escape_flux;
-  double &rexo;
+  temperature *temp;
+  double H_escape_flux;
+  double rexo;
 
   thermosphere_diffeq(temperature &tempp, double &H_escape_fluxx, double &rexoo)
-    : temp(tempp), H_escape_flux(H_escape_fluxx), rexo(rexoo) { }
+    : temp(&tempp), H_escape_flux(H_escape_fluxx), rexo(rexoo) { }
 
   // x[0] = log(nCO2), x[1] = log(nH)
   void operator()( const vector<double> &x , vector<double> &dxdr , const double &r ) {
-    temp.get(r);
-    diff.get(r, temp.T, temp.T_exo, exp(x[0]) );
+    temp->get(r);
+    diff.get(r, temp->T, temp->T_exo, exp(x[0]) );
 
-    double Hninv = G*mMars*mCO2/(kB*temp.T*r*r)+temp.Tprime/temp.T;
+    double Hninv = G*mMars*mCO2/(kB*(temp->T)*r*r)+(temp->Tprime)/(temp->T);
     double alpha = -0.25;
-    double HHinv = G*mMars*mH/(kB*temp.T*r*r)+(1+alpha)*temp.Tprime/temp.T;
+    double HHinv = G*mMars*mH/(kB*temp->T*r*r)+(1+alpha)*(temp->Tprime)/(temp->T);
     
     dxdr[0] = -Hninv;
     dxdr[1] = -1./(diff.DH+diff.KK)*( H_escape_flux * ( rexo*rexo /r /r ) / exp(x[1])
@@ -135,9 +133,9 @@ struct push_back_quantities
 
 
 struct chamberlain_exosphere {
-  double &rexo;
-  double &Texo;
-  double &nHexo;
+  double rexo;
+  double Texo;
+  double nHexo;
   double lambdac;
   double effusion_velocity;
   double H_escape_flux;
@@ -261,7 +259,7 @@ struct chamb_diff_1d : atmosphere {
   double nHrmindiffusion; // nH at this altitude
   double nCO2rmindiffusion;
   
-  temperature &temp;
+  temperature *temp;
   chamberlain_exosphere exosphere;
   thermosphere_diffeq diffeq;
 
@@ -306,8 +304,8 @@ struct chamb_diff_1d : atmosphere {
       nHexo(nHexoo),
       nCO2exo(nCO2exoo),
       rmindiffusion(rmindiffusionn),
-      temp(tempp), 
-      exosphere(rexo, temp.T_exo, nHexo),
+      temp(&tempp), 
+      exosphere(rexo, temp->T_exo, nHexo),
       diffeq(tempp, exosphere.H_escape_flux, rexo)      
   {
 
@@ -389,8 +387,8 @@ struct chamb_diff_1d : atmosphere {
   }
 
   double sH_lya(const double r) {
-    temp.get(r);
-    return lyman_alpha_line_center_cross_section_coef/sqrt(temp.T);
+    temp->get(r);
+    return lyman_alpha_line_center_cross_section_coef/sqrt(temp->T);
   }    
   double sH_lya(const atmo_point pt) {
     return sH_lya(pt.r);
@@ -404,8 +402,8 @@ struct chamb_diff_1d : atmosphere {
   }
 
   double sH_lyb(const double r) {
-    temp.get(r);
-    return lyman_beta_line_center_cross_section_coef/sqrt(temp.T);
+    temp->get(r);
+    return lyman_beta_line_center_cross_section_coef/sqrt(temp->T);
   }    
   double sH_lyb(const atmo_point pt) {
     return sH_lyb(pt.r);

@@ -36,7 +36,7 @@ struct atmo_point {
     t=acos(z/r);
     p=atan2(y,x);
     if (p<0)
-      p+=2*pi;//puts the negative values on the right branch [0,2pi]
+      p+=2*M_PI;//puts the negative values on the right branch [0,2pi]
     init=true;
   }
 
@@ -72,7 +72,7 @@ struct atmo_ray {
   void set_ray_index(const int ii, double twt, double pwt) {
     if (init) {
       i_ray = ii;
-      domega = sint*twt*pwt/4/pi;
+      domega = sint*twt*pwt/4/M_PI;
     }
   }
 
@@ -134,7 +134,7 @@ struct atmo_vector {
     init=true;
   }
 
-  atmo_point extend(double dist) {
+  atmo_point extend(double dist) const {
     atmo_point retpt;
 
     retpt.xyz(pt.x+line_x*dist,

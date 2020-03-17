@@ -37,7 +37,6 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
   vector<double> pts_sza;
   vector<cone> sza_boundary_cones;
 
-
   vector<int> n_boundaries;
   intersection_writer saver;
   bool save_intersections;
@@ -48,9 +47,9 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
   vector<double> ray_phi;
 
   
- spherical_azimuthally_symmetric_grid(int n_emissions,
+ spherical_azimuthally_symmetric_grid(const vector<string> &emission_names,
 				      influence &transmissionn)
-   : RT_grid(n_emissions,transmissionn),
+   : RT_grid(emission_names,transmissionn),
     r_dimension(0), sza_dimension(1)
     {
       n_dimensions = 2;
@@ -63,6 +62,7 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       saver.fname = "intersections.dat";
     }
 
+  
   void setup_voxels(int n_radial_boundariess,
 		    int n_sza_boundariess,
 		    atmosphere &atm)    
@@ -74,11 +74,9 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 
     assert((rmethod == rmethod_altitude || rmethod == rmethod_lognH)
 	   && "rmethod must match a defined radial points method");
-
     // don't define a tau radial points method; tau < 0.1 is
     // important and max(tau) > 10; this leads to many required
     // gridpoints
-    
     if (rmethod == rmethod_altitude)
       get_radial_log_linear_points(radial_boundaries, n_radial_boundaries,
 				   atm.rmin, atm.rexo, atm.rmax);
@@ -108,8 +106,6 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 
     assert((szamethod == szamethod_uniform || szamethod == szamethod_uniform_cos)
 	   && "szamethod must match a defined sza points method");
-    
-    
     if (szamethod == szamethod_uniform) {
       double sza_spacing = pi / (n_sza_boundaries - 2.);
       sza_boundaries.resize(n_sza_boundaries);
@@ -128,8 +124,7 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       }
       sza_boundaries[n_sza_boundaries-1] = pi + acos(1.0-0.5*cos_sza_spacing);
     }
-    
-
+  
     pts_sza.resize(n_sza_boundaries-1);
     for (unsigned int i=0;i<pts_sza.size();i++) {
       pts_sza[i]=0.5*(sza_boundaries[i] + sza_boundaries[i+1]);
@@ -138,7 +133,6 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     sza_boundary_cones.resize(n_sza_boundaries-2);
     for (int i=0;i<n_sza_boundaries-2;i++)
       sza_boundary_cones[i].set_angle(sza_boundaries[i+1]);
-
 
 
     int n_voxelss = pts_radii.size()*pts_sza.size();
@@ -280,7 +274,7 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     boundaries.propagate_indices();
     boundaries.assign_voxel_indices(this, &spherical_azimuthally_symmetric_grid::indices_to_voxel);
     boundaries.trim();
-    boundaries.check(n_boundaries,n_voxels);
+    assert(boundaries.check(n_boundaries,n_voxels) && "boundary checks must pass");
     
     if (save_intersections)
       saver.append_intersections(vec,boundaries);
@@ -288,21 +282,9 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     return boundary_intersection_stepper(vec, boundaries);
   }
 
-  VectorXd sza_slice(VectorXd quantity, int i_sza) {
-    VectorXd ret;
-    vector<int> indices(n_dimensions,i_sza);
-    
-    ret.resize(n_radial_boundaries-1);
-    for (int i=0;i<n_radial_boundaries-1;i++) {
-      indices[0]=i;
-      ret(i) = quantity(indices_to_voxel(indices));
-    }
-    
-    return ret;
-  }
-
-
   
+
+
   class spherical_azimuthally_symmetric_interp : public qinterp {
     Bilinear_interp terp;
   public:
@@ -313,29 +295,29 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 					   T *parent)
     {
       MatrixXd data;
-      vector<double> log_radii;
+      vector<double> log_alt;
       vector<double> szas;
 
       int nrpts = parent->pts_radii.size();
-      int nlogradii = nrpts+2;
+      int nlogalt = nrpts+2;
       int nsza = parent->pts_sza.size();
       
-      data.resize(nlogradii,nsza);
-
-      log_radii.push_back(log(parent->radial_boundaries[0]));
+      data.resize(nlogalt,nsza);
+      
+      log_alt.push_back(log(parent->radial_boundaries[0]-rMars));
       for (int i=0;i<nrpts;i++) 
-	log_radii.push_back(log(parent->pts_radii[i]));
-      log_radii.push_back(log(parent->radial_boundaries.back()));
+	log_alt.push_back(log(parent->pts_radii[i]-rMars));
+      log_alt.push_back(log(parent->radial_boundaries.back()-rMars));
 
       for (int j=0;j<nsza;j++) 
 	szas.push_back(parent->pts_sza[j]);
 
       vector<int> idx(2,0);
-      for (int i=0;i<nlogradii;i++) {
+      for (int i=0;i<nlogalt;i++) {
 	for (int j=0;j<nsza;j++) {
 	  if (i==0) {
 	    idx[0]=0; idx[1]=j;
-	  } else if (i==nlogradii-1) {
+	  } else if (i==nlogalt-1) {
 	    idx[0]=nrpts-1; idx[1]=j;
 	  } else {
 	    idx[0]=i-1; idx[1]=j;
@@ -344,11 +326,11 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 	}
       }
 
-      terp = Bilinear_interp(log_radii, szas, data);
+      terp = Bilinear_interp(log_alt, szas, data);
     }
 
     double interp(const atmo_point pt) { 
-      return terp.interp(log(pt.r),pt.t);
+      return terp.interp(log(pt.r-rMars),pt.t);
     }
 
   };
@@ -395,7 +377,24 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     }
     interp_init=true;
   }
+
+
+
+
+
+  VectorXd sza_slice(VectorXd quantity, int i_sza) {
+    VectorXd ret;
+    vector<int> indices(n_dimensions,i_sza);
     
+    ret.resize(n_radial_boundaries-1);
+    for (int i=0;i<n_radial_boundaries-1;i++) {
+      indices[0]=i;
+      ret(i) = quantity(indices_to_voxel(indices));
+    }
+    
+    return ret;
+  }
+
   void save_S(string fname) {
     std::ofstream file(fname.c_str());
     if (file.is_open())

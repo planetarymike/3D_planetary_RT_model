@@ -5,7 +5,6 @@
 #include "RT_plane_parallel.h"
 #include "RT_spherical_azimuthally_symmetric.h"
 
-
 int main(int argc, char* argv[]) {
 
   //define the physical atmosphere
@@ -22,50 +21,48 @@ int main(int argc, char* argv[]) {
   holstein_approx hol;
 
   //define the RT grid
-  int n_emissions = 2;
+  vector<string> emission_names = {"H Lyman alpha", "H Lyman beta"};
+
   // plane_parallel_grid grid(n_emissions, hol);
   // grid.setup_voxels(160, atm);
   // grid.setup_rays(10);
-  spherical_azimuthally_symmetric_grid grid(n_emissions, hol);
+
+  spherical_azimuthally_symmetric_grid grid(emission_names, hol);
 
   //grid.save_intersections = true;
-
   //grid.rmethod = grid.rmethod_altitude;
   grid.rmethod = grid.rmethod_lognH;
-
   //grid.szamethod = grid.szamethod_uniform;
   grid.szamethod = grid.szamethod_uniform_cos;
   
-  
   grid.setup_voxels(40, 20/*20 for 10 deg increments with sza_uniform*/, atm);
   grid.setup_rays(6, 12);
-
   
   //solve for H lyman alpha
-  grid.define_emission(0,
-		       "H Lyman alpha",
+  grid.define_emission("H Lyman alpha",
 		       1.0,
 		       atm,
 		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
 		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
   //solve for H lyman beta
-  grid.define_emission(1,
-		       "H Lyman beta",
+  grid.define_emission("H Lyman beta",
 		       lyman_beta_branching_ratio,
 		       atm,
 		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
 		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
 
   //solve for the source function
-  grid.save_influence = true;
+  //  grid.save_influence = true;
   grid.generate_S();
   
   //now print out the output
   grid.save_S("test/test_source_function.dat");
 
   //simulate a fake observation
+  observation obs(grid.emission_names);
+
   vector<double> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
-  observation obs(n_emissions, grid.emission_names, g);
+  obs.emission_g_factors = g;
   
   vector<double> loc = {0.,-30*rMars,0.};
   obs.fake(loc,30,300);
@@ -75,11 +72,6 @@ int main(int argc, char* argv[]) {
 
   grid.brightness(obs);
   obs.save_brightness("test/test_interp_brightness.dat");
-
-  
-  
-
-
   
   return 0; 
 }

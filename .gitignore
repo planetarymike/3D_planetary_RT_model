@@ -4,5 +4,11 @@ profile.txt
 generate_source_function.x
 test
 test/*
-python
-python/*
+python/*.so
+python/*.h
+python/*.cpp
+python/*.ipynb
+python/.*
+python/build
+python/build/*
+
