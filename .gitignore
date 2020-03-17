@@ -8,7 +8,7 @@ python/*.so
 python/*.h
 python/*.cpp
 python/*.ipynb
-python/.*
+python/.ipy*
 python/build
 python/build/*
 
