@@ -32,7 +32,7 @@ public:
     grid.setup_voxels(40, 20/*20 for 10 deg increments with sza_uniform*/, atm);
     grid.setup_rays(6, 12);
   }
-  
+
   void add_observation(vector<vector<double>> MSO_locations, vector<vector<double>> MSO_directions) {
     obs.add_MSO_observation(MSO_locations,MSO_directions);
   }

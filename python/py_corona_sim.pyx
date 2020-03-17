@@ -1,5 +1,7 @@
 # py_corona_sim.pyx -- Cython wrapper for H corona simulation object
 # distutils: language = c++
+# cython: language_level=3
+
 
 from libcpp cimport bool
 from libcpp.string cimport string
@@ -7,6 +9,7 @@ from libcpp.vector cimport vector
 
 # Import the Python-level symbols of numpy
 import numpy as np
+cimport numpy as cnp
 
 # Import the C-level symbols of numpy
 #cimport numpy as np
@@ -29,11 +32,20 @@ cdef class Pyobservation_fit:
         self.thisptr = new observation_fit()
     def __dealloc__(self):
         del self.thisptr
-    def add_observation(self, loc_arr, dir_arr):
-        self.thisptr.add_observation(loc_arr,dir_arr)
+    def add_observation(self, double[:,:] loc_arr, double[:,:] dir_arr):
+        cdef vector[vector[double]] loc_vec,dir_vec
+        loc_vec.resize(loc_arr.shape[0])
+        dir_vec.resize(dir_arr.shape[0])
+        for i in range(loc_arr.shape[0]):
+            loc_vec[i].resize(3)
+            dir_vec[i].resize(3)
+            for j in range(3):
+                loc_vec[i][j] = loc_arr[i,j]
+                dir_vec[i][j] = dir_arr[i,j]
+        self.thisptr.add_observation(loc_vec,dir_vec)
     def set_g_factor(self, g):
         self.thisptr.set_g_factor(g)
     def generate_source_function(self, double nH, double T):
-        self.generate_source_function(nH,T)
+        self.thisptr.generate_source_function(nH,T)
     def brightness(self):
         return np.asarray(self.thisptr.brightness())
