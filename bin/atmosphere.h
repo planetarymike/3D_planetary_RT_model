@@ -148,7 +148,7 @@ struct chamberlain_exosphere {
     H_escape_flux = nHexo * effusion_velocity;
   }
 
-  double operator()(double r) {
+  double nH(double r) {
     // computes hydrogen number density as a function of altitude above
     // the exobase, assuming a chamberlain exosphere w/o satellite particles
 
@@ -178,6 +178,64 @@ struct chamberlain_exosphere {
     // multiply by the exobase density and return
     return nHexo*frac*exp(lambda-lambdac);
   }
+  double operator ()(double r) {
+    return this->nH(r);
+  }
+
+
+  template <typename T>
+  struct nHfinder {
+    T *parent;
+    double nHtarget;
+
+    nHfinder(T *parentt, double &nHtargett)
+      : parent(parentt), nHtarget(nHtargett)
+    { }
+
+    double operator()(double r) {
+      return parent->nH(r) - nHtarget;
+    }
+  };
+
+  double r(double &nHtarget) {  //find r corresponding to a given nH
+    assert(nHtarget<nHexo && "exosphere nH must be less than nHexo");
+
+
+    using boost::math::tools::bracket_and_solve_root;
+    using boost::math::tools::eps_tolerance;
+
+    
+    double guess = kB*Texo/G/mMars/mH*log(nHexo/nHtarget)+rexo;
+    double factor = 2;
+
+    const boost::uintmax_t maxit = 20;
+    boost::uintmax_t it = maxit;      
+    bool is_rising = false;
+    int get_digits = 8;
+    eps_tolerance<double> tol(get_digits);
+
+    nHfinder<chamberlain_exosphere> find(this,nHtarget);
+    std::pair<double, double> r = bracket_and_solve_root(find,
+							 guess, factor, is_rising, tol, it);
+
+
+    if (it >= maxit)
+      {
+	std::cout << "Unable to locate solution in " << maxit << " iterations:"
+	  " Current best guess is between " << r.first << " and " << r.second << std::endl;
+      }
+    else
+      {
+	std::cout << "Converged after " << it << " (from maximum of " << maxit << " iterations)." << std::endl;
+	std::cout << "Converged to " << r.first + (r.second - r.first)/2 << std::endl;
+      }
+    
+
+    return r.first + (r.second - r.first)/2;
+  }
+
+
+  
 };
 
 struct atmosphere {
@@ -287,7 +345,7 @@ struct chamb_diff_1d : atmosphere {
 		temperature &tempp)
     : chamb_diff_1d(/*          rmin = */rMars + 80e5,
 		    /*          rexo = */rMars + 200e5,
-		    /*          rmax = */rMars + 50000e5,
+		    /*         nHmin = */10,
 		    /* rmindiffusion = */rMars + 120e5,
 		    nHexoo,
 		    nCO2exoo,
@@ -295,12 +353,12 @@ struct chamb_diff_1d : atmosphere {
 
   chamb_diff_1d(double rminn,
 		double rexoo,
-		double rmaxx,
+		double nHmin,
 		double rmindiffusionn,
 		double nHexoo, // a good number is 10^5-6
 		double nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp)
-    : atmosphere(rminn,rexoo,rmaxx),
+    : atmosphere(rminn,rexoo,-1),
       nHexo(nHexoo),
       nCO2exo(nCO2exoo),
       rmindiffusion(rmindiffusionn),
@@ -309,6 +367,9 @@ struct chamb_diff_1d : atmosphere {
       diffeq(tempp, exosphere.H_escape_flux, rexo)      
   {
 
+    //set the max altitude by finding the density at which the exosphere = nHmin
+    rmax = exosphere.r(nHmin);
+    
     //integrate the differential equation to get the species densities
     //in the thermosphere
     vector<double> nexo(2);
