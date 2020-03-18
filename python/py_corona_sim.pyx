@@ -2,14 +2,13 @@
 # distutils: language = c++
 # cython: language_level=3
 
-
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 # Import the Python-level symbols of numpy
 import numpy as np
-cimport numpy as cnp
+cimport numpy as np
 
 # Import the C-level symbols of numpy
 #cimport numpy as np

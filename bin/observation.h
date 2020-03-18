@@ -7,6 +7,7 @@
 #include <Eigen/Dense>
 #include <string>
 #include <fstream>
+#include <iostream>
 
 using std::string;
 using Eigen::Vector3d;
@@ -25,6 +26,7 @@ protected:
   // model_x = MSO_z
   // model_y = -MSO_y
   // model_z = MSO_x
+
   vector<vector<double>> location_MSO;
   vector<vector<double>> location_model;
 
@@ -32,16 +34,19 @@ protected:
   vector<vector<double>> direction_model;
 
   vector<atmo_vector> obs_vecs;
-
-  void add_MSO_observation(vector<double> &loc, vector<double> &dir) {
+  
+  void add_MSO_observation(vector<double> loc, vector<double> dir) {
     assert(loc.size() == 3 && "only three-vectors allowed");
     assert(dir.size() == 3 && "only three-vectors allowed");
+
     
-    location_MSO.push_back(loc);
+    vector<double> loc_MSO = { loc[0] , loc[1], loc[2] };
+    location_MSO.push_back(loc_MSO);
     vector<double> loc_model = { loc[2] , -loc[1], loc[0] };
     location_model.push_back(loc_model);
 
-    direction_MSO.push_back(dir);
+    vector<double> dir_MSO = { dir[0] , dir[1], dir[2] };
+    direction_MSO.push_back(dir_MSO);
     vector<double> dir_model = { dir[2] , -dir[1], dir[0] };
     direction_model.push_back(dir_model);
 
@@ -54,15 +59,11 @@ protected:
 
   void resize_input(int n_obss) {
     n_obs=n_obss;
-    location_MSO.resize(n_obss,vector<double>(3,0.));
-    location_model.resize(n_obss,vector<double>(3,0.));
-    direction_MSO.resize(n_obss,vector<double>(3,0.));
-    direction_model.resize(n_obss,vector<double>(3,0.));
-  }
-  void resize_output() {
-    brightness.resize(n_obs,vector<double>(n_emissions,0.));
-    tau_species.resize(n_obs,vector<double>(n_emissions,0.));
-    tau_absorber.resize(n_obs,vector<double>(n_emissions,0.));
+    location_MSO.resize(n_obss);
+    location_model.resize(n_obss);
+    direction_MSO.resize(n_obss);
+    direction_model.resize(n_obss);
+    obs_vecs.resize(n_obss);
   }
 
 public:
@@ -79,6 +80,12 @@ public:
       emission_g_factors(vector<double>(n_emissions,0.))
   { }
 
+  void reset_output() {
+    brightness.resize(n_obs,vector<double>(n_emissions,0.));
+    tau_species.resize(n_obs,vector<double>(n_emissions,0.));
+    tau_absorber.resize(n_obs,vector<double>(n_emissions,0.));
+  }
+
   void add_MSO_observation(vector<vector<double>> &locations, vector<vector<double>> &directions) {
     assert(locations.size() == directions.size() && "location and look direction must have the same length.");
 
@@ -87,9 +94,28 @@ public:
     for (unsigned int i=0;i<locations.size();i++)
       add_MSO_observation(locations[i],directions[i]);
 
-    resize_output();
+    reset_output();
   }
 
+
+  void add_MSO_observation(double *location_array, double *direction_array, int n) {
+    resize_input(n);
+
+    for (int i=0;i<n;i++) {
+      vector<double> loc_MSO = {location_array[3*i],
+				location_array[3*i+1],
+				location_array[3*i+2]};
+      vector<double> dir_MSO = {direction_array[3*i],
+				direction_array[3*i+1],
+				direction_array[3*i+2]};
+      add_MSO_observation(loc_MSO,dir_MSO);
+    }
+
+    reset_output();
+  }
+
+
+  
   int size() const {
     return n_obs;
   }
@@ -144,7 +170,7 @@ public:
       }
     }
 
-    resize_output();
+    reset_output();
   }
 
 };

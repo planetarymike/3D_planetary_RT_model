@@ -33,7 +33,11 @@ public:
   void add_observation(vector<vector<double>> MSO_locations, vector<vector<double>> MSO_directions) {
     obs.add_MSO_observation(MSO_locations,MSO_directions);
   }
-  
+
+  void add_observation(double* MSO_locations, double* MSO_directions, int n_obs) {
+    obs.add_MSO_observation(MSO_locations,MSO_directions,n_obs);
+  }
+
   void set_g_factor(double &g) {
     obs.emission_g_factors[0] = g;
   }
@@ -56,6 +60,8 @@ public:
   }
   
   vector<double> brightness() {
+    obs.reset_output();
+    
     grid.brightness(obs);
 
     vector<double> brightness;
