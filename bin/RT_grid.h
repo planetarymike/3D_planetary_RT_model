@@ -440,7 +440,6 @@ struct RT_grid {
       tau_species_single_scattering[i].setZero();
       tau_absorber_single_scattering[i].setZero();
     }
-
     
     atmo_vector vec;
     double max_tau_species = 0;
