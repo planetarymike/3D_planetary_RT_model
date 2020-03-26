@@ -64,12 +64,12 @@ int main(int argc, char* argv[]) {
   vector<double> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obs.emission_g_factors = g;
   
-  std::cout << "lyman alpha g factor is:" << lyman_alpha_typical_g_factor << std::endl;
-  std::cout << "lyman beta g factor is:" << lyman_beta_typical_g_factor << std::endl;
+  // std::cout << "lyman alpha g factor is:" << lyman_alpha_typical_g_factor << std::endl;
+  // std::cout << "lyman beta g factor is:" << lyman_beta_typical_g_factor << std::endl;
 
 
   vector<double> loc = {0.,-30*rMars,0.};
-  obs.fake(loc,30,300);
+  obs.fake(loc,30,600);
 
   grid.brightness_nointerp(obs);
   obs.save_brightness("test/test_brightness.dat");
