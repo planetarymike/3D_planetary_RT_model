@@ -9,8 +9,11 @@
 #include <vector>
 #include <cmath>
 #include <cassert>
+#include <string>
 #include <iostream>
+#include <fstream>
 #include <type_traits>
+#include <Eigen/Dense>
 #include <boost/numeric/odeint/integrate/integrate.hpp>
 #include <boost/numeric/odeint/integrate/integrate_const.hpp>
 #include <boost/numeric/odeint/stepper/runge_kutta4.hpp>
@@ -219,16 +222,17 @@ struct chamberlain_exosphere {
 							 guess, factor, is_rising, tol, it);
 
 
-    if (it >= maxit)
-      {
-	std::cout << "Unable to locate solution in " << maxit << " iterations:"
-	  " Current best guess is between " << r.first << " and " << r.second << std::endl;
-      }
-    else
-      {
-	std::cout << "Converged after " << it << " (from maximum of " << maxit << " iterations)." << std::endl;
-	std::cout << "Converged to " << r.first + (r.second - r.first)/2 << std::endl;
-      }
+    assert(it < maxit && "we must find the value we want in less than the maximum number of iterations.");
+    // if (it >= maxit)
+    //   {
+    // 	std::cout << "Unable to locate solution in " << maxit << " iterations:"
+    // 	  " Current best guess is between " << r.first << " and " << r.second << std::endl;
+    //   }
+    // else
+    //   {
+    // 	std::cout << "Converged after " << it << " (from maximum of " << maxit << " iterations)." << std::endl;
+    // 	std::cout << "Converged to " << r.first + (r.second - r.first)/2 << std::endl;
+    //   }
     
 
     return r.first + (r.second - r.first)/2;
@@ -536,7 +540,40 @@ struct chamb_diff_1d : atmosphere {
   }
 
 
+  void write_vector(std::ofstream &file, std::string preamble, vector<double> &data) {
+    Eigen::VectorXd write_out = Eigen::Map<Eigen::VectorXd>(data.data(),
+							    data.size());
 
+    file << preamble << write_out.transpose() << "\n";
+  }
+  
+  void save(std::string fname) {
+
+    std::ofstream file(fname.c_str());
+    if (file.is_open())
+      {
+
+	file << "chaffin atmosphere for:\n"
+	     << "rexo = "    << rexo << " cm,\n"
+	     << "Texo = "    << temp->T_exo << " K,\n"
+	     << "nHexo = "   << nHexo << " cm-3,\n"
+	     << "nCO2exo = " << nCO2exo << " cm-3,\n\n";
+
+	file << "Thermosphere is defined by solution to Krasnopolsky (2002) differential equation:\n";
+	file << "Thermosphere interpolation is log-linear:\n";
+	write_vector(file, "r [cm] = ", r_thermosphere);
+	write_vector(file, "log(nH) [cm-3] = ", lognHthermosphere);
+	write_vector(file, "log(nCO2) [cm-3] = ", lognCO2thermosphere);
+	file << std::endl;
+
+	file << "Exosphere is spherically symmetric Chamberlain (nCO2 assumed zero):\n";
+	file << "Exosphere interpolation is log-log:\n";
+	write_vector(file, "logr [cm] = ", logr_exosphere);
+	write_vector(file, "lognH [cm-3] = ", lognHexosphere);
+
+	file.close();
+      }
+  }
   
 };
 
