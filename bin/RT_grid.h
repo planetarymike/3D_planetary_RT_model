@@ -302,18 +302,25 @@ struct RT_grid {
       //see Bishop1999 for derivation of this formula
       double coef = stepper.vec.ray.domega;
 
-      //chaufray formulation
-      coef *= (dtau_species[i_emission](stepper.start_voxel)
-      	       /dtau_species[i_emission](stepper.current_voxel)
+      // //chaufray formulation
+      // coef *= (dtau_species[i_emission](stepper.start_voxel)
+      // 	       /dtau_species[i_emission](stepper.current_voxel)
 	       
-      	       *(transmission.T(los.tau_species_initial[i_emission])
+      // 	       *(transmission.T(los.tau_species_initial[i_emission])
+      // 		 - transmission.T(los.tau_species_final[i_emission]))
+	       
+      // 	       *exp(-0.5*(los.tau_absorber_initial[i_emission]
+      // 			  +los.tau_absorber_final[i_emission])));
+
+
+      // //bishop formulation
+      coef *= ((transmission.T(los.tau_species_initial[i_emission])
       		 - transmission.T(los.tau_species_final[i_emission]))
 	       
       	       *exp(-0.5*(los.tau_absorber_initial[i_emission]
       			  +los.tau_absorber_final[i_emission])));
 
-
-      // //bishop formulation
+      // with Tintabs accounting for OD variation across cell
       // coef *= (transmission.T(los.tau_species_initial[i_emission])*exp(-los.tau_absorber_initial[i_emission])
       // 	       - transmission.T(los.tau_species_final[i_emission])*exp(-los.tau_absorber_final[i_emission])
       // 	       + abs[i_emission](stepper.current_voxel)*(transmission.Tintabs(los.tau_species_final[i_emission],
@@ -366,14 +373,14 @@ struct RT_grid {
 		     max_tau_species);
       
       for (int i_emission=0; i_emission < n_emissions; i_emission++) {
-	//chaufray formulation
-	singlescat[i_emission](pt.i_voxel) = (species_density[i_emission](pt.i_voxel)
-					      *transmission.T(tau_species_single_scattering[i_emission](pt.i_voxel))
-					      * exp(-tau_absorber_single_scattering[i_emission](pt.i_voxel)) );
+	// //chaufray formulation
+	// singlescat[i_emission](pt.i_voxel) = (species_density[i_emission](pt.i_voxel)
+	// 				      *transmission.T(tau_species_single_scattering[i_emission](pt.i_voxel))
+	// 				      * exp(-tau_absorber_single_scattering[i_emission](pt.i_voxel)) );
 	// bishop formulation
-	// singlescat[i_emission](pt.i_voxel) = ( (transmission.T(tau_species_single_scattering[i_emission](pt.i_voxel))
-	// 					* exp(-tau_absorber_single_scattering[i_emission](pt.i_voxel)) )
-	// 				       / species_sigma[i_emission](pt.i_voxel));
+	singlescat[i_emission](pt.i_voxel) = ( (transmission.T(tau_species_single_scattering[i_emission](pt.i_voxel))
+						* exp(-tau_absorber_single_scattering[i_emission](pt.i_voxel)) )
+					       / species_sigma[i_emission](pt.i_voxel));
       }
     }
   }
@@ -555,8 +562,21 @@ struct RT_grid {
 
 
 	  //chaufray foumulation
+	  // los.brightness[i_emission] += (sourcefn_temp
+	  // 				 /dtau_species_temp
+					 
+	  // 				 *emission_branching_ratios[i_emission]
+					 
+	  // 				 *(transmission.Tint(los.tau_species_final[i_emission])
+	  // 				   - transmission.Tint(los.tau_species_initial[i_emission]))
+					 
+	  // 				 *exp(-0.5*(los.tau_absorber_initial[i_emission]
+	  // 					    +los.tau_absorber_final[i_emission])));
+
+	  
+	  //bishop formulation
+
 	  los.brightness[i_emission] += (sourcefn_temp
-	  				 /dtau_species_temp
 					 
 	  				 *emission_branching_ratios[i_emission]
 					 
@@ -566,8 +586,7 @@ struct RT_grid {
 	  				 *exp(-0.5*(los.tau_absorber_initial[i_emission]
 	  					    +los.tau_absorber_final[i_emission])));
 
-	  
-	  //bishop formulation
+	  // with in-cell absorption calculation
 	  // los.brightness[i_emission] += (sourcefn_temp
 
 	  // 				 *emission_branching_ratios[i_emission]
