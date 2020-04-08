@@ -34,9 +34,9 @@ public:
     obs.add_MSO_observation(MSO_locations,MSO_directions);
   }
 
-  void add_observation(double* MSO_locations, double* MSO_directions, int n_obs) {
-    obs.add_MSO_observation(MSO_locations,MSO_directions,n_obs);
-  }
+  // void add_observation(double* MSO_locations, double* MSO_directions, int n_obs) {
+  //   obs.add_MSO_observation(MSO_locations,MSO_directions,n_obs);
+  // }
 
   void set_g_factor(double &g) {
     obs.emission_g_factors[0] = g;

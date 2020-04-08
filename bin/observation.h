@@ -98,21 +98,21 @@ public:
   }
 
 
-  void add_MSO_observation(double *location_array, double *direction_array, int n) {
-    resize_input(n);
+  // void add_MSO_observation(double *location_array, double *direction_array, int n) {
+  //   resize_input(n);
 
-    for (int i=0;i<n;i++) {
-      vector<double> loc_MSO = {location_array[3*i],
-				location_array[3*i+1],
-				location_array[3*i+2]};
-      vector<double> dir_MSO = {direction_array[3*i],
-				direction_array[3*i+1],
-				direction_array[3*i+2]};
-      add_MSO_observation(loc_MSO,dir_MSO);
-    }
+  //   for (int i=0;i<n;i++) {
+  //     vector<double> loc_MSO = {location_array[3*i],
+  // 				location_array[3*i+1],
+  // 				location_array[3*i+2]};
+  //     vector<double> dir_MSO = {direction_array[3*i],
+  // 				direction_array[3*i+1],
+  // 				direction_array[3*i+2]};
+  //     add_MSO_observation(loc_MSO,dir_MSO);
+  //   }
 
-    reset_output();
-  }
+  //   reset_output();
+  // }
 
 
   
