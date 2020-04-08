@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
 
 
   vector<double> loc = {0.,-30*rMars,0.};
-  obs.fake(loc,30,600);
+  obs.fake(loc,30,150);
 
   grid.brightness_nointerp(obs);
   obs.save_brightness("test/test_brightness.dat");
