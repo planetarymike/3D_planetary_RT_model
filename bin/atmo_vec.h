@@ -32,7 +32,7 @@ struct atmo_point {
   
   void xyz(const double xx, const double yy, const double zz) {
     x = xx; y = yy; z = zz;
-    r=sqrt(x*x+y*y+z*z);
+    r=sqrt(x*x + y*y + z*z);
     t=acos(z/r);
     p=atan2(y,x);
     if (p<0)
