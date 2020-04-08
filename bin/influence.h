@@ -139,68 +139,68 @@ struct holstein_T_integral_exact {
 // };
 
 
-struct holstein_T_integral_with_absorption_interp {
-  vector<double> logtau_vec, tau_vec;
-  vector<double> logabs_vec, abs_vec;
-  Bilinear_interp interp;
+// struct holstein_T_integral_with_absorption_interp {
+//   vector<double> logtau_vec, tau_vec;
+//   vector<double> logabs_vec, abs_vec;
+//   Bilinear_interp interp;
 
-  holstein_T_integral_with_absorption_interp()
-  {
-    const int ntaupts=100;
-    const double logtaumin = 1e-3;
-    const double logtaumax = 1e3;
-    const double logtaustep = (logtaumax-logtaumin)/(ntaupts-1);
-    for (int itau = 0; itau < ntaupts; itau++) {
-      logtau_vec.push_back(logtaumin+itau*logtaustep);
-      tau_vec.push_back(exp(logtau_vec[itau]));
-    }
+//   holstein_T_integral_with_absorption_interp()
+//   {
+//     const int ntaupts=100;
+//     const double logtaumin = 1e-3;
+//     const double logtaumax = 1e3;
+//     const double logtaustep = (logtaumax-logtaumin)/(ntaupts-1);
+//     for (int itau = 0; itau < ntaupts; itau++) {
+//       logtau_vec.push_back(logtaumin+itau*logtaustep);
+//       tau_vec.push_back(exp(logtau_vec[itau]));
+//     }
 
-    const int nabspts=40;
-    const double logabsmin = 1e-5;
-    const double logabsmax = 1e2;
-    const double logabsstep = (logabsmax-logabsmin)/(nabspts-1);
-    for (int iabs = 0; iabs < nabspts; iabs++) {
-      logabs_vec.push_back(logabsmin+iabs*logabsstep);
-      abs_vec.push_back(exp(logabs_vec[iabs]));
-    }
+//     const int nabspts=40;
+//     const double logabsmin = 1e-5;
+//     const double logabsmax = 1e2;
+//     const double logabsstep = (logabsmax-logabsmin)/(nabspts-1);
+//     for (int iabs = 0; iabs < nabspts; iabs++) {
+//       logabs_vec.push_back(logabsmin+iabs*logabsstep);
+//       abs_vec.push_back(exp(logabs_vec[iabs]));
+//     }
 
-    MatrixXd logHol;
-    logHol.resize(ntaupts,nabspts);
+//     MatrixXd logHol;
+//     logHol.resize(ntaupts,nabspts);
 
-    double tau,abs;
-#pragma omp parallel for private(tau,abs) shared(logHol) default(none)
-    for (int itau = 0; itau < ntaupts; itau++) {
-      tau = tau_vec[itau];
+//     double tau,abs;
+// #pragma omp parallel for private(tau,abs) shared(logHol) default(none)
+//     for (int itau = 0; itau < ntaupts; itau++) {
+//       tau = tau_vec[itau];
 	
-      for (int iabs = 0; iabs < nabspts; iabs++) {
-	abs = abs_vec[iabs];
+//       for (int iabs = 0; iabs < nabspts; iabs++) {
+// 	abs = abs_vec[iabs];
 
-	holstein_exact exact(abs);
-	tanh_sinh<double> integrator;
+// 	holstein_exact exact(abs);
+// 	tanh_sinh<double> integrator;
 	
-	double result = integrator.integrate(exact, 0.0, tau, 1e-6);
-	logHol(itau,iabs) = result;
-      }
-    }
+// 	double result = integrator.integrate(exact, 0.0, tau, 1e-6);
+// 	logHol(itau,iabs) = result;
+//       }
+//     }
     
-    interp = Bilinear_interp(logtau_vec, logabs_vec, logHol);
-  }
+//     interp = Bilinear_interp(logtau_vec, logabs_vec, logHol);
+//   }
   
-  double operator()(const double tau, const double abs) {
-    assert(abs < abs_vec.back() && "absorption must be less than max absorption.");
-    assert(tau < tau_vec.back() && "optical depth must be less than max tau");
+//   double operator()(const double tau, const double abs) {
+//     assert(abs < abs_vec.back() && "absorption must be less than max absorption.");
+//     assert(tau < tau_vec.back() && "optical depth must be less than max tau");
 
-    double logtau=log(tau);
-    double logabs=log(abs);
+//     double logtau=log(tau);
+//     double logabs=log(abs);
     
-    if (logabs < logabs_vec[0])
-      logabs = logabs_vec[0];
-    if (logtau < logtau_vec[0]) 
-      logtau = logtau_vec[0];
+//     if (logabs < logabs_vec[0])
+//       logabs = logabs_vec[0];
+//     if (logtau < logtau_vec[0]) 
+//       logtau = logtau_vec[0];
     
-    return exp(interp.interp(logtau,logabs));
-  }
-};
+//     return exp(interp.interp(logtau,logabs));
+//   }
+// };
 
 
 struct holstein_approx : influence {
