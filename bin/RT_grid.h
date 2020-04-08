@@ -23,7 +23,6 @@ using Eigen::MatrixXd;
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(MatrixXd)
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(VectorXd)
 
-
 //structure to hold the atmosphere grid
 struct RT_grid {
   int n_emissions;//number of emissions to evaluate at each point in the grid
@@ -616,11 +615,18 @@ struct RT_grid {
     vector<brightness_tracker> retval;
     
     retval.resize(vecs.size(),brightness_tracker(n_emissions));
-#pragma omp parallel for shared(retval,vecs,g) default(none)
-    for(unsigned int i=0; i<vecs.size(); i++) {
-      retval[i] = brightness(vecs[i],g,n_subsamples);
-    }
 
+#pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
+    for(unsigned int i=0; i<vecs.size(); i++)
+     retval[i] = brightness(vecs[i],g,n_subsamples);
+
+    // #pragma acc kernels
+    //     {
+    // #pragma acc loop independent
+    //       for(unsigned int i=0; i<vecs.size(); i++)
+    // 	retval[i] = brightness(vecs[i],g,n_subsamples);
+    //     }
+    
     return retval;
   }
 
