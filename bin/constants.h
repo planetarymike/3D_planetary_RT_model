@@ -32,8 +32,8 @@ const double CO2_lyman_alpha_absorption_cross_section = 6.3e-20; //cm^2 CO2 cros
 
 const double lyman_alpha_flux_Earth_typical = 4.5e15;//photons/s/m2/Angstrom line center flux, Earth (Solar Min)
 const double lyman_alpha_flux_Mars_typical = (lyman_alpha_flux_Earth_typical/1e4  // photons/s/cm2/A
-					      *1e8*lyman_alpha_lambda*lyman_alpha_lambda/clight //photons/s/cm2/Hz
-					      /aMars_typical/aMars_typical); // photons/s/cm2/Hz at Mars-Sun distance
+					      *1e8*lyman_alpha_lambda*lyman_alpha_lambda/clight //now photons/s/cm2/Hz
+					      /aMars_typical/aMars_typical); //now photons/s/cm2/Hz at Mars-Sun distance
 const double lyman_alpha_typical_g_factor = lyman_alpha_flux_Mars_typical*lyman_alpha_cross_section_total; // s-1
 
 
@@ -50,8 +50,8 @@ const double CO2_lyman_beta_absorption_cross_section = 3.53e-17; //cm^2 CO2 cros
 
 const double lyman_beta_flux_Earth_typical = lyman_alpha_flux_Earth_typical/66.; //photons/s/m2/Angstrom solar flux line center Earth
 const double lyman_beta_flux_Mars_typical = (lyman_beta_flux_Earth_typical/1e4  // photons/s/cm2/A
-					      *1e8*lyman_beta_lambda*lyman_beta_lambda/clight //photons/s/cm2/Hz
-					      /aMars_typical/aMars_typical); // photons/s/cm2/Hz at Mars-Sun distance
+					      *1e8*lyman_beta_lambda*lyman_beta_lambda/clight //now photons/s/cm2/Hz
+					      /aMars_typical/aMars_typical); // now photons/s/cm2/Hz at Mars-Sun distance
 const double lyman_beta_typical_g_factor = lyman_beta_flux_Mars_typical*lyman_beta_cross_section_total; // s-1
 
 
