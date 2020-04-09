@@ -25,6 +25,9 @@ generate_source_function_noassert:
 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -DNDEBUG -o generate_source_function.x
 
 generate_source_function_profile:
+	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -g -o generate_source_function.x
+
+generate_source_function_gprof:
 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -pg -o generate_source_function.x
 
 generate_source_function_debug_warn:

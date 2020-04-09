@@ -17,7 +17,7 @@
 struct spherical_azimuthally_symmetric_grid : RT_grid
 {
 
-  const int r_dimension;
+  static const int r_dimension = 0;
   int n_radial_boundaries;
   int rmethod;
   static const int rmethod_altitude = 0;
@@ -25,9 +25,10 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
   
   vector<double> radial_boundaries;
   vector<double> pts_radii;
+  vector<double> log_pts_radii;
   vector<sphere> radial_boundary_spheres;
 
-  const int sza_dimension;
+  static const int sza_dimension = 1;
   int n_sza_boundaries;
   int szamethod;
   static const int szamethod_uniform = 0;
@@ -38,19 +39,18 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
   vector<cone> sza_boundary_cones;
 
   vector<int> n_boundaries;
-  intersection_writer saver;
-  bool save_intersections;
+  // intersection_writer saver;
+  // bool save_intersections;
 
   int n_theta;
   vector<double> ray_theta;
   int n_phi;
   vector<double> ray_phi;
 
-  
+   
  spherical_azimuthally_symmetric_grid(const vector<string> &emission_names,
-				      influence &transmissionn)
-   : RT_grid(emission_names,transmissionn),
-    r_dimension(0), sza_dimension(1)
+				      holstein_approx &transmissionn)
+   : RT_grid(emission_names,transmissionn)
     {
       n_dimensions = 2;
       n_boundaries.resize(n_dimensions);
@@ -58,8 +58,8 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       rmethod = rmethod_altitude;
       szamethod = szamethod_uniform;
       
-      save_intersections = false;
-      saver.fname = "intersections.dat";
+      // save_intersections = false;
+      // saver.fname = "intersections.dat";
     }
 
   
@@ -92,8 +92,10 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     }
     
     pts_radii.resize(n_radial_boundaries-1);
+    log_pts_radii.resize(n_radial_boundaries-1);
     for (int i=0; i<n_radial_boundaries-1; i++) {
       pts_radii[i]=sqrt(radial_boundaries[i]*radial_boundaries[i+1]);
+      log_pts_radii[i]=log(pts_radii[i]);
     }
 
     radial_boundary_spheres.resize(n_radial_boundaries);
@@ -151,8 +153,8 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       }
     }
 
-    if (save_intersections)
-      saver.save_coordinates(radial_boundaries,sza_boundaries);
+    // if (save_intersections)
+    //   saver.save_coordinates(radial_boundaries,sza_boundaries);
     
     voxels_init=true;
     if (rays_init)
@@ -198,6 +200,11 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     else
       return indices[r_dimension]*(n_sza_boundaries-1)+indices[sza_dimension];
   }
+  int indices_to_voxel(int r_idx, int sza_idx) {
+    vector<int> temp = {r_idx, sza_idx};
+    return indices_to_voxel(temp);
+  }
+
 
   vector<int> voxel_to_indices(const int i_voxel) {
     vector<int> v(n_dimensions,-1);
@@ -276,111 +283,130 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     boundaries.trim();
     assert(boundaries.check(n_boundaries,n_voxels) && "boundary checks must pass");
     
-    if (save_intersections)
-      saver.append_intersections(vec,boundaries);
+    // if (save_intersections)
+    //   saver.append_intersections(vec,boundaries);
 
     return boundary_intersection_stepper(vec, boundaries);
   }
 
+  struct interp_info {
+    vector<int> voxel;
+    vector<double> weights;
+
+    interp_info() {
+      voxel.resize(4);
+      weights.resize(4);
+    }
+  };
   
+  interp_info get_interp_weights(const int &ivoxel, const atmo_point &pt) {
+    vector<int> coord_indices = voxel_to_indices(ivoxel);
+    int r_idx = coord_indices[r_dimension];
+    int sza_idx = coord_indices[sza_dimension];
 
+    double pt_r = pt.r;
+    // if (pt_r>radial_boundaries.back() && std::abs(pt_r/radial_boundaries.back()-1)<1e-6)
+    //   pt_r = radial_boundaries.back();
+    // if (pt_r<radial_boundaries[0] && std::abs(pt_r/radial_boundaries[0]-1)<1e-6)
+    //   pt_r = radial_boundaries[0];
 
-  class spherical_azimuthally_symmetric_interp : public qinterp {
-    Bilinear_interp terp;
-  public:
-    spherical_azimuthally_symmetric_interp() : qinterp() { }
+    double pt_sza = pt.t;
+    // if (pt_sza<0.0 && std::abs(pt_sza)<1e-6)
+    //   pt_sza = 0.0;
+    // if (pt_sza>pi && std::abs(pt_sza/pi-1.0)<1e-6)
+    //   pt_sza = pi;
 
-    template <class T>
-    spherical_azimuthally_symmetric_interp(VectorXd &input,
-					   T *parent)
-    {
-      MatrixXd data;
-      vector<double> log_alt;
-      vector<double> szas;
+    assert(radial_boundaries[r_idx] <= pt_r && pt_r <= radial_boundaries[r_idx+1] && "pt must be in identified voxel.");
+    assert(sza_boundaries[sza_idx] <= pt_sza && pt_sza <= sza_boundaries[sza_idx+1] && "pt must be in identified voxel.");
 
-      int nrpts = parent->pts_radii.size();
-      int nlogalt = nrpts+2;
-      int nsza = parent->pts_sza.size();
-      
-      data.resize(nlogalt,nsza);
-      
-      log_alt.push_back(log(parent->radial_boundaries[0]-rMars));
-      for (int i=0;i<nrpts;i++) 
-	log_alt.push_back(log(parent->pts_radii[i]-rMars));
-      log_alt.push_back(log(parent->radial_boundaries.back()-rMars));
+    int r_lower_pt_idx, r_upper_pt_idx;
+    double r_wt;
+    if (r_idx == 0 && pt_r <= pts_radii[0]) {
+      //we are below the lowest radial point in the source function grid
+      r_lower_pt_idx=r_upper_pt_idx=0;
+      r_wt=1.0;
+    } else if (r_idx == n_radial_boundaries-2 &&  pts_radii.back() <= pt_r) {
+      //we are above the highest radial point in the source function grid
+      r_lower_pt_idx=r_upper_pt_idx=n_radial_boundaries-2;
+      r_wt=0.0;
+    } else {
+      //we are inside the radial grid
 
-      for (int j=0;j<nsza;j++) 
-	szas.push_back(parent->pts_sza[j]);
-
-      vector<int> idx(2,0);
-      for (int i=0;i<nlogalt;i++) {
-	for (int j=0;j<nsza;j++) {
-	  if (i==0) {
-	    idx[0]=0; idx[1]=j;
-	  } else if (i==nlogalt-1) {
-	    idx[0]=nrpts-1; idx[1]=j;
-	  } else {
-	    idx[0]=i-1; idx[1]=j;
-	  }
-	  data(i,j) = input(parent->indices_to_voxel(idx));
-	}
+      //pts at which interp quanities are defined are offset from the
+      //grid boundaries. Figure out whether to go up or down
+      if (pt_r < pts_radii[r_idx]) {
+	r_lower_pt_idx = r_idx - 1;
+	r_upper_pt_idx = r_lower_pt_idx + 1;
+      } else {
+	r_lower_pt_idx = r_idx;
+	r_upper_pt_idx = r_lower_pt_idx + 1;
       }
 
-      terp = Bilinear_interp(log_alt, szas, data);
+      assert(r_lower_pt_idx >= 0 && r_upper_pt_idx < n_radial_boundaries-1 && "interpolation points must lie on grid.");
+      
+      r_wt = (log(pt_r) - log_pts_radii[r_lower_pt_idx])/(log_pts_radii[r_upper_pt_idx]-log_pts_radii[r_lower_pt_idx]);
     }
 
-    double interp(const atmo_point pt) { 
-      return terp.interp(log(pt.r-rMars),pt.t);
+    int sza_lower_pt_idx, sza_upper_pt_idx;
+    double sza_wt;
+    //we are always inside the SZA grid
+    assert(pts_sza[0] <= pt_sza && pt_sza < pts_sza.back() && "pt must be inside SZA grid.");
+    //pts at which interp quanities are defined are offset from the
+    //grid boundaries. Figure out whether to go up or down
+    if (pt_sza < pts_sza[sza_idx]) {
+      sza_lower_pt_idx = sza_idx - 1;
+      sza_upper_pt_idx = sza_lower_pt_idx + 1;
+    } else {
+      sza_lower_pt_idx = sza_idx;
+      sza_upper_pt_idx = sza_lower_pt_idx + 1;
     }
+    sza_wt = (pt_sza-pts_sza[sza_lower_pt_idx])/(pts_sza[sza_upper_pt_idx]-pts_sza[sza_lower_pt_idx]);
 
-  };
-
-  class spherical_azimuthally_symmetric_grid_interpolator {
-  public:
-    spherical_azimuthally_symmetric_interp dtau_species;
-    spherical_azimuthally_symmetric_interp dtau_absorber;
-    spherical_azimuthally_symmetric_interp abs;
-    spherical_azimuthally_symmetric_interp sourcefn;
-
-    spherical_azimuthally_symmetric_grid_interpolator() { }
+    interp_info retval;
     
-    template <typename T>
-    spherical_azimuthally_symmetric_grid_interpolator(VectorXd &dtau_speciess,
-						      VectorXd &dtau_absorberr,
-						      VectorXd &abss,
-						      VectorXd &sourcefnn,
-						      T *parent) {
-      dtau_species = spherical_azimuthally_symmetric_interp(dtau_speciess, parent);
-      dtau_absorber = spherical_azimuthally_symmetric_interp(dtau_absorberr, parent);
-      abs = spherical_azimuthally_symmetric_interp(abss, parent);
-      sourcefn = spherical_azimuthally_symmetric_interp(sourcefnn, parent);
-    }
+    retval.voxel.resize(4,0.);
+    retval.weights.resize(4,0.);
 
-  }; 
+    retval.voxel[0]   = indices_to_voxel(r_lower_pt_idx, sza_lower_pt_idx);
+    retval.weights[0] =                    (1.-r_wt)   *   (1-sza_wt)     ;
 
-  vector<spherical_azimuthally_symmetric_grid_interpolator> internal_interp;
-  
-  void setup_interp() {
-    interp.resize(n_emissions);
-    internal_interp.resize(n_emissions);
+    retval.voxel[1]   = indices_to_voxel(r_upper_pt_idx, sza_lower_pt_idx);
+    retval.weights[1] =                        r_wt    *   (1-sza_wt)     ;
 
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      internal_interp[i_emission] = spherical_azimuthally_symmetric_grid_interpolator(dtau_species[i_emission],
-										      dtau_absorber[i_emission],
-										      abs[i_emission],
-										      sourcefn[i_emission],
-										      this);
-      interp[i_emission].dtau_species = &internal_interp[i_emission].dtau_species;
-      interp[i_emission].dtau_absorber = &internal_interp[i_emission].dtau_absorber;
-      interp[i_emission].abs = &internal_interp[i_emission].abs;
-      interp[i_emission].sourcefn = &internal_interp[i_emission].sourcefn;
-    }
-    interp_init=true;
+    retval.voxel[2]   = indices_to_voxel(r_lower_pt_idx, sza_upper_pt_idx);
+    retval.weights[2] =                    (1.-r_wt)   *      sza_wt;
+
+    retval.voxel[3]   = indices_to_voxel(r_upper_pt_idx, sza_upper_pt_idx);
+    retval.weights[3] =                        r_wt    *      sza_wt;
+
+    assert(std::abs(retval.weights[0]+retval.weights[1]+retval.weights[2]+retval.weights[3] - 1.0) < 1e-5
+	   && "interpolation weights must sum to 1.");
+
+    return retval;
   }
 
-
-
-
+  double interpolate_array(const interp_info &interp, const VectorXd &arr) {
+    double retval=0;
+    for (int i=0;i<4;i++)
+      retval+=interp.weights[i]*arr(interp.voxel[i]);
+    return retval;
+  }
+  
+  interpolated_values grid_interp(const int ivoxel, const atmo_point pt) {
+    interp_info terp=get_interp_weights(ivoxel, pt);
+    
+    interpolated_values retval;
+    retval.resize(n_emissions);
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      retval.dtau_species_interp[i_emission]  = exp(interpolate_array(terp,log_dtau_species[i_emission]));
+      retval.dtau_absorber_interp[i_emission] = exp(interpolate_array(terp,log_dtau_absorber[i_emission]));
+      retval.abs_interp[i_emission]           = exp(interpolate_array(terp,log_abs[i_emission]));
+      retval.sourcefn_interp[i_emission]      = exp(interpolate_array(terp,log_sourcefn[i_emission]));
+    }
+    
+    return retval;
+  }; 
+  
 
   VectorXd sza_slice(VectorXd quantity, int i_sza) {
     VectorXd ret;

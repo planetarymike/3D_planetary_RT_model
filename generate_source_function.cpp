@@ -35,6 +35,9 @@ int main(int argc, char* argv[]) {
   //grid.szamethod = grid.szamethod_uniform;
   grid.szamethod = grid.szamethod_uniform_cos;
   
+
+  // grid.setup_voxels(10, 4/*20 for 10 deg increments with sza_uniform*/, atm);
+  // grid.setup_rays(6, 12);
   grid.setup_voxels(40, 20/*20 for 10 deg increments with sza_uniform*/, atm);
   grid.setup_rays(6, 12);
   
@@ -68,14 +71,30 @@ int main(int argc, char* argv[]) {
   // std::cout << "lyman beta g factor is:" << lyman_beta_typical_g_factor << std::endl;
 
 
-  vector<double> loc = {0.,-30*rMars,0.};
-  obs.fake(loc,30,150);
+  double dist = 30*rMars;
+  obs.fake(dist,30,300);
+  observation obs_nointerp = obs;
 
-  grid.brightness_nointerp(obs);
+#pragma omp parallel
+  {
+    observation local_obs = obs;
+    observation local_obs_nointerp = obs_nointerp;
+    spherical_azimuthally_symmetric_grid local_grid = grid;
+
+    
+    local_grid.brightness(local_obs);
+    local_grid.brightness_nointerp(local_obs_nointerp);
+
+    #pragma omp critical
+    {
+      obs += local_obs;
+      obs_nointerp += local_obs_nointerp;
+    }
+  }
+
   obs.save_brightness("test/test_brightness.dat");
+  obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
 
-  grid.brightness(obs);
-  obs.save_brightness("test/test_interp_brightness.dat");
   
   return 0; 
 }

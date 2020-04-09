@@ -20,7 +20,7 @@ struct plane_parallel_grid : RT_grid
   vector<plane> radial_boundary_planes;
   
   plane_parallel_grid(const vector<string> &emission_names,
-		      influence &transmissionn)
+		      holstein_approx &transmissionn)
     : RT_grid(emission_names,transmissionn)
   {
     n_dimensions = 1;

@@ -141,6 +141,8 @@ public:
     std::sort(distances.begin(),distances.end());
 
     for (auto d: distances) {
+      //there's a problem detecting intersections with cones that have an opening angle of pi/2
+      //for now, just pick +/- one sza boundary and the problem is avoided
       assert(is_zero(vec.extend(d).t/angle-1.0) && "vector must intersect cone at specified distance.");
     }
     

@@ -60,40 +60,49 @@ struct RT_grid {
   vector<VectorXd> absorber_density; 
   vector<VectorXd> species_sigma;//scatterer cross section on the tabulated grid
   vector<VectorXd> absorber_sigma;//absorber cross section on the tabulated grid
+
+
   vector<VectorXd> dtau_species;
+  vector<VectorXd> log_dtau_species;  //quantities that need to be interpolated are also stored as log
   vector<VectorXd> dtau_absorber;
-  vector<VectorXd> abs; //ratio of dtau_abs to dtau_species
+  vector<VectorXd> log_dtau_absorber;
+  vector<VectorXd> abs; //ratio of dtau_abs to dtau_specise
+  vector<VectorXd> log_abs; 
+
   
   //Radiative transfer parameters
   vector<MatrixXd> influence_matrix; //influence matrix has dimensions (n_emissions, n_voxels, n_voxels)
 
   vector<VectorXd> singlescat; //have dimensions (n_emissions, n_voxels)  
-  vector<VectorXd> sourcefn; //have dimensions (n_emissions, n_voxels)  
-  
+  vector<VectorXd> sourcefn; 
+  vector<VectorXd> log_sourcefn; 
+
   //vectors to compute the single scattering have dimensions (n_emissions, n_voxels)  
   vector<VectorXd> tau_species_single_scattering;
   vector<VectorXd> tau_absorber_single_scattering;
 
   //interpolation support
-  class qinterp {
+  class interpolated_values {
   public:
-    virtual double interp(const atmo_point pt) { return 0.0; }
-  };
+    vector<double> dtau_species_interp;
+    vector<double> dtau_absorber_interp;
+    vector<double> abs_interp;
+    vector<double> sourcefn_interp;
+    
+    void resize(const int n_emissions) {
+      dtau_species_interp.resize(n_emissions);
+      dtau_absorber_interp.resize(n_emissions);
+      abs_interp.resize(n_emissions);
+      sourcefn_interp.resize(n_emissions);      
+    }
+  }; 
 
-  class grid_interpolator {
-  public:
-    qinterp* dtau_species;
-    qinterp* dtau_absorber;
-    qinterp* abs;
-    qinterp* sourcefn;
+  virtual interpolated_values grid_interp(const int ivoxel, const atmo_point pt) {
+    return interpolated_values();
   }; 
   
-  vector<grid_interpolator> interp;
-  virtual void setup_interp() { }; //assign the above pointers to an
-				   //object in the derived class
-  
   //the influence function
-  influence &transmission;
+  holstein_approx transmission;
 
   //initialization parameters
   bool voxels_init; //is the geometry of the grid initialized?
@@ -103,14 +112,13 @@ struct RT_grid {
   bool all_emissions_init;
   bool influence_matrix_init, singlescat_init;//are the RT properties initialized?
   bool solved;//have we solved for the source function?
-  bool interp_init;//is the interpolator initialized?
 
 
   //test output
   bool save_influence;
   virtual void save_S(string fname) {}; //save source function to file
   
-  RT_grid(const vector<string> &emission_namess, influence &transmissionn) :
+  RT_grid(const vector<string> &emission_namess, holstein_approx transmissionn) :
     n_emissions(emission_namess.size()), emission_names(emission_namess), transmission(transmissionn) {
 
     voxels_init = false; 
@@ -121,7 +129,6 @@ struct RT_grid {
     influence_matrix_init = false;
     singlescat_init = false;
     solved = false;
-    interp_init = false;
 
     save_influence = false;
 
@@ -133,11 +140,15 @@ struct RT_grid {
     species_sigma.resize(n_emissions);
     absorber_sigma.resize(n_emissions);
     dtau_species.resize(n_emissions);
+    log_dtau_species.resize(n_emissions);
     dtau_absorber.resize(n_emissions);
+    log_dtau_absorber.resize(n_emissions);
     abs.resize(n_emissions);
+    log_abs.resize(n_emissions);
     influence_matrix.resize(n_emissions);
     singlescat.resize(n_emissions);
     sourcefn.resize(n_emissions);
+    log_sourcefn.resize(n_emissions);
     tau_species_single_scattering.resize(n_emissions);
     tau_absorber_single_scattering.resize(n_emissions);
   }
@@ -151,11 +162,15 @@ struct RT_grid {
       species_sigma[i].resize(n_voxels);
       absorber_sigma[i].resize(n_voxels);
       dtau_species[i].resize(n_voxels);
+      log_dtau_species[i].resize(n_voxels);
       dtau_absorber[i].resize(n_voxels);
+      log_dtau_absorber[i].resize(n_voxels);
       abs[i].resize(n_voxels);
+      log_abs[i].resize(n_voxels);
       influence_matrix[i].resize(n_voxels,n_voxels);
       singlescat[i].resize(n_voxels);
       sourcefn[i].resize(n_voxels);
+      log_sourcefn[i].resize(n_voxels);
       tau_species_single_scattering[i].resize(n_voxels);
       tau_absorber_single_scattering[i].resize(n_voxels);
     }
@@ -203,6 +218,12 @@ struct RT_grid {
       dtau_species[n] = species_density[n].array() * species_sigma[n].array();
       dtau_absorber[n] = absorber_density[n].array() * absorber_sigma[n].array();
       abs[n] = dtau_absorber[n].array() / dtau_species[n].array();
+
+      for (int i=0;i<log_dtau_species[n].size();i++) {
+	log_dtau_species[n](i) = dtau_species[n](i) == 0 ? -1e5 : log(dtau_species[n](i));
+	log_dtau_absorber[n](i) = dtau_absorber[n](i) == 0 ? -1e5 : log(dtau_species[n](i));
+	log_abs[n](i) = abs[n](i) == 0 ? -1e5 : log(abs[n](i));
+      }
 
       emission_init[n] = true;
 
@@ -427,7 +448,10 @@ struct RT_grid {
       
       // //if using chaufray fomulation, convert back to Bishop formulation of S:
       // sourcefn[i_emission] = (sourcefn[i_emission].array()/dtau_species[i_emission].array());
-      
+
+
+      for (int i=0;i<log_sourcefn[i_emission].size();i++)
+	log_sourcefn[i_emission](i) = sourcefn[i_emission](i) == 0 ? -1e5 : log(sourcefn[i_emission](i));
     }
   
     solved=true;
@@ -495,7 +519,6 @@ struct RT_grid {
     solve();
     solved = true;
 
-    setup_interp();
     //std::cout << "max_tau_species = " << max_tau_species << std::endl;
   
     // print time elapsed
@@ -530,27 +553,33 @@ struct RT_grid {
     
     for(unsigned int i_bound=1;i_bound<stepper.boundaries.size();i_bound++) {
       double d_start=stepper.boundaries[i_bound-1].distance;
-      double d_step=(stepper.boundaries[i_bound].distance-d_start)/(n_subsamples_distance-1);
+      //first factor here accounts for small rounding errors in boundary crossings
+      double d_step=(1-1e-6)*(stepper.boundaries[i_bound].distance-d_start)/(n_subsamples_distance-1);
+      int current_voxel = stepper.boundaries[i_bound-1].entering;
 
+      
       for (int i_step=1;i_step<n_subsamples_distance;i_step++) {
 
 	atmo_point pt = vec.extend(d_start+i_step*d_step);
+
+	interpolated_values interp_vals;
+	if (n_subsamples!=0)
+	  interp_vals = grid_interp(stepper.boundaries[i_bound-1].entering, pt);
 	
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 
 	  double dtau_species_temp, dtau_absorber_temp, abs_temp, sourcefn_temp;
 
 	  if (n_subsamples == 0) {
-	    dtau_species_temp  = dtau_species[i_emission](stepper.boundaries[i_bound-1].entering);
-	    dtau_absorber_temp = dtau_absorber[i_emission](stepper.boundaries[i_bound-1].entering);
-	    abs_temp = abs[i_emission](stepper.boundaries[i_bound-1].entering);
-	    sourcefn_temp      = sourcefn[i_emission](stepper.boundaries[i_bound-1].entering);
+	    dtau_species_temp  = dtau_species[i_emission](current_voxel);
+	    dtau_absorber_temp = dtau_absorber[i_emission](current_voxel);
+	    abs_temp           = abs[i_emission](current_voxel);
+	    sourcefn_temp      = sourcefn[i_emission](current_voxel);
 	  } else {
-	    assert(interp_init && "interpolation object must be defined before brightness can be integrated!");
-	    dtau_species_temp  = interp[i_emission].dtau_species->interp(pt);
-	    dtau_absorber_temp = interp[i_emission].dtau_absorber->interp(pt);
-	    abs_temp           = interp[i_emission].abs->interp(pt);
-	    sourcefn_temp      = interp[i_emission].sourcefn->interp(pt);
+	    dtau_species_temp  = interp_vals.dtau_species_interp[i_emission];
+	    dtau_absorber_temp = interp_vals.dtau_absorber_interp[i_emission];
+	    abs_temp           = interp_vals.abs_interp[i_emission];
+	    sourcefn_temp      = interp_vals.sourcefn_interp[i_emission];
 	  } 
 
 
@@ -611,12 +640,13 @@ struct RT_grid {
     return los;
   }
 
-  vector<brightness_tracker> brightness(const vector<atmo_vector> &vecs, const vector<double> &g, const int n_subsamples=10) {
+  vector<brightness_tracker> brightness(const vector<atmo_vector> &vecs, const vector<double> &g, const int n_subsamples=5) {
     vector<brightness_tracker> retval;
     
     retval.resize(vecs.size(),brightness_tracker(n_emissions));
 
-#pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
+    //#pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
+#pragma omp for
     for(unsigned int i=0; i<vecs.size(); i++)
      retval[i] = brightness(vecs[i],g,n_subsamples);
 
@@ -630,7 +660,7 @@ struct RT_grid {
     return retval;
   }
 
-  void brightness(observation &obs, const int n_subsamples=10) {
+  void brightness(observation &obs, const int n_subsamples=5) {
     assert(obs.size()>0 && "there must be at least one observation to simulate!");
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");

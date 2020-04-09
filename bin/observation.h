@@ -17,7 +17,7 @@ using Eigen::AngleAxisd;
 
 struct observation {
 protected:
-  const int &n_emissions;
+  const int n_emissions;
   const vector<string> emission_names;
   int n_obs;
 
@@ -80,6 +80,24 @@ public:
       emission_g_factors(vector<double>(n_emissions,0.))
   { }
 
+  observation& operator+=(const observation &O) {
+    assert(O.emission_names == emission_names &&
+	   O.location_MSO == location_MSO &&
+	   O.direction_MSO == direction_MSO &&
+	   O.emission_g_factors == emission_g_factors &&
+	   "only add observations of the same kind");
+
+    for (int iobs=0;iobs<n_obs;iobs++) {
+      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	brightness[iobs][i_emission] = brightness[iobs][i_emission] + O.brightness[iobs][i_emission];
+	tau_species[iobs][i_emission] = tau_species[iobs][i_emission] + O.tau_species[iobs][i_emission];
+	tau_absorber[iobs][i_emission] = tau_absorber[iobs][i_emission] + O.tau_absorber[iobs][i_emission];
+      }
+    }
+    
+    return *this;
+  }
+  
   void reset_output() {
     brightness.resize(n_obs,vector<double>(n_emissions,0.));
     tau_species.resize(n_obs,vector<double>(n_emissions,0.));
@@ -139,9 +157,11 @@ public:
       }
   }
 
-  void fake(vector<double> loc = {0.,-1e10,0.},
+  void fake(double dist,
 	    double angle_deg = 30,
 	    int nsamples = 300) {
+
+    vector<double> loc = {0.,-dist,0.};
 
     double angle_rad = M_PI/180. * angle_deg;
     double dangle_rad = 2*angle_rad/(nsamples-1);
