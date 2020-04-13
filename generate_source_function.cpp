@@ -72,28 +72,16 @@ int main(int argc, char* argv[]) {
 
 
   double dist = 30*rMars;
-  obs.fake(dist,30,300);
+  obs.fake(dist,30,600);
   observation obs_nointerp = obs;
 
-#pragma omp parallel
-  {
-    observation local_obs = obs;
-    observation local_obs_nointerp = obs_nointerp;
-    spherical_azimuthally_symmetric_grid local_grid = grid;
-
-    
-    local_grid.brightness(local_obs);
-    local_grid.brightness_nointerp(local_obs_nointerp);
-
-    #pragma omp critical
-    {
-      obs += local_obs;
-      obs_nointerp += local_obs_nointerp;
-    }
-  }
-
+  grid.brightness(obs);
   obs.save_brightness("test/test_brightness.dat");
+  grid.brightness_nointerp(obs_nointerp);
   obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
+
+
+
 
   
   return 0; 

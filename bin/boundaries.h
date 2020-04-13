@@ -19,7 +19,14 @@ struct boundary {
   double distance;//distance to the boundary crossing
 
   boundary(int n_dimensions) {
+    entering = -2;
     entering_indices.resize(n_dimensions,-2);
+  }
+
+  void reset() {
+    entering=-2;
+    std::fill(entering_indices.begin(),entering_indices.end(),-2);
+    distance = -1;
   }
 
   bool operator<(const boundary &rhs) const { return distance < rhs.distance; }
@@ -35,16 +42,29 @@ struct boundary {
 
 
 
-struct boundary_set {
+class boundary_set {
+  //some savings to be found here in avoiding consistent reallocation of vector<boundary>
+  //use a fixed-size array and navigate with internal pointers begin, end, and internal_size
+private:
+  unsigned int begin;
+  unsigned int end;
+  int internal_size;
+  int internal_max_size;
+public:
   unsigned int n_dimensions;
   vector<boundary> boundaries;
 
-  boundary_set() : n_dimensions(0) { }
+  boundary_set(const int n_dim,const int max_size = 200) 
+    : n_dimensions(n_dim) 
+  { 
+    internal_size=0;begin=0;end=0;
+    
+    boundaries.reserve(max_size);
+  }
+  boundary_set() : boundary_set(0) { }
 
-  boundary_set(int n_dim) : n_dimensions(n_dim) { }
-  
   boundary operator[](int i) {
-    return boundaries[i];
+    return boundaries[begin+i];
   }
 
   boundary back() {
@@ -52,7 +72,12 @@ struct boundary_set {
   }
   
   unsigned int size() {
-    return boundaries.size();
+    return internal_size;
+  }
+
+  void reset() {
+    internal_size=0;begin=0;end=0;
+    boundaries.clear();
   }
   
   void sort() {
@@ -62,12 +87,14 @@ struct boundary_set {
   void append(boundary b) {
     assert(b.entering_indices.size() == n_dimensions && "boundary must match dimensions of set.");
     boundaries.push_back(b);
+    internal_size++;
   }
 
   template<class T>
   void add_intersections(const double start, const int dim, 
 			 const int idx, const double &coordinate, T distances) {
-    boundary new_boundary(n_dimensions);
+    static thread_local boundary new_boundary(n_dimensions);
+    new_boundary.reset();
 
     std::sort(distances.begin(),distances.end());
     
@@ -79,6 +106,7 @@ struct boundary_set {
     new_boundary.distance=distances[0];
 
     boundaries.push_back(new_boundary);
+    internal_size++;
 
     if (distances.size()>1) {
       if (start > coordinate) 
@@ -87,6 +115,7 @@ struct boundary_set {
 	new_boundary.entering_indices[dim]=idx-1;
       new_boundary.distance=distances[1];
       boundaries.push_back(new_boundary);
+      internal_size++;
     }
   }
 
@@ -109,12 +138,11 @@ struct boundary_set {
   
   void trim() {
     //trim the list of intersections to those inside the grid
-    unsigned int begin = 0;
     while (boundaries[begin].entering == -1 && begin < boundaries.size()-1)
       begin++;
 
     if (begin==boundaries.size()-1) {
-      boundaries.clear();
+      begin=end=internal_size=0;
     } else {
       unsigned int end = begin;
       do {
@@ -124,7 +152,7 @@ struct boundary_set {
       assert(end < boundaries.size() && "end must be inside list of boundary intersections");
       assert(boundaries[end].entering == -1 && "trim error in boundary_set: ray does not exit grid");
     
-      boundaries = vector<boundary>(boundaries.begin()+begin, boundaries.begin()+end+1);
+      internal_size=end-begin+1;
     }
   }
 

@@ -1,4 +1,4 @@
-//RT_grid.h -- basic RT grid definitions
+ //RT_grid.h -- basic RT grid definitions
 //             specifics for different geometries are in other files
 
 #ifndef __RT_grid_H
@@ -89,7 +89,7 @@ struct RT_grid {
     vector<double> abs_interp;
     vector<double> sourcefn_interp;
     
-    void resize(const int n_emissions) {
+    interpolated_values(const int n_emissions) {
       dtau_species_interp.resize(n_emissions);
       dtau_absorber_interp.resize(n_emissions);
       abs_interp.resize(n_emissions);
@@ -97,9 +97,7 @@ struct RT_grid {
     }
   }; 
 
-  virtual interpolated_values grid_interp(const int ivoxel, const atmo_point pt) {
-    return interpolated_values();
-  }; 
+  virtual void grid_interp(const int &ivoxel, const atmo_point &pt, interpolated_values &retval) { }; 
   
   //the influence function
   holstein_approx transmission;
@@ -246,7 +244,8 @@ struct RT_grid {
     assert(all_emissions_init && "!nitialize grid and influence function before calling voxel_traverse.");
   
     //get boundary intersections
-    boundary_intersection_stepper stepper = ray_voxel_intersections(v);
+    static thread_local boundary_intersection_stepper stepper;
+    stepper=ray_voxel_intersections(v);
 
     if (stepper.boundaries.size() == 0)
       return;
@@ -281,6 +280,13 @@ struct RT_grid {
       max_tau_species = 0;
     }
 
+    void reset() {
+      std::fill(tau_species_initial.begin(), tau_species_initial.end(), 0);
+      std::fill(tau_species_final.begin(), tau_species_final.end(), 0);
+      std::fill(tau_absorber_initial.begin(), tau_absorber_initial.end(), 0);
+      std::fill(tau_absorber_final.begin(), tau_absorber_final.end(), 0);
+    }
+    
     void check_max_tau() {
       for (int i_emission=0; i_emission < n_emissions; i_emission++) {
 	if (tau_species_final[i_emission] > max_tau_species)
@@ -534,15 +540,26 @@ struct RT_grid {
     brightness_tracker(int n_emissionss) : tau_tracker(n_emissionss) {
       brightness.resize(n_emissionss,0.);
     }
+
+    void reset() {
+      tau_tracker::reset();
+      std::fill(brightness.begin(), brightness.end(), 0);
+    }
   };
 
   //interpolated brightness routine
-  brightness_tracker brightness(const atmo_vector &vec, const vector<double> &g, const int n_subsamples=10) {
+  brightness_tracker brightness(const atmo_vector &vec, const vector<double> &g, const int n_subsamples=5) {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
     
-    boundary_intersection_stepper stepper = ray_voxel_intersections(vec);
-    brightness_tracker los(n_emissions);
+    static thread_local boundary_intersection_stepper stepper;
+    stepper = ray_voxel_intersections(vec);
+    static thread_local brightness_tracker los(n_emissions);
+    los.reset();
 
+    static thread_local atmo_point pt;
+    static thread_local interpolated_values interp_vals(n_emissions);
+
+    
     //brightness is zero if we do not intersect the grid
     if (stepper.boundaries.size() == 0)
       return los;
@@ -560,11 +577,10 @@ struct RT_grid {
       
       for (int i_step=1;i_step<n_subsamples_distance;i_step++) {
 
-	atmo_point pt = vec.extend(d_start+i_step*d_step);
+	pt = vec.extend(d_start+i_step*d_step);
 
-	interpolated_values interp_vals;
 	if (n_subsamples!=0)
-	  interp_vals = grid_interp(stepper.boundaries[i_bound-1].entering, pt);
+	  grid_interp(stepper.boundaries[i_bound-1].entering, pt, interp_vals);
 	
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 
@@ -645,8 +661,7 @@ struct RT_grid {
     
     retval.resize(vecs.size(),brightness_tracker(n_emissions));
 
-    //#pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
-#pragma omp for
+    #pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
     for(unsigned int i=0; i<vecs.size(); i++)
      retval[i] = brightness(vecs[i],g,n_subsamples);
 
