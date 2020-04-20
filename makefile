@@ -6,15 +6,15 @@ IDIR=$(BINDIR) $(BOOSTDIR) $(EIGENDIR)
 # GNU Compiler
 CC=g++
 LIBS=-lm -fPIC
-MPFLAGS=-fopenmp -fopenacc
+MPFLAGS=-fopenmp
 OFLAGS=-O3 -ftree-vectorize -march=native -ffast-math -funsafe-math-optimizations -mfpmath=sse -DNDEBUG
 
-# # # intel compiler
-# # # you may need to run this
-# # # source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh -arch intel64 -platform linux
+# # intel compiler
+# # you may need to run this
+# # source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh -arch intel64 -platform linux
 # CC=icpc
-# COMPILER_OPT=-std=c++17 -mkl
-# LIBS=-lm -fPIC
+# COMPILER_OPT=-std=c++17
+# LIBS=-fPIC -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm
 # MPFLAGS=-qopenmp
 # OFLAGS=-O3 -march=native -DNDEBUG -fp-model fast=2
 
