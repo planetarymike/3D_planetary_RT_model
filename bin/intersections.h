@@ -110,6 +110,7 @@ public:
     angle=a;
     cosangle=std::cos(angle);
     cosangle2=cosangle*cosangle;
+    assert(!(is_zero(cosangle)) && "problems occur if there is a cone with an opening angle of pi/2 degrees.");
   }
 
   vector<double> intersections(const atmo_vector & vec) {
