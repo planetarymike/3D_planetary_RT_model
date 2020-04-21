@@ -3,6 +3,7 @@ callgrind*
 gmon.out
 profile.txt
 generate_source_function.x
+generate_source_function_gpu.x
 test
 test/*
 python/*.so
