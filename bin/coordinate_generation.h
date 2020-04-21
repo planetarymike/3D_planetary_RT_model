@@ -20,8 +20,9 @@ using std::vector;
 using std::exp;
 using std::log;
 
-void gauss_quadrature_points(vector<double> &pts,
-			     vector<double> &wts,
+template <class V>
+void gauss_quadrature_points(V &pts,
+			     V &wts,
 			     double start,
 			     double end,
 			     int npts) {
@@ -33,8 +34,9 @@ void gauss_quadrature_points(vector<double> &pts,
   
 }
 
-void uniform_quadrature_points(vector<double> &pts,
-			       vector<double> &wts,
+template <class V>
+void uniform_quadrature_points(V &pts,
+			       V &wts,
 			       double start,
 			       double end,
 			       int npts,
@@ -61,7 +63,8 @@ void uniform_quadrature_points(vector<double> &pts,
   
 }
 
-void get_radial_log_linear_points(vector<double> &rpts,
+template <class V>
+void get_radial_log_linear_points(V &rpts,
 				  int nrpts,
 				  double rminatm,
 				  double rexo,

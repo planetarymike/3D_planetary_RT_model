@@ -5,6 +5,8 @@
 #include "atmosphere.h"
 #include "RT_plane_parallel.h"
 #include "RT_spherical_azimuthally_symmetric.h"
+#include "RT_spherical_azimuthally_symmetric_gpu.h"
+
 
 int main(int argc, char* argv[]) {
 
@@ -68,19 +70,8 @@ int main(int argc, char* argv[]) {
   vector<double> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obs.emission_g_factors = g;
   
-  // std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
-  // std::cout << "lyman alpha tau=1 brightness at " << exobase_temp << " K : "
-  // 	    <<   (lyman_alpha_typical_g_factor/
-  // 		  (lyman_alpha_line_center_cross_section_coef/std::sqrt(exobase_temp))
-  // 		  /1e9)
-  // 	    << " kR" << std::endl;
-  
-  // std::cout << "lyman beta g factor is: " << lyman_beta_typical_g_factor << std::endl;
-  // std::cout << "lyman beta tau=1 brightness at " << exobase_temp << " K : "
-  // 	    <<   (lyman_beta_typical_g_factor/
-  // 		  (lyman_beta_line_center_cross_section_coef/std::sqrt(exobase_temp))
-  // 		  /1e6)
-  // 	    << " R" << std::endl;
+  // std::cout << "lyman alpha g factor is:" << lyman_alpha_typical_g_factor << std::endl;
+  // std::cout << "lyman beta g factor is:" << lyman_beta_typical_g_factor << std::endl;
 
 
   double dist = 30*rMars;
@@ -91,7 +82,11 @@ int main(int argc, char* argv[]) {
   obs.save_brightness("test/test_brightness.dat");
   grid.brightness_nointerp(obs_nointerp);
   obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
-   
+
+  grid.traverse_gpu(obs);
+
+
+  
   return 0; 
 }
 

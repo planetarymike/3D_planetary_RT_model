@@ -5,9 +5,14 @@ IDIR=$(BINDIR) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
 CC=g++
-LIBS=-lm -fPIC
+LIBS=-lm 
 MPFLAGS=-fopenmp
-OFLAGS=-O3 -ftree-vectorize -march=native -ffast-math -funsafe-math-optimizations -mfpmath=sse -DNDEBUG
+OFLAGS=-O3 -march=native -ffast-math -funsafe-math-optimizations -DNDEBUG #-msse -mfpmath=sse -fPIC -ftree-vectorize
+
+# Nvidia CUDA Compiler
+NCC=nvcc --disable-warnings
+NLIBS=-lm
+NOFLAGS= -O3 -DNDEBUG
 
 # # intel compiler
 # # you may need to run this
@@ -21,11 +26,14 @@ OFLAGS=-O3 -ftree-vectorize -march=native -ffast-math -funsafe-math-optimization
 generate_source_function:
 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
 
+generate_source_function_gpu:
+	$(NCC) generate_source_function_gpu.cu $(COMPILER_OPT) $(IDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
+
 generate_source_function_profile:
 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
 
-generate_source_function_gprof:
-	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(OFLAGS) -pg -o generate_source_function.x
+# generate_source_function_gprof:
+# 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(OFLAGS) -pg -o generate_source_function.x
 
 generate_source_function_debug_warn:
-	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(MPFLAGS) -O0 -g -Wall -o generate_source_function.x
+	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) -O0 -g -Wall -o generate_source_function.x

@@ -121,7 +121,7 @@ struct push_back_quantities
   template<typename... Ts, typename = AllVecs<Ts...>>
   push_back_quantities(Ts... v0) {
     vector<vector<double>*> vecs = { v0... };
-    for (auto v : vecs) {
+    for (auto&& v : vecs) {
       vec_ptrs.push_back(v);
     }
   }

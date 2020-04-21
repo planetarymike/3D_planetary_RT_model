@@ -31,7 +31,7 @@ struct influence {
   virtual double Tintint(const double /*tau*/) { return 0; };
   vector<double> Tintint(vector<double> tau) {
     vector<double> retval;
-    for( auto t: tau)
+    for(auto&& t: tau)
       retval.push_back(Tintint(t));
     return retval;
   }
@@ -41,7 +41,7 @@ struct influence {
   virtual double Tint(const double /*tau*/) { return 0; };
   vector<double> Tint(vector<double> tau) {
     vector<double> retval;
-    for( auto t: tau)
+    for(auto&& t: tau)
       retval.push_back(Tint(t));
     return retval;
   }
@@ -49,7 +49,7 @@ struct influence {
   virtual double T(const double /*tau*/) { return 0; };
   vector<double> T(vector<double> tau) {
     vector<double> retval;
-    for( auto t: tau)
+    for(auto&& t: tau)
       retval.push_back(T(t));
     return retval;
   }

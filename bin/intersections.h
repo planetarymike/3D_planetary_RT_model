@@ -3,6 +3,7 @@
 #ifndef __INTERSECTIONS_H
 #define __INTERSECTIONS_H
 
+#include "cuda_compatibility.h"
 #include "atmo_vec.h"
 #include <cmath>
 #include <vector>
@@ -33,22 +34,21 @@ class geom_primitive {
 
 class plane : geom_primitive {
  public:
-
   double z;
 
-  vector<double> intersections(const atmo_vector & vec) {
-    vector<double> distances;
+  CUDA_CALLABLE_MEMBER void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) {
+    n_hits = 0;
 
     if (vec.line_z != 0) {
       double d = (z-vec.pt.z)/vec.line_z;
-      if (d > 0)
-	distances.push_back(d);
+      if (d > 0) {
+	distances[n_hits]=d;
+	n_hits++;
+      }
     }
-
-    for (auto d: distances) 
-      assert(is_zero(vec.extend(d).z/z-1.0) && "vector must intersect plane at specified distance.");
     
-    return distances;    
+    for (int i=0;i<n_hits;i++) 
+      assert(is_zero(vec.extend(distances[i]).z/z-1.0) && "vector must intersect plane at specified distance.");
   }
   
 };
@@ -56,7 +56,7 @@ class plane : geom_primitive {
 
 
 class sphere : geom_primitive {
-private:
+protected:
   double r;
   double r2;
 
@@ -65,9 +65,9 @@ public:
     r=rr;
     r2=r*r;
   }
-
-  vector<double> intersections(const atmo_vector & vec) {
-    vector<double> distances;
+  
+  CUDA_CALLABLE_MEMBER void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) {
+    n_hits = 0;
 
     // we solve the quadratic t^2 - 2*(vec.r * vec.cost)*t + (vec.r^2 - r^2) == 0
     double B = vec.pt.r * vec.ray.cost;
@@ -80,26 +80,26 @@ public:
       discr = std::sqrt(discr);
       
       double d0 = -B - discr;
-      if (d0>0) 
-	distances.push_back(d0);
-
+      if (d0>0) {
+	distances[n_hits]=d0;
+	n_hits++;
+      }
       double d1 = -B + discr;
-      if (d1>0) 
-	distances.push_back(d1);
+      if (d1>0) {
+	distances[n_hits]=d1;
+	n_hits++;
+      }
     }
 
-    for (auto d: distances) 
-      assert(is_zero(vec.extend(d).r/r-1.0) && "vector must intersect sphere at specified distance.");
-
-    return distances;
+    for (int i=0;i<n_hits;i++) 
+      assert(is_zero(vec.extend(distances[i]).r/r-1.0) && "vector must intersect sphere at specified distance.");
   }
 
-  
 };
 
 
 class cone : geom_primitive {
-private:  
+protected:  
   double angle;
   double cosangle;
   double cosangle2;
@@ -113,8 +113,8 @@ public:
     assert(!(is_zero(cosangle)) && "problems occur if there is a cone with an opening angle of pi/2 degrees.");
   }
 
-  vector<double> intersections(const atmo_vector & vec) {
-    vector<double> distances;
+  CUDA_CALLABLE_MEMBER void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) {
+    n_hits = 0;
 
     double A = vec.line_z * vec.line_z - cosangle2;
     double B = vec.pt.z * vec.line_z - vec.pt.r * vec.ray.cost * cosangle2;
@@ -127,27 +127,26 @@ public:
 	discr = std::sqrt(discr);
 	
 	double d0 = (-B - discr)/A;
-	if (d0 > 0 && samesign(vec.pt.z + d0*vec.line_z, cosangle) ) 
-	  distances.push_back(d0);
-
+	if (d0 > 0 && samesign(vec.pt.z + d0*vec.line_z, cosangle) ) {
+	  distances[n_hits]=d0;
+	  n_hits++;
+	}
 	double d1 = (-B + discr)/A;
-	if (d1 > 0 && samesign(vec.pt.z + d1*vec.line_z, cosangle)) 
-	  distances.push_back(d1);
+	if (d1 > 0 && samesign(vec.pt.z + d1*vec.line_z, cosangle)) {
+	  distances[n_hits]=d1;
+	  n_hits++;
+	}
       }
     } else {
       double d = -C/(2*B);
-      if (d>0 && samesign(vec.pt.z + d*vec.line_z, cosangle)) 
-	distances.push_back(d);
+      if (d>0 && samesign(vec.pt.z + d*vec.line_z, cosangle)) {
+	distances[n_hits]=d;
+	n_hits++;
+      }
     }
-    std::sort(distances.begin(),distances.end());
 
-    for (auto d: distances) {
-      //there's a problem detecting intersections with cones that have an opening angle of pi/2
-      //for now, just pick +/- one sza boundary and the problem is avoided
-      assert(is_zero(vec.extend(d).t/angle-1.0) && "vector must intersect cone at specified distance.");
-    }
-    
-    return distances;
+    for (int i=0;i<n_hits;i++) 
+      assert(is_zero(vec.extend(distances[i]).t/angle-1.0) && "vector must intersect cone at specified distance.");
   }
 };
 
@@ -182,8 +181,9 @@ struct intersection_writer {
     }
   }
 
-  void append_intersections(atmo_vector vec,
-			    boundary_set boundaries) {
+  template <int NDIM>
+  void append_intersections(const atmo_vector &vec,
+			    const boundary_set<NDIM> &boundaries) {
     if (file.is_open()) {
       
       file << "ray origin (xyz) [cm]:\n"

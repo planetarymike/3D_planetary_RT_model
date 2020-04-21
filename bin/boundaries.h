@@ -3,6 +3,7 @@
 #ifndef __boundaries_H
 #define __boundaries_H
 
+#include "cuda_compatibility.h"
 #include "atmo_vec.h"
 #include <algorithm>
 #include <vector>
@@ -12,25 +13,35 @@
 
 using std::vector;
 
-
+template <int NDIM>
 struct boundary {
   int entering;//index of voxel the ray is entering
-  vector<int> entering_indices;//indices in each dimension of the voxel
+  static const int n_dimensions = NDIM;
+  int entering_indices[NDIM];//indices in each dimension of the voxel
   double distance;//distance to the boundary crossing
 
-  boundary(int n_dimensions) {
+  boundary() {
     entering = -2;
-    entering_indices.resize(n_dimensions,-2);
-  }
-
-  void reset() {
-    entering=-2;
-    std::fill(entering_indices.begin(),entering_indices.end(),-2);
+    for (int i=0;i<n_dimensions;i++)
+      entering_indices[i] = -2;
     distance = -1;
   }
 
-  bool operator<(const boundary &rhs) const { return distance < rhs.distance; }
-  bool operator<=(const boundary &rhs) const { return distance <= rhs.distance; }
+  void reset() {
+    entering = -2;
+    for (int i=0;i<n_dimensions;i++)
+      entering_indices[i] = -2;
+    distance = -1;
+  }
+
+  void set_entering_indices(const vector<int> &rhs) {
+    assert(rhs.size() == n_dimensions && "vector indices must have same dimensionality as grid.");
+    for (int i=0;i<n_dimensions;i++)
+      entering_indices[i] = rhs[i];
+  }
+  
+  bool operator<(const boundary<NDIM> &rhs) const { return distance < rhs.distance; }
+  bool operator<=(const boundary<NDIM> &rhs) const { return distance <= rhs.distance; }
 };
 
 
@@ -40,8 +51,7 @@ struct boundary {
 
 
 
-
-
+template <int NDIM>
 class boundary_set {
   //some savings to be found here in avoiding consistent reallocation of vector<boundary>
   //use a fixed-size array and navigate with internal pointers begin, end, and internal_size
@@ -51,23 +61,21 @@ private:
   int internal_size;
   int internal_max_size;
 public:
-  unsigned int n_dimensions;
-  vector<boundary> boundaries;
+  static const unsigned int n_dimensions = NDIM;
+  vector<boundary<NDIM>> boundaries;
 
-  boundary_set(const int n_dim,const int max_size = 200) 
-    : n_dimensions(n_dim) 
+  boundary_set(const int max_size = 200)
   { 
     internal_size=0;begin=0;end=0;
     
     boundaries.reserve(max_size);
   }
-  boundary_set() : boundary_set(0) { }
 
-  boundary operator[](int i) {
+  boundary<NDIM> operator[](int i) {
     return boundaries[begin+i];
   }
 
-  boundary back() {
+  boundary<NDIM> back() {
     return boundaries.back();
   }
   
@@ -84,36 +92,43 @@ public:
     std::sort(boundaries.begin(),boundaries.end());
   }
 
-  void append(boundary b) {
-    assert(b.entering_indices.size() == n_dimensions && "boundary must match dimensions of set.");
+  void append(boundary<NDIM> b) {
     boundaries.push_back(b);
     internal_size++;
   }
 
-  template<class T>
   void add_intersections(const double start, const int dim, 
-			 const int idx, const double &coordinate, T distances) {
-    static thread_local boundary new_boundary(n_dimensions);
+			 const int idx, const double &coordinate,
+			 const double (&distances)[2], const int n_hits) {
+    static thread_local boundary<NDIM> new_boundary;
     new_boundary.reset();
 
-    std::sort(distances.begin(),distances.end());
+    assert( 0 <= n_hits && n_hits <=2 && "only 0, 1, or 2 intersections are possible with a convex shell");
     
-    if (start > coordinate) 
-      new_boundary.entering_indices[dim]=idx-1;
-    else 
-      new_boundary.entering_indices[dim]=idx;
-    
-    new_boundary.distance=distances[0];
+    if (n_hits == 0) {
+      return;
+    } else if (n_hits == 1) {
+      bool above = (start > coordinate);
+      
 
-    boundaries.push_back(new_boundary);
-    internal_size++;
+      new_boundary.entering_indices[dim] = above ? idx-1 : idx;
+      new_boundary.distance=distances[0];
 
-    if (distances.size()>1) {
-      if (start > coordinate) 
-	new_boundary.entering_indices[dim]=idx;
-      else 
-	new_boundary.entering_indices[dim]=idx-1;
-      new_boundary.distance=distances[1];
+      boundaries.push_back(new_boundary);
+      internal_size++;
+    } else { // n_hits == 2
+
+      bool above = (start > coordinate);
+      bool in_order = (distances[1] > distances[0]);
+
+      new_boundary.entering_indices[dim] = above ? idx-1 : idx;
+      new_boundary.distance = in_order ? distances[0] : distances[1];
+      boundaries.push_back(new_boundary);
+      internal_size++;
+      
+      new_boundary.entering_indices[dim] = above ? idx : idx-1;
+      //^^ indices are reversed to come back out of the region we just entered
+      new_boundary.distance = in_order ? distances[1] : distances[0];
       boundaries.push_back(new_boundary);
       internal_size++;
     }
@@ -199,11 +214,11 @@ public:
 
 
 
-
+template <int NDIM>
 struct boundary_intersection_stepper {
   bool init;
   atmo_vector vec;
-  boundary_set boundaries;
+  boundary_set<NDIM> boundaries;
 
   bool inside;
   bool exits_bottom;
@@ -216,7 +231,7 @@ struct boundary_intersection_stepper {
 
   boundary_intersection_stepper() : init(false) { }
 
-  boundary_intersection_stepper(atmo_vector vecc, boundary_set boundariess)
+  boundary_intersection_stepper(atmo_vector vecc, boundary_set<NDIM> boundariess)
     : vec(vecc), boundaries(boundariess)
   {
     if (boundaries.size() > 0) {

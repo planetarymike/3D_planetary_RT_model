@@ -138,7 +138,11 @@ public:
     return n_obs;
   }
   
-  vector<atmo_vector> get_obs_vecs() const {
+  atmo_vector get_vec(int i) const {
+    return obs_vecs[i];
+  }
+
+  vector<atmo_vector> get_vecs() const {
     return obs_vecs;
   }
 

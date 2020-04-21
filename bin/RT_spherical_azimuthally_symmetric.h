@@ -14,7 +14,8 @@
 #include <cmath>
 #include <string>
 
-struct spherical_azimuthally_symmetric_grid : RT_grid
+
+struct spherical_azimuthally_symmetric_grid : RT_grid<2> //this is a 2D grid 
 {
 
   static const int r_dimension = 0;
@@ -52,7 +53,6 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 				      holstein_approx &transmissionn)
    : RT_grid(emission_names,transmissionn)
     {
-      n_dimensions = 2;
       n_boundaries.resize(n_dimensions);
       sun_direction = {0.,0.,1.};
       rmethod = rmethod_altitude;
@@ -62,6 +62,12 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
       // saver.fname = "intersections.dat";
     }
 
+  ~spherical_azimuthally_symmetric_grid() {
+    
+
+
+  }
+  
   
   void setup_voxels(int n_radial_boundariess,
 		    int n_sza_boundariess,
@@ -155,10 +161,6 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 
     // if (save_intersections)
     //   saver.save_coordinates(radial_boundaries,sza_boundaries);
-    
-    voxels_init=true;
-    if (rays_init)
-      grid_init=true;
   }
   
   void setup_rays(int n_thetaa, int n_phii)
@@ -184,20 +186,19 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 	rays[iray].set_ray_index(iray, ray_weights_theta[i], phi_spacing);
       }
     }
-    
-    rays_init=true;
-    if (voxels_init)
-      grid_init = true;
   }
   
   int indices_to_voxel(const int &r_idx, const int &sza_idx) {
-    if ((r_idx   < 0) || (  r_idx > pts_radii.size()-1) ||
-	(sza_idx < 0) || (sza_idx > pts_sza.size()-1))
+    if ((r_idx   < 0) || (  r_idx > (int) pts_radii.size()-1) ||
+	(sza_idx < 0) || (sza_idx > (int) pts_sza.size()-1))
       return -1;
     else
       return r_idx*(n_sza_boundaries-1)+sza_idx;
   }
   int indices_to_voxel(const vector<int> &indices) {
+    return indices_to_voxel(indices[r_dimension],indices[sza_dimension]);
+  }
+  int indices_to_voxel(const int (&indices)[n_dimensions]) {
     return indices_to_voxel(indices[r_dimension],indices[sza_dimension]);
   }
 
@@ -214,7 +215,8 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     return v;
   }
 
-  int find_coordinate_index(const double &pt_coord, const vector<double> &boundaries) {
+  template <class V>
+  int find_coordinate_index(const double &pt_coord, const V &boundaries) {
     static thread_local unsigned int i;
     
     for (i=0;i<boundaries.size();i++)
@@ -239,38 +241,39 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
   }
   
 
-  boundary_intersection_stepper ray_voxel_intersections(const atmo_vector &vec) {
+
+  boundary_intersection_stepper<n_dimensions> ray_voxel_intersections(const atmo_vector &vec) {
     
-    static thread_local boundary_set boundaries(n_dimensions);
+    static thread_local boundary_set<n_dimensions> boundaries;
     boundaries.reset();
     
     //define the origin
-    static thread_local boundary origin(n_dimensions);
+    static thread_local boundary<n_dimensions> origin;
     if (vec.pt.i_voxel == -1) {
-      origin.entering_indices = point_to_indices(vec.pt);
+      origin.set_entering_indices(point_to_indices(vec.pt));
       origin.entering = indices_to_voxel(origin.entering_indices);
     } else {
       origin.entering = vec.pt.i_voxel;
-      origin.entering_indices = voxel_to_indices(origin.entering);
+      origin.set_entering_indices(voxel_to_indices(origin.entering));
     }
     origin.distance = 0.0;
     boundaries.append(origin);
 
     //do the intersections for each coordinate
-    static thread_local vector<double> temp_distances(2);
-    temp_distances.clear();
+    int n_hits = 0;
+    double temp_distances[2] = {-1,-1};
     for (unsigned int ir=0;ir<radial_boundary_spheres.size();ir++) {
-      temp_distances = radial_boundary_spheres[ir].intersections(vec);
-      if (temp_distances.size()>0) 
-	boundaries.add_intersections(vec.pt.r, r_dimension,
-				     ir, radial_boundaries[ir], temp_distances);
+      radial_boundary_spheres[ir].intersections(vec, temp_distances, n_hits);
+      boundaries.add_intersections(vec.pt.r, r_dimension,
+				   ir, radial_boundaries[ir],
+				   temp_distances, n_hits);
     }
 
     for (unsigned int isza=0;isza<sza_boundary_cones.size();isza++) {
-      temp_distances = sza_boundary_cones[isza].intersections(vec);
-      if (temp_distances.size() > 0)
-      	boundaries.add_intersections(vec.pt.t, sza_dimension,
-      				     isza+1, sza_boundaries[isza+1], temp_distances);
+      sza_boundary_cones[isza].intersections(vec, temp_distances, n_hits);
+      boundaries.add_intersections(vec.pt.t, sza_dimension,
+				   isza+1, sza_boundaries[isza+1],
+				   temp_distances, n_hits);
     }
 
     //sort the list of intersections by distance & trim
@@ -283,7 +286,7 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     // if (save_intersections)
     //   saver.append_intersections(vec,boundaries);
 
-    return boundary_intersection_stepper(vec, boundaries);
+    return boundary_intersection_stepper<n_dimensions>(vec, boundaries);
   }
 
   struct interp_info {
@@ -382,10 +385,10 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
     get_interp_weights(ivoxel, pt, terp);
     
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      retval.dtau_species_interp[i_emission]  = exp(interpolate_array(terp,log_dtau_species[i_emission]));
-      retval.dtau_absorber_interp[i_emission] = exp(interpolate_array(terp,log_dtau_absorber[i_emission]));
-      retval.abs_interp[i_emission]           = exp(interpolate_array(terp,log_abs[i_emission]));
-      retval.sourcefn_interp[i_emission]      = exp(interpolate_array(terp,log_sourcefn[i_emission]));
+      retval.dtau_species_interp[i_emission]  = exp(interpolate_array(terp,emissions[i_emission].log_dtau_species));
+      retval.dtau_absorber_interp[i_emission] = exp(interpolate_array(terp,emissions[i_emission].log_dtau_absorber));
+      retval.abs_interp[i_emission]           = exp(interpolate_array(terp,emissions[i_emission].log_abs));
+      retval.sourcefn_interp[i_emission]      = exp(interpolate_array(terp,emissions[i_emission].log_sourcefn));
     }
   }; 
   
@@ -428,37 +431,34 @@ struct spherical_azimuthally_symmetric_grid : RT_grid
 
 	file << "pts sza [rad]: " << sza_pts_write_out.transpose() << "\n\n";
        	
-	for (int i=0; i<n_emissions; i++) {
-	  file << "For " << emission_names[i] << "\n";
+	for (auto&& emiss: emissions) {
+	  file << "For " << emiss.name << "\n";
 	  for (unsigned int j=0; j<pts_sza.size(); j++) {
 	    file << "  For SZA = " << pts_sza[j] << ": \n" 
 		 << "    Species density [cm-3]: "
-		 <<      sza_slice(species_density[i],j).transpose() << "\n"
+		 <<      sza_slice(emiss.species_density,j).transpose() << "\n"
 
 		 << "    Species single scattering tau: " 
-		 <<	 sza_slice(tau_species_single_scattering[i],j).transpose() << "\n"
+		 <<	 sza_slice(emiss.tau_species_single_scattering,j).transpose() << "\n"
 
 		 << "    Species cross section [cm2]: " 
-		 <<      sza_slice(species_sigma[i],j).transpose() << "\n"
+		 <<      sza_slice(emiss.species_sigma,j).transpose() << "\n"
 
 		 << "    Absorber density [cm-3]: " 
-		 <<      sza_slice(absorber_density[i],j).transpose() << "\n"
+		 <<      sza_slice(emiss.absorber_density,j).transpose() << "\n"
 
 		 << "    Absorber single scattering tau: " 
-		 <<	 sza_slice(tau_absorber_single_scattering[i],j).transpose() << "\n"
+		 <<	 sza_slice(emiss.tau_absorber_single_scattering,j).transpose() << "\n"
 
 		 << "    Source function: " 
-		 <<      sza_slice(sourcefn[i],j).transpose() << "\n\n";
+		 <<      sza_slice(emiss.sourcefn,j).transpose() << "\n\n";
 	  }
 	}
       }
     file.close();
   }
 
-  
+  void traverse_gpu(observation &obs, const int n_subsamples);
 };
-
-
-
 
 #endif
