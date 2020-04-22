@@ -262,7 +262,7 @@ struct holstein_approx : influence {
 
 
 
-  // double Tintint(const double tau) {
+  // double Tintint(const double tau) const {
   //   assert(tau<taumax && "tau must be in the simulated range.");
 
   //   if (tau < taumin) {
@@ -272,11 +272,11 @@ struct holstein_approx : influence {
   //   }
   // }
 
-  // double Tintabs(const double tau, const double abs) {
+  // double Tintabs(const double tau, const double abs) const {
   //   return Tintabs_interp(tau,abs);
   // }
 
-  double Tint(const double tau) {
+  double Tint(const double tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 
     if (tau < taumin) {
@@ -286,7 +286,7 @@ struct holstein_approx : influence {
     }
   }
 
-  double T(const double tau) {
+  double T(const double tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 
     if (tau < taumin) {
@@ -296,7 +296,7 @@ struct holstein_approx : influence {
     }
   }
 
-  double G(const double tau) {
+  double G(const double tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 
     if (tau < taumin) {
