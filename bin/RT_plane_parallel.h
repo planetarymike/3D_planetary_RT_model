@@ -16,6 +16,7 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
 {
 
   vector<double> radial_boundaries;
+  int n_radial_boundaries;
   vector<double> pts_radii;
   vector<plane> radial_boundary_planes;
   
@@ -26,10 +27,12 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
     sun_direction = {0.,0.,1.};
   }
   
-  void setup_voxels(int n_radial_boundaries, atmosphere atm) {
+  void setup_voxels(int n_radial_boundariess, atmosphere atm)
+  {
     rmin = atm.rmin;
     rmax = atm.rmax;
 
+    n_radial_boundaries = n_radial_boundariess;
     get_radial_log_linear_points(radial_boundaries, 
 				 n_radial_boundaries,
 				 atm.rmin, atm.rexo, atm.rmax);
@@ -68,28 +71,21 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
     }
   }
 
-  int indices_to_voxel(const int &comp_idx) {
+  void indices_to_voxel(const int &comp_idx, int & ret) {
     if ((comp_idx < 0) || (comp_idx > (int) radial_boundaries.size()-2))
-      return -1;
+      ret = -1;
     else
-      return comp_idx;
+      ret = comp_idx;
   }
-  int indices_to_voxel(const vector<int> &indices) {
-    return indices_to_voxel(indices[0]);
+  void indices_to_voxel(const int (&indices)[n_dimensions], int & ret) {
+    indices_to_voxel(indices[0], ret);
   }
-  int indices_to_voxel(const int (&indices)[n_dimensions]) {
-    return indices_to_voxel(indices[0]);
-  }
-    
 
-  vector<int> voxel_to_indices(const int i_voxel) {
-    vector<int> v(n_dimensions,-1);
+  void voxel_to_indices(const int i_voxel, int (&ret)[n_dimensions]) {
     if ((i_voxel < 0) || (i_voxel > n_voxels-1))
-      v[0]=-1;
+      ret[0]=-1;
     else
-      v[0]=i_voxel;
-    
-    return v;
+      ret[0]=i_voxel;
   }
 
   int find_coordinate_index(double pt_coord, vector<double> boundaries) {
@@ -105,24 +101,22 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
     return i;
   }
 
-  vector<int> point_to_indices(const atmo_point pt) {
-    vector<int> indices(n_dimensions,-1);
+  void point_to_indices(const atmo_point pt, int (&indices)[n_dimensions]) {
     indices[0] = find_coordinate_index(pt.r,radial_boundaries);
-    return indices;
   }
   
 
   boundary_intersection_stepper<n_dimensions> ray_voxel_intersections(const atmo_vector &vec) {
     
-    boundary_set<n_dimensions> boundaries;
+    boundary_set<n_dimensions> boundaries(n_radial_boundaries);
 
     //define the origin
     boundary<n_dimensions> origin;
     origin.entering = vec.pt.i_voxel;
     if (vec.pt.i_voxel == -1)
-      origin.set_entering_indices(point_to_indices(vec.pt));
+      point_to_indices(vec.pt, origin.entering_indices);
     else
-      origin.set_entering_indices(voxel_to_indices(origin.entering));
+      voxel_to_indices(origin.entering, origin.entering_indices);
     origin.distance = 0.0;
     boundaries.append(origin);
 

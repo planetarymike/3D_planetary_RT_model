@@ -27,9 +27,9 @@ struct RT_grid {
   static const int n_dimensions = NDIM; //dimensionality of the grid
   int n_voxels;//number of grid voxels
   //helper functions to swap between voxel and coordinate indices
-  virtual int indices_to_voxel(const vector<int> /*indices*/) { return -1; };
-  virtual vector<int> voxel_to_indices(const int /*i_voxel*/) { return vector<int>(); };
-  virtual vector<int> point_to_indices(const atmo_point /*pt*/) { return vector<int>(); };
+  virtual void indices_to_voxel(const int (&/*indices*/)[NDIM], int & ret) { };
+  virtual void voxel_to_indices(const int /*i_voxel*/, int (&/*indices*/)[NDIM]) { };
+  virtual void point_to_indices(const atmo_point /*pt*/, int (&/*indices*/)[NDIM]) { };
 
   virtual void setup_voxels() {};
   double rmax,rmin;//max and min altitudes in the atmosphere
@@ -440,17 +440,18 @@ struct RT_grid {
 	
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 
-	  double dtau_species_temp, dtau_absorber_temp, abs_temp, sourcefn_temp;
-
+	  double dtau_species_temp, dtau_absorber_temp, sourcefn_temp;
+	  //double abs_temp;
+	  
 	  if (n_subsamples == 0) {
 	    dtau_species_temp  = emissions[i_emission].dtau_species(current_voxel);
 	    dtau_absorber_temp = emissions[i_emission].dtau_absorber(current_voxel);
-	    abs_temp           = emissions[i_emission].abs(current_voxel);
+	    //abs_temp           = emissions[i_emission].abs(current_voxel);
 	    sourcefn_temp      = emissions[i_emission].sourcefn(current_voxel);
 	  } else {
 	    dtau_species_temp  = interp_vals.dtau_species_interp[i_emission];
 	    dtau_absorber_temp = interp_vals.dtau_absorber_interp[i_emission];
-	    abs_temp           = interp_vals.abs_interp[i_emission];
+	    //abs_temp           = interp_vals.abs_interp[i_emission];
 	    sourcefn_temp      = interp_vals.sourcefn_interp[i_emission];
 	  } 
 

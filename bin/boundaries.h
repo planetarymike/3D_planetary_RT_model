@@ -6,12 +6,10 @@
 #include "cuda_compatibility.h"
 #include "atmo_vec.h"
 #include <algorithm>
-#include <vector>
 #include <limits>
 #include <iostream>
 #include <stdexcept>
 
-using std::vector;
 
 template <int NDIM>
 struct boundary {
@@ -34,12 +32,6 @@ struct boundary {
     distance = -1;
   }
 
-  void set_entering_indices(const vector<int> &rhs) {
-    assert(rhs.size() == n_dimensions && "vector indices must have same dimensionality as grid.");
-    for (int i=0;i<n_dimensions;i++)
-      entering_indices[i] = rhs[i];
-  }
-  
   bool operator<(const boundary<NDIM> &rhs) const { return distance < rhs.distance; }
   bool operator<=(const boundary<NDIM> &rhs) const { return distance <= rhs.distance; }
 };
@@ -53,30 +45,59 @@ struct boundary {
 
 template <int NDIM>
 class boundary_set {
-  //some savings to be found here in avoiding consistent reallocation of vector<boundary>
-  //use a fixed-size array and navigate with internal pointers begin, end, and internal_size
 private:
   unsigned int begin;
-  unsigned int end;
-  int internal_size;
-  int internal_max_size;
+  unsigned int internal_size;
+  unsigned int internal_max_size;
+  boundary<NDIM> *boundaries;
 public:
   static const unsigned int n_dimensions = NDIM;
-  vector<boundary<NDIM>> boundaries;
 
-  boundary_set(const int max_size = 200)
+  boundary_set(const int max_size = 0)
   { 
-    internal_size=0;begin=0;end=0;
+    internal_size=0;begin=0;
+    internal_max_size=max_size;
     
-    boundaries.reserve(max_size);
+    boundaries = new boundary<NDIM>[internal_max_size];
   }
+  ~boundary_set() {
+    delete []boundaries;
+  }
+  boundary_set(const boundary_set &copy) {
+    assert(n_dimensions == copy.n_dimensions && "only copy same dimension boundaries");
+
+    begin = copy.begin;
+    internal_size = copy.internal_size;
+    internal_max_size = copy.internal_max_size;
+    
+    boundaries = new boundary<NDIM>[internal_max_size];
+
+    for (unsigned int i=begin;i<begin+internal_size;i++)
+      boundaries[i] = copy.boundaries[i];
+  }
+  boundary_set &operator=(const boundary_set &rhs) {
+    assert(n_dimensions == rhs.n_dimensions && "only copy same dimension boundaries");
+    if(this == &rhs) return *this;
+
+    begin = rhs.begin;
+    internal_size = rhs.internal_size;
+    internal_max_size = rhs.internal_max_size;
+    
+    boundaries = new boundary<NDIM>[internal_max_size];
+
+    for (unsigned int i=begin;i<begin+internal_size;i++)
+      boundaries[i] = rhs.boundaries[i];
+
+    return *this;
+  }
+
 
   boundary<NDIM> operator[](int i) {
     return boundaries[begin+i];
   }
 
   boundary<NDIM> back() {
-    return boundaries.back();
+    return boundaries[begin+internal_size-1];
   }
   
   unsigned int size() {
@@ -84,26 +105,33 @@ public:
   }
 
   void reset() {
-    internal_size=0;begin=0;end=0;
-    boundaries.clear();
+    internal_size=0;begin=0;
   }
   
   void sort() {
-    std::sort(boundaries.begin(),boundaries.end());
+    vector<boundary<NDIM>> vecbound(internal_size);
+    for (unsigned int i=0;i<internal_size;i++)
+      vecbound[i] = boundaries[begin+i];
+
+    std::sort(vecbound.begin(),vecbound.end());
+
+    for (unsigned int i=0;i<internal_size;i++)
+      boundaries[begin+i] = vecbound[i];
   }
 
   void append(boundary<NDIM> b) {
-    boundaries.push_back(b);
+    assert(internal_size < internal_max_size);
+    boundaries[begin+internal_size] = b;
     internal_size++;
   }
 
   void add_intersections(const double start, const int dim, 
 			 const int idx, const double &coordinate,
 			 const double (&distances)[2], const int n_hits) {
-    static thread_local boundary<NDIM> new_boundary;
+    boundary<NDIM> new_boundary;
     new_boundary.reset();
 
-    assert( 0 <= n_hits && n_hits <=2 && "only 0, 1, or 2 intersections are possible with a convex shell");
+    assert(0 <= n_hits && n_hits <=2 && "only 0, 1, or 2 intersections are possible with a convex shell");
     
     if (n_hits == 0) {
       return;
@@ -114,29 +142,26 @@ public:
       new_boundary.entering_indices[dim] = above ? idx-1 : idx;
       new_boundary.distance=distances[0];
 
-      boundaries.push_back(new_boundary);
-      internal_size++;
+      append(new_boundary);
     } else { // n_hits == 2
 
       bool above = (start > coordinate);
       bool in_order = (distances[1] > distances[0]);
 
-      new_boundary.entering_indices[dim] = above ? idx-1 : idx;
+      new_boundary.entering_indices[dim] = above ? idx-1 : idx  ;
       new_boundary.distance = in_order ? distances[0] : distances[1];
-      boundaries.push_back(new_boundary);
-      internal_size++;
+      append(new_boundary);
       
-      new_boundary.entering_indices[dim] = above ? idx : idx-1;
+      new_boundary.entering_indices[dim] = above ? idx   : idx-1;
       //^^ indices are reversed to come back out of the region we just entered
       new_boundary.distance = in_order ? distances[1] : distances[0];
-      boundaries.push_back(new_boundary);
-      internal_size++;
+      append(new_boundary);
     }
   }
 
   void propagate_indices() {
     //propogate voxel indices in each coordinate
-    for (unsigned int i=1;i<boundaries.size();i++) {
+    for (unsigned int i=1;i<size();i++) {
       for (unsigned int j=0;j<n_dimensions;j++)
 	if (boundaries[i].entering_indices[j]==-2)
 	  boundaries[i].entering_indices[j] = boundaries[i-1].entering_indices[j];
@@ -145,26 +170,26 @@ public:
 
 
   template<typename C>
-  void assign_voxel_indices(C *obj, int (C::*indices_to_voxel)(const vector<int>& ) ) {  
-    for (unsigned int i=1;i<boundaries.size();i++) 
-      boundaries[i].entering = (obj->indices_to_voxel)(boundaries[i].entering_indices);
+  void assign_voxel_indices(C *obj, void (C::*indices_to_voxel)(const int (&/*indices*/)[NDIM] , int &/*voxel*/) ) {  
+    for (unsigned int i=1;i<size();i++) 
+      (obj->indices_to_voxel)(boundaries[i].entering_indices, boundaries[i].entering);
   }
 
   
   void trim() {
     //trim the list of intersections to those inside the grid
-    while (boundaries[begin].entering == -1 && begin < boundaries.size()-1)
+    while (boundaries[begin].entering == -1 && begin < size()-1)
       begin++;
 
-    if (begin==boundaries.size()-1) {
-      begin=end=internal_size=0;
+    if (begin==size()-1) {
+      begin=internal_size=0;
     } else {
       unsigned int end = begin;
       do {
 	end++;
-      } while (boundaries[end].entering != -1 && end < boundaries.size()-1);
+      } while (boundaries[end].entering != -1 && end < size()-1);
 
-      assert(end < boundaries.size() && "end must be inside list of boundary intersections");
+      assert(end < size() && "end must be inside list of boundary intersections");
       assert(boundaries[end].entering == -1 && "trim error in boundary_set: ray does not exit grid");
     
       internal_size=end-begin+1;
@@ -173,17 +198,17 @@ public:
 
   
   bool check(const vector<int> &n_bounds, const int &n_voxels) {
-    if (boundaries.size() > 0) {
-      assert(boundaries.size() > 1 && "there must be more than one boundary crossing for each ray");
+    if (size() > 0) {
+      assert(size() > 1 && "there must be more than one boundary crossing for each ray");
       
-      for (unsigned int i=1;i<boundaries.size();i++) {
+      for (unsigned int i=begin+1;i<begin+internal_size;i++) {
 	int n_dims_changing = 0;
 	for (unsigned int j=0;j<n_dimensions;j++) {
 	  assert(boundaries[i].entering_indices[j] >= -1
 		 && "entering index must be greater than -1.");
 	  assert(boundaries[i].entering_indices[j] <= n_bounds[j]
 		 && "entering index must be less than the number of voxels in this dimension.");
-		  
+	  
 	  int diff = boundaries[i].entering_indices[j] - boundaries[i-1].entering_indices[j];
 
 	  if (diff==0)
@@ -195,16 +220,15 @@ public:
 	  assert((diff==1||diff==-1) && "changes in each dimension must be continuous.");
 	}	
 
-	assert((boundaries.back().entering_indices[0] == -1 ||
-		boundaries.back().entering_indices[0] == n_bounds[0])
-	       && "ray must exit grid radially via the top or bottom");
-
-
 	assert(boundaries[i].entering < n_voxels
 	       && boundaries[i].entering >= -1
 	       && "voxel index must be in bounds.");
 
       }
+      
+      assert((back().entering_indices[0] == -1 ||
+	      back().entering_indices[0] == n_bounds[0])
+	     && "ray must exit grid radially via the top or bottom");
     }
     return true;
   }
