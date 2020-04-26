@@ -151,62 +151,62 @@ public:
 };
 
 
-struct intersection_writer {
-  string fname;
-  std::ofstream file;
+// struct intersection_writer {
+//   string fname;
+//   std::ofstream file;
 
-  intersection_writer() { }
+//   intersection_writer() { }
   
-  intersection_writer(string fnamee) : fname(fnamee) { }
+//   intersection_writer(string fnamee) : fname(fnamee) { }
 
-  ~intersection_writer() {
-    if (file.is_open()) {
-      file.close();
-    }
-  }
+//   ~intersection_writer() {
+//     if (file.is_open()) {
+//       file.close();
+//     }
+//   }
   
-  void save_coordinates(vector<double> radial_boundaries,
-			vector<double> sza_boundaries) {
-    file.open(fname.c_str());
-    if (file.is_open()) {
-      VectorXd r_boundaries_write_out = Eigen::Map<VectorXd>(radial_boundaries.data(),
-							     radial_boundaries.size());
+//   void save_coordinates(vector<double> radial_boundaries,
+// 			vector<double> sza_boundaries) {
+//     file.open(fname.c_str());
+//     if (file.is_open()) {
+//       VectorXd r_boundaries_write_out = Eigen::Map<VectorXd>(radial_boundaries.data(),
+// 							     radial_boundaries.size());
     
-      file << "radial boundaries [cm]:\n" << r_boundaries_write_out.transpose() << "\n";
+//       file << "radial boundaries [cm]:\n" << r_boundaries_write_out.transpose() << "\n";
     
-      VectorXd sza_boundaries_write_out = Eigen::Map<VectorXd>(sza_boundaries.data(),
-							       sza_boundaries.size());
+//       VectorXd sza_boundaries_write_out = Eigen::Map<VectorXd>(sza_boundaries.data(),
+// 							       sza_boundaries.size());
     
-      file << "sza boundaries [rad]:\n" << sza_boundaries_write_out.transpose() << "\n\n";
-    }
-  }
+//       file << "sza boundaries [rad]:\n" << sza_boundaries_write_out.transpose() << "\n\n";
+//     }
+//   }
 
-  template <int NDIM>
-  void append_intersections(const atmo_vector &vec,
-			    const boundary_set<NDIM> &boundaries) {
-    if (file.is_open()) {
+//   template <int NDIM>
+//   void append_intersections(const atmo_vector &vec,
+// 			    const boundary_set<NDIM> &boundaries) {
+//     if (file.is_open()) {
       
-      file << "ray origin (xyz) [cm]:\n"
-	   << vec.pt.x << "  "
-	   << vec.pt.y << "  "
-	   << vec.pt.z << "\n";
+//       file << "ray origin (xyz) [cm]:\n"
+// 	   << vec.pt.x << "  "
+// 	   << vec.pt.y << "  "
+// 	   << vec.pt.z << "\n";
       
-      file << "ray direction (xyz):\n"
-	   << vec.line_x << "  "
-	   << vec.line_y << "  "
-	   << vec.line_z << "\n";
+//       file << "ray direction (xyz):\n"
+// 	   << vec.line_x << "  "
+// 	   << vec.line_y << "  "
+// 	   << vec.line_z << "\n";
       
       
-      file << "Intersections [t, r_bound, sza_bound]\n";
-      for (unsigned int i=0;i<boundaries.size();i++) {
-	file << boundaries[i].distance << "  "
-	     << boundaries[i].entering_indices[0] << "  "
-	     << boundaries[i].entering_indices[1] << "\n";
-      }
-      file << "\n";
-    }
-  }
-};
+//       file << "Intersections [t, r_bound, sza_bound]\n";
+//       for (unsigned int i=0;i<boundaries.size();i++) {
+// 	file << boundaries[i].distance << "  "
+// 	     << boundaries[i].entering_indices[0] << "  "
+// 	     << boundaries[i].entering_indices[1] << "\n";
+//       }
+//       file << "\n";
+//     }
+//   }
+// };
   
 
 
