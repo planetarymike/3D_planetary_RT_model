@@ -8,6 +8,7 @@ CC=g++
 LIBS=-lm 
 MPFLAGS=-fopenmp
 OFLAGS=-Ofast -march=native -DNDEBUG
+#OFLAGS=-O3 -march=native -DNDEBUG
 
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings
@@ -15,16 +16,19 @@ NLIBS=-lm
 NOFLAGS= -O3 -DNDEBUG
 
 # # intel compiler
-# # you may need to run this
-# # source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh -arch intel64 -platform linux
-# CC=icpc
-# COMPILER_OPT=-std=c++17
-# LIBS=-fPIC -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm
-# MPFLAGS=-qopenmp
-# OFLAGS=-O3 -march=native -DNDEBUG -fp-model fast=2
+# you may need to run this
+# source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh -arch intel64 -platform linux
+ICC=icpc
+ICOMPILER_OPT=-std=c++17
+ILIBS=-fPIC -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm
+IMPFLAGS=-qopenmp
+IOFLAGS=-march=native -DNDEBUG -fast
 
 generate_source_function:
 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
+
+generate_source_function_intel:
+	$(ICC) generate_source_function.cpp $(ICOMPILER_OPT) $(IDIR) $(ILIBS) $(IMPFLAGS) $(IOFLAGS) -o generate_source_function.x
 
 generate_source_function_gpu:
 	$(NCC) generate_source_function_gpu.cu $(COMPILER_OPT) $(IDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
