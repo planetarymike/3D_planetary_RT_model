@@ -7,7 +7,6 @@
 #include "coordinate_generation.h"
 #include "boundaries.h"
 #include "atmosphere.h"
-#include <type_traits> // std::is_scalar
 #include <fstream>
 #include <cmath>
 #include "intersections.h"
