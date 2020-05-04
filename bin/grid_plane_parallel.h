@@ -1,9 +1,9 @@
-// RT_plane_parallel.h -- plane parallel RT grid
+// grid_plane_parallel.h -- plane parallel RT grid
 
-#ifndef __RT_plane_parallel
-#define __RT_plane_parallel
+#ifndef __grid_plane_parallel
+#define __grid_plane_parallel
 
-#include <RT_grid.h>
+#include <grid.h>
 #include "coordinate_generation.h"
 #include "boundaries.h"
 #include "atmosphere.h"
@@ -12,7 +12,7 @@
 #include <cmath>
 #include "intersections.h"
 
-struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
+struct plane_parallel_grid : grid<1> //this is a 1d grid
 {
 
   vector<double> radial_boundaries;
@@ -20,10 +20,7 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
   vector<double> pts_radii;
   vector<plane> radial_boundary_planes;
   
-  plane_parallel_grid(const vector<string> &emission_names,
-		      holstein_approx &transmissionn)
-    : RT_grid(emission_names,transmissionn)
-  {
+  plane_parallel_grid() {
     sun_direction = {0.,0.,1.};
   }
   
@@ -37,8 +34,7 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
 				 n_radial_boundaries,
 				 atm.rmin, atm.rexo, atm.rmax);
 
-    int n_voxelss = n_radial_boundaries-1;
-    init_arrays(n_voxelss);
+    n_voxels = n_radial_boundaries-1;
 
     pts.resize(n_voxels);
     pts_radii.resize(n_voxels);
@@ -71,24 +67,26 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
     }
   }
 
-  void indices_to_voxel(const int &comp_idx, int & ret) {
+  CUDA_CALLABLE_MEMBER 
+  void indices_to_voxel(const int &comp_idx, int & ret) const {
     if ((comp_idx < 0) || (comp_idx > (int) radial_boundaries.size()-2))
       ret = -1;
     else
       ret = comp_idx;
   }
-  void indices_to_voxel(const int (&indices)[n_dimensions], int & ret) {
+  CUDA_CALLABLE_MEMBER 
+  void indices_to_voxel(const int (&indices)[n_dimensions], int & ret) const {
     indices_to_voxel(indices[0], ret);
   }
-
-  void voxel_to_indices(const int i_voxel, int (&ret)[n_dimensions]) {
+  CUDA_CALLABLE_MEMBER 
+  void voxel_to_indices(const int i_voxel, int (&ret)[n_dimensions]) const {
     if ((i_voxel < 0) || (i_voxel > n_voxels-1))
       ret[0]=-1;
     else
       ret[0]=i_voxel;
   }
-
-  int find_coordinate_index(double pt_coord, vector<double> boundaries) {
+  CUDA_CALLABLE_MEMBER 
+  int find_coordinate_index(double pt_coord, vector<double> boundaries) const {
     unsigned int i=-1;
     
     for (i=0;i<boundaries.size();i++)
@@ -100,13 +98,13 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
 
     return i;
   }
-
-  void point_to_indices(const atmo_point pt, int (&indices)[n_dimensions]) {
+  CUDA_CALLABLE_MEMBER 
+  void point_to_indices(const atmo_point pt, int (&indices)[n_dimensions]) const {
     indices[0] = find_coordinate_index(pt.r,radial_boundaries);
   }
   
-
-  boundary_intersection_stepper<n_dimensions> ray_voxel_intersections(const atmo_vector &vec) {
+  CUDA_CALLABLE_MEMBER 
+  void ray_voxel_intersections(const atmo_vector &vec, boundary_intersection_stepper<n_dimensions> &stepper) const {
     
     boundary_set<n_dimensions> boundaries(n_radial_boundaries);
 
@@ -122,7 +120,7 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
 
     //do the intersections for each coordinate
     int n_hits = 0;
-    static thread_local double temp_distances[2] = {-1,-1};
+    double temp_distances[2] = {-1,-1};
     for (unsigned int ir=0;ir<radial_boundaries.size();ir++) {
       radial_boundary_planes[ir].intersections(vec, temp_distances, n_hits);
       boundaries.add_intersections(vec.pt.r, 0,
@@ -133,14 +131,13 @@ struct plane_parallel_grid : RT_grid<1> //this is a 1d grid
     //sort the list of intersections by distance & trim
     boundaries.sort();
     boundaries.propagate_indices();
-    boundaries.assign_voxel_indices(this, &plane_parallel_grid::indices_to_voxel);
+    boundaries.assign_voxel_indices(this);
     boundaries.trim();
 
-    return boundary_intersection_stepper<n_dimensions>(vec,
-						       boundaries);
+    stepper = boundary_intersection_stepper<n_dimensions>(vec, boundaries);
   }
   
-  void save_S(string fname) {
+  void save_S(string fname, vector<emission> &emissions) {
     std::ofstream file(fname.c_str());
     if (file.is_open())
       {

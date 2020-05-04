@@ -68,7 +68,7 @@ struct emission {
 	      double (C::*species_sigma_function)(const atmo_point),
 	      double (C::*absorber_density_function)(const atmo_point),
 	      double (C::*absorber_sigma_function)(const atmo_point),
-	      vector<atmo_point> &pts) {
+	      const vector<atmo_point> &pts) {
 
     branching_ratio = emission_branching_ratio;
     
@@ -93,7 +93,6 @@ struct emission {
     init=true;
   }
     
-   
 };
 
 

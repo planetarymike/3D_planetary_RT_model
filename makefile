@@ -33,6 +33,9 @@ generate_source_function_intel:
 generate_source_function_gpu:
 	$(NCC) generate_source_function_gpu.cu $(COMPILER_OPT) $(IDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
 
+generate_source_function_gpu_debug:
+	$(NCC) generate_source_function_gpu.cu $(COMPILER_OPT) $(IDIR) $(NLIBS) -g -G -o generate_source_function_gpu.x
+
 generate_source_function_profile:
 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
 
