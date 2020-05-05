@@ -42,7 +42,8 @@ struct grid {
 
 
 #ifdef __CUDACC__
-  void copy_to_cuda(spherical_azimuthally_symmetric_grid *d_ptr) {
+  template <typename G>
+  void copy_to_cuda(G *d_ptr) {
     //declare, allocate, and copy all of the subelements
     atmo_point * d_pts;
     cudaMalloc(&d_pts, this->n_voxels*sizeof(atmo_point));

@@ -25,17 +25,21 @@ int main(int argc, char* argv[]) {
   //define the RT grid
   vector<string> emission_names = {"H Lyman alpha", "H Lyman beta"};
 
-  // plane_parallel_grid grid();
-  // grid.setup_voxels(160, atm);
-  // grid.setup_rays(10);
-  // RT_grid<plane_parallel_grid> RT(emission_names, grid, hol);
-
+  // static const int n_radial_boundaries = 40;
+  // static const int n_rays_phi = 6;
+  // static const int n_rays_theta = 12;
+  // plane_parallel_grid<n_radial_boundaries,
+  // 		      n_rays_phi,
+  // 		      n_rays_theta> grid;
 
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_phi = 6;
   static const int n_rays_theta = 12;
-  spherical_azimuthally_symmetric_grid<n_radial_boundaries,n_sza_boundaries,n_rays_phi,n_rays_theta> grid;
+  spherical_azimuthally_symmetric_grid<n_radial_boundaries,
+				       n_sza_boundaries,
+				       n_rays_phi,
+				       n_rays_theta> grid;
   //grid.save_intersections = true;
   //grid.rmethod = grid.rmethod_altitude;
   grid.rmethod = grid.rmethod_lognH;

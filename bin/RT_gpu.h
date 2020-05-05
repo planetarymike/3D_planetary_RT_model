@@ -7,7 +7,7 @@
 
 template <typename grid_type>
 __global__ void traverse_kernel(atmo_vector *obs_vecs, int n_obs_vecs,
-				grid_type *grid)
+				grid_type grid)
 {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
@@ -19,8 +19,8 @@ __global__ void traverse_kernel(atmo_vector *obs_vecs, int n_obs_vecs,
   printf("Hello from block %d, thread %d: n_radial_boundaries = %d\n",
 	 blockIdx.x, threadIdx.x, grid->n_radial_boundaries);
 
-  printf("Hello from block %d, thread %d: test[2] = %d\n",
-	 blockIdx.x, threadIdx.x, grid->test[2]);
+  printf("Hello from block %d, thread %d: radial_boundaries[0] = %d\n",
+	 blockIdx.x, threadIdx.x, grid->radial_boundaries[0]);
   
   // for (int i_obs = index; i_obs < n_obs_vecs; i_obs += stride) {
   //   grid->ray_voxel_intersections(obs_vecs[i_obs], stepper);
@@ -28,13 +28,18 @@ __global__ void traverse_kernel(atmo_vector *obs_vecs, int n_obs_vecs,
 
 }
 
-template<typename grid_type, typename influence_type>
-void RT_grid<grid_type,influence_type>::traverse_gpu(observation &obs, const int n_subsamples) {
+template<int N_EMISS, typename grid_type, typename influence_type>
+void RT_grid<N_EMISS,grid_type,influence_type>::traverse_gpu(observation &obs, const int n_subsamples) {
   //move grid to gpu
   grid_type* d_grid;
   cudaMalloc((void **)&d_grid, sizeof(grid_type));
   cudaMemcpy(d_grid, &grid, sizeof(grid_type), cudaMemcpyHostToDevice);
-  grid.copy_to_cuda(d_grid);
+  double * d_radial_boundaries;
+  cudaMalloc(&d_radial_boundaries, grid_type::n_voxels*sizeof(double));
+  cudaMemcpy(d_radial_boundaries, grid.radial_boundaries, grid_type::n_voxels*sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(&(d_grid->radial_boundaries), &d_radial_boundaries, sizeof(double*), cudaMemcpyHostToDevice);
+
+  //grid.copy_to_cuda(d_grid);
   
   //move observation vectors to gpu
   atmo_vector *d_obs_vecs;

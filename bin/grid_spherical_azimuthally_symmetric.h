@@ -22,9 +22,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 						   N_RAY_THETA*N_RAY_PHI>
 {
 
-  typedef grid<2,
-	       (N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),
-	       N_RAY_THETA*N_RAY_PHI> parent_grid;
+  typedef grid<2,(N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),N_RAY_THETA*N_RAY_PHI> parent_grid;
 
   static const int r_dimension = 0;
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
@@ -45,7 +43,11 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
   double sza_boundaries[n_sza_boundaries];
   double pts_sza[n_sza_boundaries-1];
-  cone sza_boundary_cones[n_sza_boundaries];
+  cone sza_boundary_cones[n_sza_boundaries-2];//there are extra
+					      //boundaries outside of
+					      //the range to put
+					      //pts_sza=0,-1 on the
+					      //planet-sun line
 
   int n_pts[parent_grid::n_dimensions] = {n_radial_boundaries-1,n_sza_boundaries-1};
   // intersection_writer saver;
@@ -67,16 +69,14 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   }
 
 #ifdef __CUDACC__
-  void copy_to_cuda(spherical_azimuthally_symmetric_grid *d_ptr) {
+  template<typename G>
+  void copy_to_cuda(G *d_ptr) {
     //declare, allocate, and copy all of the subelements
-    double * d_radial_boundaries;
-    cudaMalloc(&d_radial_boundaries, this->n_voxels*sizeof(double));
-    cudaMemcpy(d_radial_boundaries, this->radial_boundaries, this->n_voxels*sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(d_ptr->radial_boundaries), &d_radial_boundaries, sizeof(double*), cudaMemcpyHostToDevice);
+
   }
   void cuda_free() {
     //free the pointers? not sure if they're still in scope
-    delete [] d_radial_boundaries;
+    //delete [] d_radial_boundaries;
   }
 #endif
   
@@ -261,7 +261,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 				   temp_distances, n_hits);
     }
 
-    for (unsigned int isza=0;isza<n_sza_boundaries;isza++) {
+    for (unsigned int isza=0;isza<n_sza_boundaries-2;isza++) {
       sza_boundary_cones[isza].intersections(vec, temp_distances, n_hits);
       boundaries.add_intersections(vec.pt.t, sza_dimension,
 				   isza+1, sza_boundaries[isza+1],

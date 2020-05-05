@@ -11,7 +11,6 @@ using std::string;
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
 
-//template <int N_VOXELS> // no savings to be found here
 struct emission {
   unsigned int n_voxels;
   string name;
@@ -20,10 +19,10 @@ struct emission {
   
   double branching_ratio;
   
-  // typedef Matrix<double, N_VOXELS, 1> VectorNd;
-  // typedef Matrix<double, N_VOXELS, N_VOXELS> MatrixNd;
-  
   //these store physical atmospheric parameters on the grid (dimension n_voxels)
+  //even though n_voxels is known at compile time, Eigen docs
+  //recommend using dynamic matrices for arrays larger than 16x16
+  //don't make these fixed-size
   VectorXd species_density; //densities of scatterers and absorbers on the tabulated grid
   VectorXd absorber_density; 
   VectorXd species_sigma;//scatterer and absorber cross section on the tabulated grid
@@ -47,6 +46,10 @@ struct emission {
   VectorXd tau_species_single_scattering;
   VectorXd tau_absorber_single_scattering;
 
+  emission() {
+    init=false;
+  }
+  
   void resize(int n_voxelss) {
     n_voxels = n_voxelss;
     
