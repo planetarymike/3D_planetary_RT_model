@@ -11,104 +11,103 @@
 #include <cmath>
 #include "intersections.h"
 
-struct plane_parallel_grid : grid<1> //this is a 1d grid
+template <int N_RADIAL_BOUNDARIES, int N_RAYS_THETA, int N_RAYS_PHI>
+struct plane_parallel_grid : grid<1, N_RADIAL_BOUNDARIES-1, N_RAYS_THETA*N_RAYS_PHI> //this is a 1d grid
 {
 
-  vector<double> radial_boundaries;
-  int n_radial_boundaries;
-  vector<double> pts_radii;
-  vector<plane> radial_boundary_planes;
+  using parent_grid = grid<1, N_RADIAL_BOUNDARIES-1, N_RAYS_THETA*N_RAYS_PHI>;
+
+  static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
+  double radial_boundaries[n_radial_boundaries];
+  double pts_radii[n_radial_boundaries-1];
+  plane radial_boundary_planes[n_radial_boundaries];
   
   plane_parallel_grid() {
-    sun_direction = {0.,0.,1.};
+    this->sun_direction = {0.,0.,1.};
   }
   
-  void setup_voxels(int n_radial_boundariess, atmosphere atm)
+  void setup_voxels(atmosphere &atm)
   {
-    rmin = atm.rmin;
-    rmax = atm.rmax;
+    this->rmin = atm.rmin;
+    this->rmax = atm.rmax;
 
-    n_radial_boundaries = n_radial_boundariess;
     get_radial_log_linear_points(radial_boundaries, 
 				 n_radial_boundaries,
 				 atm.rmin, atm.rexo, atm.rmax);
 
-    n_voxels = n_radial_boundaries-1;
-
-    pts.resize(n_voxels);
-    pts_radii.resize(n_voxels);
-
     for (int i=0; i<n_radial_boundaries-1; i++) {
       pts_radii[i]=sqrt(radial_boundaries[i]*radial_boundaries[i+1]);
-      pts[i].xyz(0.,0.,pts_radii[i]);
-      pts[i].set_voxel_index(i);
+      this->pts[i].xyz(0.,0.,pts_radii[i]);
+      this->pts[i].set_voxel_index(i);
     }
 
-
-    radial_boundary_planes.resize(n_radial_boundaries);
     for (int i=0; i<n_radial_boundaries; i++) 
       radial_boundary_planes[i].z = radial_boundaries[i];
   }
   
-  void setup_rays(int n_rayss) {
+  void setup_rays() {
     //in a plane-parallel grid only the angle with the vertical matters
-    n_rays = n_rayss;
     vector<double> ray_theta;
     vector<double> ray_weights;
 
-    gauss_quadrature_points(ray_theta,ray_weights,0,pi,n_rays);
+    gauss_quadrature_points(ray_theta,ray_weights,0,pi,parent_grid::n_rays);
     
-    rays.resize(n_rays);
-
-    for (int i=0;i<n_rays;i++) {
-      rays[i].tp(ray_theta[i],0.0);
-      rays[i].set_ray_index(i,ray_weights[i],2*pi);
+    for (int i=0;i<parent_grid::n_rays;i++) {
+      this->rays[i].tp(ray_theta[i],0.0);
+      this->rays[i].set_ray_index(i,ray_weights[i],2*pi);
     }
   }
 
   CUDA_CALLABLE_MEMBER 
   void indices_to_voxel(const int &comp_idx, int & ret) const {
-    if ((comp_idx < 0) || (comp_idx > (int) radial_boundaries.size()-2))
+    if ((comp_idx < 0) || (comp_idx > (int) n_radial_boundaries-2))
       ret = -1;
     else
       ret = comp_idx;
   }
   CUDA_CALLABLE_MEMBER 
-  void indices_to_voxel(const int (&indices)[n_dimensions], int & ret) const {
+  void indices_to_voxel(const int (&indices)[parent_grid::n_dimensions], int & ret) const {
     indices_to_voxel(indices[0], ret);
   }
   CUDA_CALLABLE_MEMBER 
-  void voxel_to_indices(const int i_voxel, int (&ret)[n_dimensions]) const {
-    if ((i_voxel < 0) || (i_voxel > n_voxels-1))
+  void voxel_to_indices(const int i_voxel, int (&ret)[parent_grid::n_dimensions]) const {
+    if ((i_voxel < 0) || (i_voxel > parent_grid::n_voxels-1))
       ret[0]=-1;
     else
       ret[0]=i_voxel;
   }
+
+  template <class V>
   CUDA_CALLABLE_MEMBER 
-  int find_coordinate_index(double pt_coord, vector<double> boundaries) const {
-    unsigned int i=-1;
+  int find_coordinate_index(const double &pt_coord, const V &boundaries, int n_boundaries) const {
+    int i;
     
-    for (i=0;i<boundaries.size();i++)
+    for (i=0;i<n_boundaries;i++)
       if (pt_coord < boundaries[i])
 	break;
 
-    if (i != boundaries.size())
-      i--;
+    i--;
 
+    assert((boundaries[n_boundaries-1]<=pt_coord ||
+	    pt_coord < boundaries[0] ||
+	    (boundaries[i]<=pt_coord &&pt_coord<boundaries[i+1]))
+	   && "we have found the appropriate point index");
+    
     return i;
   }
+
   CUDA_CALLABLE_MEMBER 
-  void point_to_indices(const atmo_point pt, int (&indices)[n_dimensions]) const {
-    indices[0] = find_coordinate_index(pt.r,radial_boundaries);
+  void point_to_indices(const atmo_point pt, int (&indices)[parent_grid::n_dimensions]) const {
+    indices[0] = find_coordinate_index(pt.r,radial_boundaries,n_radial_boundaries);
   }
   
   CUDA_CALLABLE_MEMBER 
-  void ray_voxel_intersections(const atmo_vector &vec, boundary_intersection_stepper<n_dimensions> &stepper) const {
+  void ray_voxel_intersections(const atmo_vector &vec, boundary_intersection_stepper<parent_grid::n_dimensions> &stepper) const {
     
-    boundary_set<n_dimensions> boundaries(n_radial_boundaries);
+    boundary_set<parent_grid::n_dimensions> boundaries(n_radial_boundaries);
 
     //define the origin
-    boundary<n_dimensions> origin;
+    boundary<parent_grid::n_dimensions> origin;
     origin.entering = vec.pt.i_voxel;
     if (vec.pt.i_voxel == -1)
       point_to_indices(vec.pt, origin.entering_indices);
@@ -120,7 +119,7 @@ struct plane_parallel_grid : grid<1> //this is a 1d grid
     //do the intersections for each coordinate
     int n_hits = 0;
     double temp_distances[2] = {-1,-1};
-    for (unsigned int ir=0;ir<radial_boundaries.size();ir++) {
+    for (unsigned int ir=0;ir<n_radial_boundaries;ir++) {
       radial_boundary_planes[ir].intersections(vec, temp_distances, n_hits);
       boundaries.add_intersections(vec.pt.r, 0,
 				   ir, radial_boundaries[ir],
@@ -133,38 +132,35 @@ struct plane_parallel_grid : grid<1> //this is a 1d grid
     boundaries.assign_voxel_indices(this);
     boundaries.trim();
 
-    stepper = boundary_intersection_stepper<n_dimensions>(vec, boundaries);
+    stepper = boundary_intersection_stepper<parent_grid::n_dimensions>(vec, boundaries);
   }
   
-  void save_S(string fname, vector<emission> &emissions) {
+  void save_S(const string fname, const emission *emissions, const int n_emissions) const {
     std::ofstream file(fname.c_str());
     if (file.is_open())
       {
 
-	VectorXd r_boundaries_write_out = Eigen::Map<VectorXd>(radial_boundaries.data(),
-							       radial_boundaries.size());
+	VectorXd r_boundaries_write_out = Eigen::Map<const VectorXd>(radial_boundaries,
+								     n_radial_boundaries);
 
 	file << "radial boundaries [cm]: " << r_boundaries_write_out.transpose() << "\n\n";
 
-	VectorXd r_pts_write_out = Eigen::Map<VectorXd>(pts_radii.data(),
-							pts_radii.size());
+	VectorXd r_pts_write_out = Eigen::Map<const VectorXd>(pts_radii,
+							      n_radial_boundaries-1);
 
 	file << "pts radii [cm]: " << r_pts_write_out.transpose() << "\n\n";
        	
-	for (auto&& emiss: emissions)
-	  file << "For " << emiss.name << ",\n"
-	       << "Species density [cm-3]: " <<	emiss.species_density.transpose() << "\n"
-	       << "Species single scattering tau: " <<	emiss.tau_species_single_scattering.transpose() << "\n"
-	       << "Species cross section [cm2]: " << emiss.species_sigma.transpose() << "\n"
-	       << "Absorber density [cm-3]: " << emiss.absorber_density.transpose() << "\n"
-	       << "Absorber single scattering tau: " <<	emiss.tau_absorber_single_scattering.transpose() << "\n"
-	       << "Source function: " << emiss.sourcefn.transpose() << "\n\n";
+	for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	  file << "For " << emissions[i_emission].name << ",\n"
+	       << "Species density [cm-3]: " <<	emissions[i_emission].species_density.transpose() << "\n"
+	       << "Species single scattering tau: " <<	emissions[i_emission].tau_species_single_scattering.transpose() << "\n"
+	       << "Species cross section [cm2]: " << emissions[i_emission].species_sigma.transpose() << "\n"
+	       << "Absorber density [cm-3]: " << emissions[i_emission].absorber_density.transpose() << "\n"
+	       << "Absorber single scattering tau: " <<	emissions[i_emission].tau_absorber_single_scattering.transpose() << "\n"
+	       << "Source function: " << emissions[i_emission].sourcefn.transpose() << "\n\n";
       }
   }
 
 };
-
-
-
 
 #endif

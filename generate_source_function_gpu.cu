@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
   
 
 
-  RT_grid<spherical_azimuthally_symmetric_grid,holstein_approx> RT(emission_names, grid, hol);
+  RT_grid<2,spherical_azimuthally_symmetric_grid,holstein_approx> RT(emission_names, grid, hol);
 
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",

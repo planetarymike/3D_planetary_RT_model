@@ -29,22 +29,25 @@ int main(int argc, char* argv[]) {
   // grid.setup_voxels(160, atm);
   // grid.setup_rays(10);
   // RT_grid<plane_parallel_grid> RT(emission_names, grid, hol);
-  
-  spherical_azimuthally_symmetric_grid grid;
+
+
+  static const int n_radial_boundaries = 40;
+  static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
+  static const int n_rays_phi = 6;
+  static const int n_rays_theta = 12;
+  spherical_azimuthally_symmetric_grid<n_radial_boundaries,n_sza_boundaries,n_rays_phi,n_rays_theta> grid;
   //grid.save_intersections = true;
   //grid.rmethod = grid.rmethod_altitude;
   grid.rmethod = grid.rmethod_lognH;
   //grid.szamethod = grid.szamethod_uniform;
   grid.szamethod = grid.szamethod_uniform_cos;
   
-  // grid.setup_voxels(10, 4/*20 for 10 deg increments with sza_uniform*/, atm);
-  // grid.setup_rays(6, 12);
-  grid.setup_voxels(40, 20/*20 for 10 deg increments with sza_uniform*/, atm);
-  grid.setup_rays(6, 12);
+  grid.setup_voxels(atm);
+  grid.setup_rays();
   
 
 
-  RT_grid<spherical_azimuthally_symmetric_grid,holstein_approx> RT(emission_names, grid, hol);
+  RT_grid<2,typeof(grid),holstein_approx> RT(emission_names, grid, hol);
 
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",

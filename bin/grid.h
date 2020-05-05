@@ -6,10 +6,10 @@
 #include "cuda_compatibility.h"
 #include "emission.h"
 
-template <int NDIM>
+template <int NDIM, int NVOXELS, int NRAYS>
 struct grid {
   static const int n_dimensions = NDIM; //dimensionality of the grid
-  int n_voxels;//number of grid voxels
+  static const int n_voxels = NVOXELS;//number of grid voxels
   //helper functions to swap between voxel and coordinate indices
   CUDA_CALLABLE_MEMBER virtual void indices_to_voxel(const int (&/*indices*/)[n_dimensions], int & ret) const { };
   CUDA_CALLABLE_MEMBER virtual void voxel_to_indices(const int /*i_voxel*/, int (&/*indices*/)[n_dimensions]) const { };
@@ -19,11 +19,11 @@ struct grid {
   double rmax,rmin;//max and min altitudes in the atmosphere
   
   //points inside the voxels to shoot rays from
-  vector<atmo_point> pts;
+  atmo_point pts[NVOXELS];
   
   //ray info
-  int n_rays;
-  vector<atmo_ray> rays;
+  static const int n_rays = NRAYS;
+  atmo_ray rays[NRAYS];
   virtual void setup_rays() {}; 
   
   //how to intersect rays with voxel boundaries
@@ -39,8 +39,30 @@ struct grid {
   CUDA_CALLABLE_MEMBER
   virtual void interp_weights(const int &ivoxel, const atmo_point &pt,
 			      int (&/*indices*/)[n_interp_points], double (&/*weights*/)[n_interp_points] ) const { };
+
+
+#ifdef __CUDACC__
+  void copy_to_cuda(spherical_azimuthally_symmetric_grid *d_ptr) {
+    //declare, allocate, and copy all of the subelements
+    atmo_point * d_pts;
+    cudaMalloc(&d_pts, this->n_voxels*sizeof(atmo_point));
+    cudaMemcpy(d_pts, this->pts, this->n_voxels*sizeof(atmo_point), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(d_ptr->pts), &d_pts, sizeof(atmo_point*), cudaMemcpyHostToDevice);
+
+    atmo_ray* d_rays;
+    cudaMalloc(&d_rays, this->n_voxels*sizeof(atmo_ray));
+    cudaMemcpy(d_rays, this->rays, this->n_voxels*sizeof(atmo_ray), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(d_ptr->rays), &d_rays, sizeof(atmo_ray*), cudaMemcpyHostToDevice);
+  }
+  void cuda_free() {
+    //free the pointers? not sure if they're still in scope
+    
+  }
+#endif
+
+
   
-  virtual void save_S(const string &fname, const vector<emission> &emiss) const { };
+  virtual void save_S(const string &fname, const emission *emiss) const { };
 };
 
 #endif

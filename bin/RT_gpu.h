@@ -31,10 +31,11 @@ __global__ void traverse_kernel(atmo_vector *obs_vecs, int n_obs_vecs,
 template<typename grid_type, typename influence_type>
 void RT_grid<grid_type,influence_type>::traverse_gpu(observation &obs, const int n_subsamples) {
   //move grid to gpu
-  grid_type* d_grid; 
+  grid_type* d_grid;
   cudaMalloc((void **)&d_grid, sizeof(grid_type));
   cudaMemcpy(d_grid, &grid, sizeof(grid_type), cudaMemcpyHostToDevice);
-
+  grid.copy_to_cuda(d_grid);
+  
   //move observation vectors to gpu
   atmo_vector *d_obs_vecs;
   cudaMalloc(&d_obs_vecs, obs.size()*sizeof(atmo_vector));
@@ -46,7 +47,8 @@ void RT_grid<grid_type,influence_type>::traverse_gpu(observation &obs, const int
   int numBlocks = (obs.size() + blockSize - 1) / blockSize;
   traverse_kernel<grid_type><<<numBlocks, blockSize>>>(d_obs_vecs, n_obs_vecs,
 						       d_grid);
-  
+
+  grid.cuda_free();
   cudaFree(d_grid);
   cudaFree(d_obs_vecs);
 }

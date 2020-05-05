@@ -13,16 +13,17 @@
 #include "influence.h"
 #include "emission.h"
 #include "observation.h"
+#include "los_tracker.h"
 #include <Eigen/Dense> //matrix solvers
 #include <Eigen/StdVector>
 #include <string>
 #include <cassert>
 
 //structure to hold the atmosphere grid
-template<typename grid_type, typename influence_type>
+template<int N_EMISS, typename grid_type, typename influence_type>
 struct RT_grid {
-  int n_emissions;//number of emissions to evaluate at each point in the grid
-  vector<emission> emissions;
+  static const int n_emissions = N_EMISS;//number of emissions to evaluate at each point in the grid
+  emission emissions[n_emissions];
 
   grid_type grid;//this stores all of the geometrical info
   static const int n_dimensions = grid_type::n_dimensions;
@@ -37,11 +38,11 @@ struct RT_grid {
   RT_grid(const vector<string> &emission_names,
 	  const grid_type &gridd,
 	  const influence_type &transmissionn) :
-    n_emissions(emission_names.size()), grid(gridd), transmission(transmissionn)
+    grid(gridd), transmission(transmissionn)
   {
     all_emissions_init = false;
     
-    emissions.resize(n_emissions);
+    assert(emission_names.size() == n_emissions && "number of names must equal number of emissions");
     for (int i_emission=0; i_emission < n_emissions; i_emission++) {
       emissions[i_emission].name = emission_names[i_emission];
       emissions[i_emission].resize(grid.n_voxels);
@@ -57,23 +58,17 @@ struct RT_grid {
 		       double (C::*absorber_density_function)(const atmo_point),
 		       double (C::*absorber_sigma_function)(const atmo_point)) {
 
-
-    struct find_name : std::unary_function<emission, bool> {
-      string name;
-      find_name(string name): name(name) { }
-      bool operator()(emission const& e) const {
-        return e.name == name;
-      }
-    };
-    
-    std::vector<emission>::iterator it = std::find_if(emissions.begin(), emissions.end(), 
-						    find_name(emission_name));
-    if (it == emissions.end()) {
+    //find emission name (dumb search but n_emissions is small and these are called infrequently)
+    int n;
+    for (n=0;n<n_emissions;n++) {
+      if (emissions[n].name == emission_name)
+	break;
+    }
+    if (n == n_emissions) {
       assert(false && "can't find emission name in define_emission");
     } else {
-      int n = std::distance(emissions.begin(), it);
       assert((0<=n&&n<n_emissions) && "attempt to set invalid emission in define_emitter");
-
+      
       emissions[n].define(emission_branching_ratio,
 			  atmosphere,
 			  species_density_function,
@@ -83,8 +78,8 @@ struct RT_grid {
 			  grid.pts);
       
       all_emissions_init = true;
-      for (auto&& emiss: emissions)
-	if (!emiss.init)
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	if (!emissions[i_emission].init)
 	  all_emissions_init = false;
     }
   }
@@ -115,61 +110,7 @@ struct RT_grid {
   }
 
 
-  struct tau_tracker {
-    int n_emissions;
-    vector<double> tau_species_initial;
-    vector<double> tau_species_final;
-    vector<double> tau_absorber_initial;
-    vector<double> tau_absorber_final;
-    double max_tau_species;
-
-    tau_tracker(int n_emissionss)
-      : n_emissions(n_emissionss)
-    {
-      tau_species_initial.resize(n_emissions,0.);
-      tau_species_final.resize(n_emissions,0.);
-      tau_absorber_initial.resize(n_emissions,0.);
-      tau_absorber_final.resize(n_emissions,0.);
-      
-      max_tau_species = 0;
-    }
-
-    void reset() {
-      std::fill(tau_species_initial.begin(), tau_species_initial.end(), 0);
-      std::fill(tau_species_final.begin(), tau_species_final.end(), 0);
-      std::fill(tau_absorber_initial.begin(), tau_absorber_initial.end(), 0);
-      std::fill(tau_absorber_final.begin(), tau_absorber_final.end(), 0);
-    }
-    
-    void check_max_tau() {
-      for (int i_emission=0; i_emission < n_emissions; i_emission++) {
-	if (tau_species_final[i_emission] > max_tau_species)
-	  max_tau_species = tau_species_final[i_emission];
-      }
-    }
-    
-    void update_start(boundary_intersection_stepper<n_dimensions>& stepper,
-		      vector<emission> &emissions) {
-      for (int i_emission=0; i_emission < n_emissions; i_emission++) {
-	tau_species_final[i_emission] = ( tau_species_initial[i_emission]
-					  + (emissions[i_emission].dtau_species(stepper.current_voxel)
-					     * stepper.pathlength));
-	tau_absorber_final[i_emission] = ( tau_absorber_initial[i_emission]
-					   + (emissions[i_emission].dtau_absorber(stepper.current_voxel)
-					      * stepper.pathlength)); 
-      }
-    }
-    
-    void update_end() {
-      for (int i_emission=0; i_emission < n_emissions; i_emission++) {
-	tau_species_initial[i_emission]=tau_species_final[i_emission];
-	tau_absorber_initial[i_emission]=tau_absorber_final[i_emission];
-      }
-      check_max_tau();
-    }
-  };
-
-  void influence_update(boundary_intersection_stepper<n_dimensions>& stepper, tau_tracker& los) {
+  void influence_update(boundary_intersection_stepper<n_dimensions>& stepper, tau_tracker<n_emissions>& los) {
     //update the influence matrix for each emission
 
     los.update_start(stepper,emissions);
@@ -198,13 +139,13 @@ struct RT_grid {
   void get_single_scattering_optical_depths(boundary_intersection_stepper<n_dimensions>& stepper,
 					    double& max_tau_species)
   {
-    for (auto&& emiss: emissions) {
-      emiss.tau_species_single_scattering(stepper.start_voxel) += (emiss.dtau_species(stepper.current_voxel)
-								   * stepper.pathlength);
-      emiss.tau_absorber_single_scattering(stepper.start_voxel) += (emiss.dtau_absorber(stepper.current_voxel)
-								    * stepper.pathlength);
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      emissions[i_emission].tau_species_single_scattering(stepper.start_voxel) += (emissions[i_emission].dtau_species(stepper.current_voxel)
+										   * stepper.pathlength);
+      emissions[i_emission].tau_absorber_single_scattering(stepper.start_voxel) += (emissions[i_emission].dtau_absorber(stepper.current_voxel)
+										    * stepper.pathlength);
       
-      double tscomp = emiss.tau_species_single_scattering(stepper.start_voxel);
+      double tscomp = emissions[i_emission].tau_species_single_scattering(stepper.start_voxel);
       max_tau_species = tscomp > max_tau_species ? tscomp : max_tau_species;    
     }
   }
@@ -214,49 +155,49 @@ struct RT_grid {
 
     if (pt.z<0&&pt.x*pt.x+pt.y*pt.y<grid.rmin*grid.rmin) {
       //if the point is behind the planet, no single scattering
-      for (auto&& emiss: emissions)
-	emiss.singlescat(pt.i_voxel)=0.0;
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	emissions[i_emission].singlescat(pt.i_voxel)=0.0;
     } else {
       atmo_vector vec = atmo_vector(pt, grid.sun_direction);
       voxel_traverse(vec,
 		     &RT_grid::get_single_scattering_optical_depths,
 		     max_tau_species);
       
-      for (auto&& emiss: emissions)
-	emiss.singlescat(pt.i_voxel) = ( (transmission.T(emiss.tau_species_single_scattering(pt.i_voxel))
-					  * exp(-emiss.tau_absorber_single_scattering(pt.i_voxel)) )
-					 / emiss.species_sigma(pt.i_voxel));
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	emissions[i_emission].singlescat(pt.i_voxel) = ( (transmission.T(emissions[i_emission].tau_species_single_scattering(pt.i_voxel))
+							  * exp(-emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel)) )
+							 / emissions[i_emission].species_sigma(pt.i_voxel));
     }
   }
 
   void solve() {
-    for (auto&& emiss: emissions) {
-      emiss.influence_matrix *= emiss.branching_ratio;
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      emissions[i_emission].influence_matrix *= emissions[i_emission].branching_ratio;
 
       MatrixXd kernel = MatrixXd::Identity(grid.n_voxels,grid.n_voxels);
-      kernel -= emiss.influence_matrix;
+      kernel -= emissions[i_emission].influence_matrix;
 
-      emiss.sourcefn=kernel.partialPivLu().solve(emiss.singlescat);//partialPivLu has multithreading support
+      emissions[i_emission].sourcefn=kernel.partialPivLu().solve(emissions[i_emission].singlescat);//partialPivLu has multithreading support
 
       // // iterative solution.
       // double err = 1;
       // int it = 0;
       // VectorXd sourcefn_old(grid.n_voxels);
-      // sourcefn_old = emiss.singlescat;
+      // sourcefn_old = emissions[i_emission].singlescat;
       // while (err > 1e-6 && it < 500) {
-      // 	emiss.sourcefn = emiss.singlescat + emiss.influence_matrix * sourcefn_old;
+      // 	emissions[i_emission].sourcefn = emissions[i_emission].singlescat + emissions[i_emission].influence_matrix * sourcefn_old;
 
-      // 	err=((emiss.sourcefn-sourcefn_old).array().abs()/sourcefn_old.array()).maxCoeff();
-      // 	sourcefn_old = emiss.sourcefn;
+      // 	err=((emissions[i_emission].sourcefn-sourcefn_old).array().abs()/sourcefn_old.array()).maxCoeff();
+      // 	sourcefn_old = emissions[i_emission].sourcefn;
       // 	it++;
       // }
-      // std::cout << "For " << emiss.name << std::endl;
+      // std::cout << "For " << emissions[i_emission].name << std::endl;
       // std::cout << "  Scattering up to order: " << it << " included.\n";
       // std::cout << "  Error at final order is: " << err << " .\n";
       
       for (int i=0;i<grid.n_voxels;i++)
-	emiss.log_sourcefn(i) = emiss.sourcefn(i) == 0 ? -1e5 : log(emiss.sourcefn(i));
-    emiss.solved=true;
+	emissions[i_emission].log_sourcefn(i) = emissions[i_emission].sourcefn(i) == 0 ? -1e5 : log(emissions[i_emission].sourcefn(i));
+    emissions[i_emission].solved=true;
 
     }
   }
@@ -268,10 +209,10 @@ struct RT_grid {
     my_clock clk;
     clk.start();
 
-    for (auto&& emiss: emissions) {
-      emiss.influence_matrix.setZero();
-      emiss.tau_species_single_scattering.setZero();
-      emiss.tau_absorber_single_scattering.setZero();
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      emissions[i_emission].influence_matrix.setZero();
+      emissions[i_emission].tau_species_single_scattering.setZero();
+      emissions[i_emission].tau_absorber_single_scattering.setZero();
     }
     
     atmo_vector vec;
@@ -286,7 +227,7 @@ struct RT_grid {
 	vec = atmo_vector(grid.pts[i_pt], grid.rays[i_ray]);
 	omega += vec.ray.domega;
 
-	tau_tracker los(n_emissions);
+	tau_tracker<n_emissions> los;
       
 	voxel_traverse(vec, &RT_grid::influence_update, los);
 
@@ -319,13 +260,13 @@ struct RT_grid {
   void save_influence(const string fname = "test/influence_matrix.dat") {
     std::ofstream file(fname);
     if (file.is_open())
-      for (auto&& emiss: emissions)
-	file << "Here is the influence matrix for " << emiss.name <<":\n" 
-	     << emiss.influence_matrix << "\n\n";
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	file << "Here is the influence matrix for " << emissions[i_emission].name <<":\n" 
+	     << emissions[i_emission].influence_matrix << "\n\n";
   }
 
   void save_S(const string fname) {
-    grid.save_S(fname,emissions);
+    grid.save_S(fname,emissions,n_emissions);
   }
 
 
@@ -333,19 +274,13 @@ struct RT_grid {
 
 
   //interpolation support
+  template <int N>
   class interpolated_values {
   public:
-    vector<double> dtau_species_interp;
-    vector<double> dtau_absorber_interp;
-    vector<double> abs_interp;
-    vector<double> sourcefn_interp;
-    
-    interpolated_values(const int n_emissions) {
-      dtau_species_interp.resize(n_emissions);
-      dtau_absorber_interp.resize(n_emissions);
-      abs_interp.resize(n_emissions);
-      sourcefn_interp.resize(n_emissions);      
-    }
+    double dtau_species_interp[N];
+    double dtau_absorber_interp[N];
+    double abs_interp[N];
+    double sourcefn_interp[N];
   };
 
   double interp_array(const int *indices, const double *weights, const VectorXd &arr) const {
@@ -355,7 +290,7 @@ struct RT_grid {
     return retval;
   }
 
-  void interp(const int &ivoxel, const atmo_point &pt, interpolated_values &retval) const {
+  void interp(const int &ivoxel, const atmo_point &pt, interpolated_values<n_emissions> &retval) const {
 
     int indices[grid.n_interp_points];
     double weights[grid.n_interp_points];
@@ -374,31 +309,17 @@ struct RT_grid {
     }
   };
   
-  struct brightness_tracker : tau_tracker {
-    vector<double> brightness;
-
-    brightness_tracker(int n_emissionss) : tau_tracker(n_emissionss) {
-      brightness.resize(n_emissionss,0.);
-    }
-
-    void reset() {
-      tau_tracker::reset();
-      std::fill(brightness.begin(), brightness.end(), 0);
-    }
-  };
-
-
   //interpolated brightness routine
-  brightness_tracker brightness(const atmo_vector &vec, const vector<double> &g, const int n_subsamples=5) const {
+  brightness_tracker<n_emissions> brightness(const atmo_vector &vec, const vector<double> &g, const int n_subsamples=5) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
     
     static thread_local boundary_intersection_stepper<n_dimensions> stepper;
     grid.ray_voxel_intersections(vec, stepper);
-    static thread_local brightness_tracker los(n_emissions);
+    static thread_local brightness_tracker<n_emissions> los;
     los.reset();
 
     static thread_local atmo_point pt;
-    static thread_local interpolated_values interp_vals(n_emissions);
+    static thread_local interpolated_values<n_emissions> interp_vals;
     
     //brightness is zero if we do not intersect the grid
     if (stepper.boundaries.size() == 0)
@@ -463,8 +384,11 @@ struct RT_grid {
       }
     }
 
-    if (stepper.exits_bottom) 
-      los.tau_absorber_final = vector<double>(n_emissions,-1);
+    if (stepper.exits_bottom) {
+      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	los.tau_absorber_final[i_emission] = -1;
+      }
+    }
 
     //convert to kR
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
@@ -473,12 +397,12 @@ struct RT_grid {
     return los;
   }
 
-  vector<brightness_tracker> brightness(const vector<atmo_vector> &vecs,
+  vector<brightness_tracker<n_emissions>> brightness(const vector<atmo_vector> &vecs,
 					const vector<double> &g,
 					const int n_subsamples=5) const {
-    vector<brightness_tracker> retval;
+    vector<brightness_tracker<n_emissions>> retval;
     
-    retval.resize(vecs.size(),brightness_tracker(n_emissions));
+    retval.resize(vecs.size(),brightness_tracker<n_emissions>());
 
 #pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
     for(unsigned int i=0; i<vecs.size(); i++)
@@ -492,11 +416,13 @@ struct RT_grid {
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");
     
-    vector<brightness_tracker> los = brightness(obs.get_vecs(), obs.emission_g_factors, n_subsamples);
-    for (int i=0;i<obs.size();i++) {
-      obs.brightness[i]   = los[i].brightness;
-      obs.tau_species[i]  = los[i].tau_species_final;
-      obs.tau_absorber[i] = los[i].tau_absorber_final;
+    vector<brightness_tracker<n_emissions>> los = brightness(obs.get_vecs(), obs.emission_g_factors, n_subsamples);
+    for (int i_obs=0;i_obs<obs.size();i_obs++) {
+      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	obs.brightness[i_obs][i_emission]   = los[i_obs].brightness[i_emission];
+	obs.tau_species[i_obs][i_emission]  = los[i_obs].tau_species_final[i_emission];
+	obs.tau_absorber[i_obs][i_emission] = los[i_obs].tau_absorber_final[i_emission];
+      }
     }
   }
 
@@ -508,6 +434,5 @@ struct RT_grid {
   void traverse_gpu(observation &obs, const int n_subsamples=5);
   
 };
-
 
 #endif

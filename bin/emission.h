@@ -11,12 +11,17 @@ using std::string;
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
 
+//template <int N_VOXELS> // no savings to be found here
 struct emission {
+  unsigned int n_voxels;
   string name;
   bool init;
   bool solved;
   
   double branching_ratio;
+  
+  // typedef Matrix<double, N_VOXELS, 1> VectorNd;
+  // typedef Matrix<double, N_VOXELS, N_VOXELS> MatrixNd;
   
   //these store physical atmospheric parameters on the grid (dimension n_voxels)
   VectorXd species_density; //densities of scatterers and absorbers on the tabulated grid
@@ -42,7 +47,9 @@ struct emission {
   VectorXd tau_species_single_scattering;
   VectorXd tau_absorber_single_scattering;
 
-  void resize(int n_voxels) {
+  void resize(int n_voxelss) {
+    n_voxels = n_voxelss;
+    
     species_density.resize(n_voxels);
     absorber_density.resize(n_voxels);
     species_sigma.resize(n_voxels);
@@ -61,18 +68,18 @@ struct emission {
     tau_absorber_single_scattering.resize(n_voxels);
   }
 
-  template<typename C>
+  template<typename C, typename V>
   void define(double emission_branching_ratio,
 	      C &atmosphere,
 	      double (C::*species_density_function)(const atmo_point),
 	      double (C::*species_sigma_function)(const atmo_point),
 	      double (C::*absorber_density_function)(const atmo_point),
 	      double (C::*absorber_sigma_function)(const atmo_point),
-	      const vector<atmo_point> &pts) {
+	      const V &pts) {
 
     branching_ratio = emission_branching_ratio;
     
-    for (unsigned int i_voxel=0;i_voxel<pts.size();i_voxel++) {
+    for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
       species_density[i_voxel]=(atmosphere.*species_density_function)(pts[i_voxel]);
       species_sigma[i_voxel]=(atmosphere.*species_sigma_function)(pts[i_voxel]);
       absorber_density[i_voxel]=(atmosphere.*absorber_density_function)(pts[i_voxel]);

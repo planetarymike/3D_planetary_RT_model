@@ -121,17 +121,17 @@ public:
   }
 
   CUDA_CALLABLE_MEMBER
-  boundary<NDIM> operator[](int i) {
+  boundary<NDIM> operator[](int i) const {
     return boundaries[begin+i];
   }
 
   CUDA_CALLABLE_MEMBER
-  boundary<NDIM> back() {
+  boundary<NDIM> back() const {
     return boundaries[begin+internal_size-1];
   }
   
   CUDA_CALLABLE_MEMBER
-  unsigned int size() {
+  unsigned int size() const {
     return internal_size;
   }
 
@@ -245,7 +245,7 @@ public:
 
   
   CUDA_CALLABLE_MEMBER
-  bool check(const int (&n_bounds)[NDIM], const int &n_voxels) {
+  bool check(const int (&n_bounds)[NDIM], const int &n_voxels) const {
     if (size() > 0) {
       assert(size() > 1 && "there must be more than one boundary crossing for each ray");
       
