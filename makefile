@@ -14,6 +14,8 @@ OFLAGS=-Ofast -march=native -DNDEBUG
 NCC=nvcc --disable-warnings
 NLIBS=-lm
 NOFLAGS= -O3 -DNDEBUG
+CUDA_HELP_IDIR=-I/home/mike/Documents/Utilities/cuda-samples/Common/
+
 
 # # intel compiler
 # you may need to run this
@@ -31,10 +33,14 @@ generate_source_function_intel:
 	$(ICC) generate_source_function.cpp $(ICOMPILER_OPT) $(IDIR) $(ILIBS) $(IMPFLAGS) $(IOFLAGS) -o generate_source_function.x
 
 generate_source_function_gpu:
-	$(NCC) generate_source_function_gpu.cu $(COMPILER_OPT) $(IDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
+	$(NCC) generate_source_function_gpu.cu \
+	$(COMPILER_OPT) $(IDIR) $(CUDA_HELP_IDIR) $(NLIBS) $(NOFLAGS) -lineinfo \
+	-o generate_source_function_gpu.x
 
 generate_source_function_gpu_debug:
-	$(NCC) generate_source_function_gpu.cu $(COMPILER_OPT) $(IDIR) $(NLIBS) -g -G -o generate_source_function_gpu.x
+	$(NCC) generate_source_function_gpu.cu \
+	$(COMPILER_OPT) $(IDIR) $(CUDA_HELP_IDIR) $(NLIBS) -g -G \
+	-o generate_source_function_gpu.x
 
 generate_source_function_profile:
 	$(CC) generate_source_function.cpp $(COMPILER_OPT) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x

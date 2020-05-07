@@ -23,10 +23,9 @@
 template<int N_EMISS, typename grid_type, typename influence_type>
 struct RT_grid {
   static const int n_emissions = N_EMISS;//number of emissions to evaluate at each point in the grid
-  emission emissions[n_emissions];
+  emission<grid_type::n_voxels> emissions[n_emissions];
 
   grid_type grid;//this stores all of the geometrical info
-  static const int n_dimensions = grid_type::n_dimensions;
 
   //need to refactor so this lives inside each emission
   //the influence function
@@ -45,7 +44,7 @@ struct RT_grid {
     assert(emission_names.size() == n_emissions && "number of names must equal number of emissions");
     for (int i_emission=0; i_emission < n_emissions; i_emission++) {
       emissions[i_emission].name = emission_names[i_emission];
-      emissions[i_emission].resize(grid.n_voxels);
+      emissions[i_emission].resize();//grid.n_voxels);
     }
   }
   
@@ -87,13 +86,15 @@ struct RT_grid {
   
   template <typename R>
   void voxel_traverse(const atmo_vector &v,
-		      void (RT_grid::*function)(boundary_intersection_stepper<n_dimensions>& ,R& ),
+		      void (RT_grid::*function)(boundary_intersection_stepper<grid_type::n_dimensions,
+						                              grid_type::n_max_intersections>& ,R& ),
 		      R &retval)
   {
     assert(all_emissions_init && "!nitialize grid and influence function before calling voxel_traverse.");
   
     //get boundary intersections
-    static thread_local boundary_intersection_stepper<n_dimensions> stepper;
+    boundary_intersection_stepper<grid_type::n_dimensions,
+				  grid_type::n_max_intersections> stepper;
     grid.ray_voxel_intersections(v, stepper);
 
     if (stepper.boundaries.size() == 0)
@@ -110,7 +111,9 @@ struct RT_grid {
   }
 
 
-  void influence_update(boundary_intersection_stepper<n_dimensions>& stepper, tau_tracker<n_emissions>& los) {
+  void influence_update(boundary_intersection_stepper<grid_type::n_dimensions,
+			                              grid_type::n_max_intersections>& stepper,
+			tau_tracker<n_emissions>& los) {
     //update the influence matrix for each emission
 
     los.update_start(stepper,emissions);
@@ -121,8 +124,8 @@ struct RT_grid {
       double coef = stepper.vec.ray.domega;
 
       //bishop formulation
-      coef *= ((transmission.T(los.tau_species_initial[i_emission])
-		- transmission.T(los.tau_species_final[i_emission]))
+      coef *= ((transmission.T_lerp(los.tau_species_initial[i_emission])
+		- transmission.T_lerp(los.tau_species_final[i_emission]))
 	       
       	       *exp(-0.5*(los.tau_absorber_initial[i_emission]
       			  +los.tau_absorber_final[i_emission])));
@@ -136,7 +139,8 @@ struct RT_grid {
 
   }
 
-  void get_single_scattering_optical_depths(boundary_intersection_stepper<n_dimensions>& stepper,
+  void get_single_scattering_optical_depths(boundary_intersection_stepper<grid_type::n_dimensions,
+					                                  grid_type::n_max_intersections>& stepper,
 					    double& max_tau_species)
   {
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
@@ -164,7 +168,7 @@ struct RT_grid {
 		     max_tau_species);
       
       for (int i_emission=0;i_emission<n_emissions;i_emission++)
-	emissions[i_emission].singlescat(pt.i_voxel) = ( (transmission.T(emissions[i_emission].tau_species_single_scattering(pt.i_voxel))
+	emissions[i_emission].singlescat(pt.i_voxel) = ( (transmission.T_lerp(emissions[i_emission].tau_species_single_scattering(pt.i_voxel))
 							  * exp(-emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel)) )
 							 / emissions[i_emission].species_sigma(pt.i_voxel));
     }
@@ -197,8 +201,9 @@ struct RT_grid {
       
       for (int i=0;i<grid.n_voxels;i++)
 	emissions[i_emission].log_sourcefn(i) = emissions[i_emission].sourcefn(i) == 0 ? -1e5 : log(emissions[i_emission].sourcefn(i));
-    emissions[i_emission].solved=true;
+      emissions[i_emission].solved=true;
 
+      emissions[i_emission].eigen_to_vec();
     }
   }
 
@@ -252,7 +257,8 @@ struct RT_grid {
   
     // print time elapsed
     clk.stop();
-    clk.print_elapsed();
+    clk.print_elapsed("source function generation takes ");
+    std::cout << std::endl;
     
     return;
   }
@@ -271,59 +277,50 @@ struct RT_grid {
 
 
 
-
-
-  //interpolation support
-  template <int N>
-  class interpolated_values {
-  public:
-    double dtau_species_interp[N];
-    double dtau_absorber_interp[N];
-    double abs_interp[N];
-    double sourcefn_interp[N];
-  };
-
-  double interp_array(const int *indices, const double *weights, const VectorXd &arr) const {
+  CUDA_CALLABLE_MEMBER
+  double interp_array(const int *indices, const double *weights, const double *arr) const {
     double retval=0;
     for (int i=0;i<grid.n_interp_points;i++)
-      retval+=weights[i]*arr(indices[i]);
+      retval+=weights[i]*arr[indices[i]];
     return retval;
   }
-
+  CUDA_CALLABLE_MEMBER
   void interp(const int &ivoxel, const atmo_point &pt, interpolated_values<n_emissions> &retval) const {
 
-    int indices[grid.n_interp_points];
-    double weights[grid.n_interp_points];
+    int indices[grid_type::n_interp_points];
+    double weights[grid_type::n_interp_points];
 
     grid.interp_weights(ivoxel,pt,indices,weights);
     
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       retval.dtau_species_interp[i_emission]  = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_dtau_species));
+								 emissions[i_emission].log_dtau_species_vec));
       retval.dtau_absorber_interp[i_emission] = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_dtau_absorber));
-      retval.abs_interp[i_emission]           = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_abs));
+								 emissions[i_emission].log_dtau_absorber_vec));
       retval.sourcefn_interp[i_emission]      = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_sourcefn));
+								 emissions[i_emission].log_sourcefn_vec));
     }
-  };
+  }
   
   //interpolated brightness routine
-  brightness_tracker<n_emissions> brightness(const atmo_vector &vec, const vector<double> &g, const int n_subsamples=5) const {
+  CUDA_CALLABLE_MEMBER
+  void brightness(const atmo_vector &vec, const double *g,
+		  brightness_tracker<n_emissions> &los,
+		  const int n_subsamples=5) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
     
-    static thread_local boundary_intersection_stepper<n_dimensions> stepper;
+    boundary_intersection_stepper<grid_type::n_dimensions,
+				  grid_type::n_max_intersections> stepper;
     grid.ray_voxel_intersections(vec, stepper);
-    static thread_local brightness_tracker<n_emissions> los;
+
     los.reset();
 
-    static thread_local atmo_point pt;
-    static thread_local interpolated_values<n_emissions> interp_vals;
+    atmo_point pt;
+    interpolated_values<n_emissions> interp_vals;
     
     //brightness is zero if we do not intersect the grid
     if (stepper.boundaries.size() == 0)
-      return los;
+      return;
 
     int n_subsamples_distance = n_subsamples;
     if (n_subsamples==0)
@@ -346,17 +343,14 @@ struct RT_grid {
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 
 	  double dtau_species_temp, dtau_absorber_temp, sourcefn_temp;
-	  //double abs_temp;
 	  
 	  if (n_subsamples == 0) {
-	    dtau_species_temp  = emissions[i_emission].dtau_species(current_voxel);
-	    dtau_absorber_temp = emissions[i_emission].dtau_absorber(current_voxel);
-	    //abs_temp           = emissions[i_emission].abs(current_voxel);
-	    sourcefn_temp      = emissions[i_emission].sourcefn(current_voxel);
+	    dtau_species_temp  = emissions[i_emission].dtau_species_vec[current_voxel];
+	    dtau_absorber_temp = emissions[i_emission].dtau_absorber_vec[current_voxel];
+	    sourcefn_temp      = emissions[i_emission].sourcefn_vec[current_voxel];
 	  } else {
 	    dtau_species_temp  = interp_vals.dtau_species_interp[i_emission];
 	    dtau_absorber_temp = interp_vals.dtau_absorber_interp[i_emission];
-	    //abs_temp           = interp_vals.abs_interp[i_emission];
 	    sourcefn_temp      = interp_vals.sourcefn_interp[i_emission];
 	  } 
 
@@ -372,8 +366,8 @@ struct RT_grid {
 					 
 	  				 *emissions[i_emission].branching_ratio
 					 
-	  				 *(transmission.Tint(los.tau_species_final[i_emission])
-	  				   - transmission.Tint(los.tau_species_initial[i_emission]))
+	  				 *(transmission.Tint_lerp(los.tau_species_final[i_emission])
+	  				   - transmission.Tint_lerp(los.tau_species_initial[i_emission]))
 					 
 	  				 *exp(-0.5*(los.tau_absorber_initial[i_emission]
 	  					    +los.tau_absorber_final[i_emission])));
@@ -394,7 +388,6 @@ struct RT_grid {
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       los.brightness[i_emission] *= g[i_emission]/1e9; //megaphoton/cm2/s * 1e-3 = kR, see C&H pg 280-282
 
-    return los;
   }
 
   vector<brightness_tracker<n_emissions>> brightness(const vector<atmo_vector> &vecs,
@@ -404,9 +397,15 @@ struct RT_grid {
     
     retval.resize(vecs.size(),brightness_tracker<n_emissions>());
 
-#pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
+    double g_arr[n_emissions];
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      g_arr[i_emission] = g[i_emission];
+
+#pragma omp parallel for shared(retval) firstprivate(vecs,g_arr,n_subsamples) default(none)
     for(unsigned int i=0; i<vecs.size(); i++)
-      retval[i] = brightness(vecs[i],g,n_subsamples);
+      brightness(vecs[i],g_arr,
+		 retval[i],
+		 n_subsamples);
     
     return retval;
   }
@@ -416,6 +415,8 @@ struct RT_grid {
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");
     
+    my_clock clk;
+    clk.start();
     vector<brightness_tracker<n_emissions>> los = brightness(obs.get_vecs(), obs.emission_g_factors, n_subsamples);
     for (int i_obs=0;i_obs<obs.size();i_obs++) {
       for (int i_emission=0;i_emission<n_emissions;i_emission++) {
@@ -424,6 +425,8 @@ struct RT_grid {
 	obs.tau_absorber[i_obs][i_emission] = los[i_obs].tau_absorber_final[i_emission];
       }
     }
+    clk.stop();
+    clk.print_elapsed("brightness calculation takes ");
   }
 
   void brightness_nointerp(observation &obs) const {
@@ -431,7 +434,7 @@ struct RT_grid {
   }
 
   //hooks for porting to gpu
-  void traverse_gpu(observation &obs, const int n_subsamples=5);
+  void brightness_gpu(observation &obs, const int n_subsamples=10);
   
 };
 

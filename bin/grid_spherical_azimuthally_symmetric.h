@@ -19,10 +19,13 @@
 template <int N_RADIAL_BOUNDARIES, int N_SZA_BOUNDARIES, int N_RAY_THETA, int N_RAY_PHI>
 struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid 
 						   (N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),
-						   N_RAY_THETA*N_RAY_PHI>
+						   N_RAY_THETA*N_RAY_PHI,
+						   2*N_RADIAL_BOUNDARIES+N_SZA_BOUNDARIES>
 {
 
-  typedef grid<2,(N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),N_RAY_THETA*N_RAY_PHI> parent_grid;
+  typedef grid<2,(N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),
+	       N_RAY_THETA*N_RAY_PHI,
+	       2*N_RADIAL_BOUNDARIES+N_SZA_BOUNDARIES> parent_grid;
 
   static const int r_dimension = 0;
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
@@ -68,18 +71,6 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     // saver.fname = "intersections.dat";
   }
 
-#ifdef __CUDACC__
-  template<typename G>
-  void copy_to_cuda(G *d_ptr) {
-    //declare, allocate, and copy all of the subelements
-
-  }
-  void cuda_free() {
-    //free the pointers? not sure if they're still in scope
-    //delete [] d_radial_boundaries;
-  }
-#endif
-  
   void setup_voxels(atmosphere &atm) {
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
@@ -157,7 +148,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     // if (save_intersections)
     //   saver.save_coordinates(radial_boundaries,sza_boundaries);
   }
-  
+
   void setup_rays()
   {
     vector<double> ray_theta_vector;
@@ -190,12 +181,12 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       vox_idx = r_idx*(n_sza_boundaries-1)+sza_idx;
   }
   CUDA_CALLABLE_MEMBER 
-  void indices_to_voxel(const int (&indices)[parent_grid::n_dimensions], int & vox_idx) const {
+  void indices_to_voxel(const int *indices, int & vox_idx) const {
     indices_to_voxel(indices[r_dimension], indices[sza_dimension], vox_idx);
   }
 
   CUDA_CALLABLE_MEMBER 
-  void voxel_to_indices(const int &i_voxel, int (&v)[parent_grid::n_dimensions]) const {
+  void voxel_to_indices(const int &i_voxel, int *v) const {
     if ((i_voxel < 0) || (i_voxel > parent_grid::n_voxels-1)) {
       v[r_dimension]=-1;
       v[sza_dimension]=-1;
@@ -232,15 +223,15 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   }
   
 
-
   CUDA_CALLABLE_MEMBER
-  void ray_voxel_intersections(const atmo_vector &vec, boundary_intersection_stepper<parent_grid::n_dimensions> &stepper) const {
+  void ray_voxel_intersections(const atmo_vector &vec,
+			       boundary_intersection_stepper<parent_grid::n_dimensions,parent_grid::n_max_intersections> &stepper) const {
     
-    boundary_set<parent_grid::n_dimensions> boundaries(2*n_radial_boundaries+n_sza_boundaries);
-    boundaries.reset();
+    stepper.vec = vec;
+    stepper.boundaries.reset();
     
     //define the origin
-    boundary<parent_grid::n_dimensions> origin;
+    boundary<this->n_dimensions> origin;
     if (vec.pt.i_voxel == -1) {
       point_to_indices(vec.pt,origin.entering_indices);
       indices_to_voxel(origin.entering_indices,origin.entering);
@@ -249,37 +240,37 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       voxel_to_indices(origin.entering,origin.entering_indices);
     }
     origin.distance = 0.0;
-    boundaries.append(origin);
+    stepper.boundaries.append(origin);
 
     //do the intersections for each coordinate
     int n_hits = 0;
     double temp_distances[2] = {-1,-1};
     for (unsigned int ir=0;ir<n_radial_boundaries;ir++) {
       radial_boundary_spheres[ir].intersections(vec, temp_distances, n_hits);
-      boundaries.add_intersections(vec.pt.r, r_dimension,
-				   ir, radial_boundaries[ir],
-				   temp_distances, n_hits);
+      stepper.boundaries.add_intersections(vec.pt.r, r_dimension,
+					   ir, radial_boundaries[ir],
+					   temp_distances, n_hits);
     }
 
     for (unsigned int isza=0;isza<n_sza_boundaries-2;isza++) {
       sza_boundary_cones[isza].intersections(vec, temp_distances, n_hits);
-      boundaries.add_intersections(vec.pt.t, sza_dimension,
-				   isza+1, sza_boundaries[isza+1],
-				   temp_distances, n_hits);
+      stepper.boundaries.add_intersections(vec.pt.t, sza_dimension,
+					   isza+1, sza_boundaries[isza+1],
+					   temp_distances, n_hits);
     }
 
     //sort the list of intersections by distance & trim
-    boundaries.sort();
-    boundaries.propagate_indices();
-    boundaries.assign_voxel_indices(this);
-    boundaries.trim();
-    int tnvoxels = parent_grid::n_voxels;
-    assert(boundaries.check(n_pts, tnvoxels) && "boundary checks must pass");
+    stepper.boundaries.sort();
+    stepper.boundaries.propagate_indices();
+    stepper.boundaries.assign_voxel_indices(this);
+    stepper.boundaries.trim();
+    int tnvoxels = this->n_voxels;
+    assert(stepper.boundaries.check(n_pts, tnvoxels) && "boundary checks must pass");
     
     // if (save_intersections)
-    //   saver.append_intersections(vec,boundaries);
+    //   saver.append_intersections(vec,stepper.boundaries);
 
-    stepper = boundary_intersection_stepper<parent_grid::n_dimensions>(vec, boundaries);
+    stepper.init_stepper();
   }
 
   CUDA_CALLABLE_MEMBER 
@@ -377,7 +368,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     return ret;
   }
 
-  void save_S(const string fname, const emission *emissions, const int n_emissions) const {
+  void save_S(const string fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
     std::ofstream file(fname.c_str());
     if (file.is_open())
       {

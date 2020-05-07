@@ -12,10 +12,16 @@
 #include "intersections.h"
 
 template <int N_RADIAL_BOUNDARIES, int N_RAYS_THETA, int N_RAYS_PHI>
-struct plane_parallel_grid : grid<1, N_RADIAL_BOUNDARIES-1, N_RAYS_THETA*N_RAYS_PHI> //this is a 1d grid
+struct plane_parallel_grid : grid<1,//this is a 1d grid
+				  N_RADIAL_BOUNDARIES-1,
+				  N_RAYS_THETA*N_RAYS_PHI,
+				  N_RADIAL_BOUNDARIES> 
 {
 
-  using parent_grid = grid<1, N_RADIAL_BOUNDARIES-1, N_RAYS_THETA*N_RAYS_PHI>;
+  using parent_grid = grid<1,
+			   N_RADIAL_BOUNDARIES-1,
+			   N_RAYS_THETA*N_RAYS_PHI,
+			   N_RADIAL_BOUNDARIES>;
 
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
   double radial_boundaries[n_radial_boundaries];
@@ -102,9 +108,11 @@ struct plane_parallel_grid : grid<1, N_RADIAL_BOUNDARIES-1, N_RAYS_THETA*N_RAYS_
   }
   
   CUDA_CALLABLE_MEMBER 
-  void ray_voxel_intersections(const atmo_vector &vec, boundary_intersection_stepper<parent_grid::n_dimensions> &stepper) const {
-    
-    boundary_set<parent_grid::n_dimensions> boundaries(n_radial_boundaries);
+  void ray_voxel_intersections(const atmo_vector &vec,
+			       boundary_intersection_stepper<parent_grid::n_dimensions,
+			                                     parent_grid::n_max_intersections> &stepper) const {
+    stepper.vec = vec;
+    stepper.boundaries.reset();
 
     //define the origin
     boundary<parent_grid::n_dimensions> origin;
@@ -114,28 +122,28 @@ struct plane_parallel_grid : grid<1, N_RADIAL_BOUNDARIES-1, N_RAYS_THETA*N_RAYS_
     else
       voxel_to_indices(origin.entering, origin.entering_indices);
     origin.distance = 0.0;
-    boundaries.append(origin);
-
+    stepper.boundaries.append(origin);
+    
     //do the intersections for each coordinate
     int n_hits = 0;
     double temp_distances[2] = {-1,-1};
     for (unsigned int ir=0;ir<n_radial_boundaries;ir++) {
       radial_boundary_planes[ir].intersections(vec, temp_distances, n_hits);
-      boundaries.add_intersections(vec.pt.r, 0,
-				   ir, radial_boundaries[ir],
-				   temp_distances, n_hits);
+      stepper.boundaries.add_intersections(vec.pt.r, 0,
+					   ir, radial_boundaries[ir],
+					   temp_distances, n_hits);
     }
 
     //sort the list of intersections by distance & trim
-    boundaries.sort();
-    boundaries.propagate_indices();
-    boundaries.assign_voxel_indices(this);
-    boundaries.trim();
+    stepper.boundaries.sort();
+    stepper.boundaries.propagate_indices();
+    stepper.boundaries.assign_voxel_indices(this);
+    stepper.boundaries.trim();
 
-    stepper = boundary_intersection_stepper<parent_grid::n_dimensions>(vec, boundaries);
+    stepper.init_stepper();
   }
   
-  void save_S(const string fname, const emission *emissions, const int n_emissions) const {
+  void save_S(const string fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
     std::ofstream file(fname.c_str());
     if (file.is_open())
       {

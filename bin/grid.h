@@ -6,7 +6,7 @@
 #include "cuda_compatibility.h"
 #include "emission.h"
 
-template <int NDIM, int NVOXELS, int NRAYS>
+template <int NDIM, int NVOXELS, int NRAYS, int N_MAX_INTERSECTIONS>
 struct grid {
   static const int n_dimensions = NDIM; //dimensionality of the grid
   static const int n_voxels = NVOXELS;//number of grid voxels
@@ -27,9 +27,10 @@ struct grid {
   virtual void setup_rays() {}; 
   
   //how to intersect rays with voxel boundaries
+  static const int n_max_intersections = N_MAX_INTERSECTIONS;
   CUDA_CALLABLE_MEMBER
   virtual void ray_voxel_intersections(const atmo_vector &vec,
-				       boundary_intersection_stepper<n_dimensions> &stepper) const { }; 
+				       boundary_intersection_stepper<n_dimensions, n_max_intersections> &stepper) const { }; 
   
   //where the sun is, for single scattering
   vector<double> sun_direction;
@@ -41,29 +42,7 @@ struct grid {
 			      int (&/*indices*/)[n_interp_points], double (&/*weights*/)[n_interp_points] ) const { };
 
 
-#ifdef __CUDACC__
-  template <typename G>
-  void copy_to_cuda(G *d_ptr) {
-    //declare, allocate, and copy all of the subelements
-    atmo_point * d_pts;
-    cudaMalloc(&d_pts, this->n_voxels*sizeof(atmo_point));
-    cudaMemcpy(d_pts, this->pts, this->n_voxels*sizeof(atmo_point), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(d_ptr->pts), &d_pts, sizeof(atmo_point*), cudaMemcpyHostToDevice);
-
-    atmo_ray* d_rays;
-    cudaMalloc(&d_rays, this->n_voxels*sizeof(atmo_ray));
-    cudaMemcpy(d_rays, this->rays, this->n_voxels*sizeof(atmo_ray), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(d_ptr->rays), &d_rays, sizeof(atmo_ray*), cudaMemcpyHostToDevice);
-  }
-  void cuda_free() {
-    //free the pointers? not sure if they're still in scope
-    
-  }
-#endif
-
-
-  
-  virtual void save_S(const string &fname, const emission *emiss) const { };
+  virtual void save_S(const string &fname, const emission<n_voxels> *emiss) const { };
 };
 
 #endif

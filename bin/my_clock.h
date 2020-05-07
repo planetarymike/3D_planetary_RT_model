@@ -5,6 +5,9 @@
 
 #include <ctime>
 #include <iostream>
+#include <string>
+
+using std::string;
 
 struct my_clock {
   clock_t start_time;
@@ -18,27 +21,32 @@ struct my_clock {
     stop_time = clock();
   }
 
-  void print_elapsed() {
-    double secs = (stop_time-start_time)*1.0/CLOCKS_PER_SEC;
-    if (secs < 1) {
-      std::cout << "Elapsed time is " 
-		<< (int) (secs*1000) << " ms .\n";
+  double elapsed() {
+    return (stop_time-start_time)*1.0/CLOCKS_PER_SEC;
+  }
+  
+  void print_elapsed(string preamble = "Elapsed time is ", double tare = 0.0) {
+    double secs = elapsed() - tare;
+
+    std::cout << preamble;
+    if (secs < 0.001) {
+      string mu = "\u03BC";
+      std::cout << (int) (secs*1000000) << " " << mu << "s .\n";
+    } else if (secs < 1) {
+      std::cout << (int) (secs*1000) << " ms .\n";
     } else if (secs < 60) {
-      std::cout << "Elapsed time is " 
-		<< secs << " s .\n";
+      std::cout << secs << " s .\n";
     } else if (secs < 3600) {
       int mins = secs/60;
       secs = secs - mins*60;
-      std::cout << "Elapsed time is " 
-		<< mins << " minutes, and " 
+      std::cout << mins << " minutes, and " 
 		<< secs << " seconds.\n";
       
     } else {
       int hrs = secs/3600;
       int mins = (secs - hrs*3600)/60;
       secs = secs - hrs*3600 - mins*60;
-      std::cout << "Elapsed time is " 
-		<< hrs << " hours, " 
+      std::cout << hrs << " hours, " 
 		<< mins << " minutes, and " 
 		<< secs << " seconds.\n";
     }

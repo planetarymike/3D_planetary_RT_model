@@ -16,6 +16,7 @@
 #include <fstream>
 #include <boost/math/quadrature/exp_sinh.hpp>
 #include <boost/math/quadrature/tanh_sinh.hpp>
+#include "cuda_compatibility.h"
 //#include <boost/math/interpolators/cardinal_cubic_b_spline.hpp>
 //problem with boost redefines this ^^^ ???
 
@@ -27,27 +28,27 @@ using boost::math::quadrature::exp_sinh;
 using boost::math::quadrature::tanh_sinh;
 using boost::math::interpolators::cardinal_cubic_b_spline;
 
-struct influence {
-  virtual double Tintint(const double /*tau*/) { return 0; };
-  vector<double> Tintint(vector<double> tau) {
+struct influence {\
+  virtual double Tintint(const double /*tau*/) const { return 0; };
+  vector<double> Tintint(vector<double> tau) const {
     vector<double> retval;
     for(auto&& t: tau)
       retval.push_back(Tintint(t));
     return retval;
   }
 
-  virtual double Tintabs(const double /*tau*/, const double /*abs*/) { return 0; };
+  virtual double Tintabs(const double /*tau*/, const double /*abs*/) const { return 0; };
 
-  virtual double Tint(const double /*tau*/) { return 0; };
-  vector<double> Tint(vector<double> tau) {
+  virtual double Tint(const double /*tau*/) const { return 0; };
+  vector<double> Tint(vector<double> tau) const {
     vector<double> retval;
     for(auto&& t: tau)
       retval.push_back(Tint(t));
     return retval;
   }
 
-  virtual double T(const double /*tau*/) { return 0; };
-  vector<double> T(vector<double> tau) {
+  virtual double T(const double /*tau*/) const { return 0; };
+  vector<double> T(vector<double> tau) const {
     vector<double> retval;
     for(auto&& t: tau)
       retval.push_back(T(t));
@@ -202,7 +203,6 @@ struct holstein_T_integral_exact {
 //   }
 // };
 
-
 struct holstein_approx : influence {
   holstein_exact exact;
   holstein_T_integral_exact Tint_exact;
@@ -211,70 +211,56 @@ struct holstein_approx : influence {
   
   double taumin;
   double taumax;
-  double ntau;
+  static const int ntau = 200;
 
-  vector<double> logtau;
-  vector<double> logG;
-  vector<double> logT;
-  vector<double> logTint;
-  //  vector<double> logTintint;
+  double logtaumin;
+  double logtaustep;
+  double invlogtaustep;
+
+  double logtau[ntau];
+  double logG[ntau];
+  double logT[ntau];
+  //double logTincrement[ntau-1];
+  double logTint[ntau];
+  //double logTintincrement[ntau-1];
 
   cardinal_cubic_b_spline<double> loglogGspline;
   cardinal_cubic_b_spline<double> loglogTspline;
   cardinal_cubic_b_spline<double> loglogTintspline;
-  //  cardinal_cubic_b_spline<double> loglogTintintspline;
 
   holstein_approx(double tauminn=1e-6,
-		  double taumaxx=1e6,
-		  int ntauu=100) :
-    taumin(tauminn), taumax(taumaxx), ntau(ntauu) {
+		  double taumaxx=1e6) :
+    taumin(tauminn), taumax(taumaxx) {
     
-    double logtaumin = log(taumin);
-    double logtaustep = ( log(taumax) - logtaumin ) / ( ntau - 1 );
-
+    logtaumin = log(taumin);
+    logtaustep = ( log(taumax) - logtaumin ) / ( ntau - 1 );
+    invlogtaustep = 1.0/logtaustep;
+    
     for (int itau = 0; itau < ntau; itau++) {
-      logtau.push_back(  logtaumin + itau * logtaustep);
-      logG.push_back(    log( exact.result(       exp( logtau[itau] ), 2)));
-      logT.push_back(    log( exact.result(       exp( logtau[itau] ), 1)));
-      logTint.push_back( log(   Tint_exact(       exp( logtau[itau] )   )));
-      //      logTintint.push_back( log(   Tintint_exact(       exp( logtau[itau] )   )));
+      logtau[itau]  = logtaumin + itau * logtaustep;
+      logG[itau]    =     log( exact.result(       exp( logtau[itau] ), 2));
+      logT[itau]    =     log( exact.result(       exp( logtau[itau] ), 1));
+      logTint[itau] =     log(   Tint_exact(       exp( logtau[itau] )   ));
     }
 
-    loglogGspline = cardinal_cubic_b_spline<double>(logG.begin(),
-						    logG.end(),
+    // for (int itau = 0; itau < ntau-1; itau++) {
+    //   logTincrement[itau] = (logT[itau+1]-logT[itau])/(logtau[itau+1]-logtau[itau]);
+    //   logTintincrement[itau] = (logTint[itau+1]-logTint[itau])/(logtau[itau+1]-logtau[itau]);
+    // }
+    
+    loglogGspline = cardinal_cubic_b_spline<double>(logG,
+						    ntau,
 						    logtaumin,
 						    logtaustep);
-    loglogTspline = cardinal_cubic_b_spline<double>(logT.begin(),
-						    logT.end(),
+    loglogTspline = cardinal_cubic_b_spline<double>(logT,
+						    ntau,
 						    logtaumin,
 						    logtaustep);
-    loglogTintspline = cardinal_cubic_b_spline<double>(logTint.begin(),
-    						       logTint.end(),
+    loglogTintspline = cardinal_cubic_b_spline<double>(logTint,
+						       ntau,
     						       logtaumin,
     						       logtaustep);
-    // loglogTintintspline = cardinal_cubic_b_spline<double>(logTint.begin(),
-    // 							  logTint.end(),
-    // 							  logtaumin,
-    // 							  logtaustep);
-
-    
   }
-
-
-
-  // double Tintint(const double tau) const {
-  //   assert(tau<taumax && "tau must be in the simulated range.");
-
-  //   if (tau < taumin) {
-  //     return 0.0;
-  //   } else {
-  //     return exp(loglogTintspline(log(tau)));
-  //   }
-  // }
-
-  // double Tintabs(const double tau, const double abs) const {
-  //   return Tintabs_interp(tau,abs);
-  // }
 
   double Tint(const double tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
@@ -286,6 +272,28 @@ struct holstein_approx : influence {
     }
   }
 
+  inline int get_lerp_loc(double logtau_target) const {
+    int itau = (int) ((logtau_target-logtaumin)*invlogtaustep);
+    assert(0<=itau && itau<ntau && "itau must be in range");
+    assert(logtau[itau]<=logtau_target && logtau_target < logtau[itau+1] && "target tau must be in this increment");
+    return itau;
+  }
+  
+  CUDA_CALLABLE_MEMBER
+  double Tint_lerp(const double tau) const {
+    assert(tau<taumax && "tau must be in the simulated range.");
+    
+    if (tau < taumin) {
+      return 0.0;
+    }  else {
+      double logtau_target = log(tau);
+      int itau = get_lerp_loc(logtau_target);
+      double lerp = logTint[itau]+(logTint[itau+1]-logTint[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
+      return exp(lerp);
+    }
+  }
+
+  
   double T(const double tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 
@@ -296,6 +304,23 @@ struct holstein_approx : influence {
     }
   }
 
+  CUDA_CALLABLE_MEMBER
+  double T_lerp(const double tau) const {
+    assert(tau<taumax && "tau must be in the simulated range.");
+    
+    if (tau < taumin) {
+      return 1.0;
+    }  else {
+      double logtau_target = log(tau);
+      int itau = get_lerp_loc(logtau_target);
+      double lerp = logT[itau]+(logT[itau+1]-logT[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
+      
+      return exp(lerp);
+    }
+  }
+
+
+  
   double G(const double tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 

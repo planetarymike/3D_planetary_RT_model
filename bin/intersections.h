@@ -15,13 +15,14 @@ using std::vector;
 
 class geom_primitive {
  protected:
+  CUDA_CALLABLE_MEMBER
   bool samesign(double a, double b) const {
     if ((a>0&&b>0) || (a<0&&b<0) || (a==0&&b==0))
       return true;
     else
       return false;
   }
-
+  CUDA_CALLABLE_MEMBER
   bool is_zero(double a) const {
     double tol = 1e-10;
     if (a > tol || a < -tol)
@@ -36,7 +37,8 @@ class plane : geom_primitive {
  public:
   double z;
 
-  CUDA_CALLABLE_MEMBER void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) const {
+  CUDA_CALLABLE_MEMBER
+  void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) const {
     n_hits = 0;
 
     if (vec.line_z != 0) {
@@ -65,8 +67,14 @@ public:
     r=rr;
     r2=r*r;
   }
+
+  CUDA_CALLABLE_MEMBER
+  double get_r() {
+    return r;
+  }
   
-  CUDA_CALLABLE_MEMBER void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) const {
+  CUDA_CALLABLE_MEMBER
+  void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) const {
     n_hits = 0;
 
     // we solve the quadratic t^2 - 2*(vec.r * vec.cost)*t + (vec.r^2 - r^2) == 0
@@ -113,7 +121,8 @@ public:
     assert(!(is_zero(cosangle)) && "problems occur if there is a cone with an opening angle of pi/2 degrees.");
   }
 
-  CUDA_CALLABLE_MEMBER void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) const {
+  CUDA_CALLABLE_MEMBER
+  void intersections(const atmo_vector & vec, double (&distances)[2], int &n_hits) const {
     n_hits = 0;
 
     double A = vec.line_z * vec.line_z - cosangle2;

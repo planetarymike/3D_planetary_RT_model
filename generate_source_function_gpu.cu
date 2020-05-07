@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
   RT.generate_S();
   
   //now print out the output
-  RT.save_S("test/test_source_function.dat");
+  //RT.save_S("test/test_source_function.dat");
 
   //simulate a fake observation
   observation obs(emission_names);
@@ -90,17 +90,27 @@ int main(int argc, char* argv[]) {
   // 		  /1e6)
   // 	    << " R" << std::endl;
 
+  
+  vector<int> sizes = {10,100,300,600,1200,2400};
 
-  double dist = 30*rMars;
-  obs.fake(dist,30,600);
-  observation obs_nointerp = obs;
+  for (auto&& size: sizes) {
+    std::cout << "simulating image size "<< size << "x" << size << ":" << std::endl;
+    double dist = 30*rMars;
+    obs.fake(dist,30,size);
+    observation obs_nointerp = obs;
+    RT.brightness_gpu(obs);
+
+    my_clock save_clk;
+    save_clk.start();
+    string fname = "test/test_brightness_gpu" + std::to_string(size) + "x" + std::to_string(size) + ".dat";
+    obs.save_brightness(fname);  
+    save_clk.stop();
+    save_clk.print_elapsed("saving file takes ");
+    
+    std::cout << std::endl;
+}
+
   
-  // RT.brightness(obs);
-  // obs.save_brightness("test/test_brightness.dat");
-  // RT.brightness_nointerp(obs_nointerp);
-  // obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
-  
-  RT.traverse_gpu(obs);
   
   return 0; 
 }

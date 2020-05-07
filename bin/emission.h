@@ -11,8 +11,9 @@ using std::string;
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
 
+template <int N_VOXELS>
 struct emission {
-  unsigned int n_voxels;
+  static const unsigned int n_voxels = N_VOXELS;
   string name;
   bool init;
   bool solved;
@@ -46,12 +47,21 @@ struct emission {
   VectorXd tau_species_single_scattering;
   VectorXd tau_absorber_single_scattering;
 
+  //cuda vectors
+  double dtau_species_vec[n_voxels];
+  double log_dtau_species_vec[n_voxels];
+  double dtau_absorber_vec[n_voxels];
+  double log_dtau_absorber_vec[n_voxels];
+  double sourcefn_vec[n_voxels];
+  double log_sourcefn_vec[n_voxels];
+  
+  
   emission() {
     init=false;
   }
   
-  void resize(int n_voxelss) {
-    n_voxels = n_voxelss;
+  void resize() {//int n_voxelss) {
+    //n_voxels = n_voxelss;
     
     species_density.resize(n_voxels);
     absorber_density.resize(n_voxels);
@@ -70,7 +80,7 @@ struct emission {
     tau_species_single_scattering.resize(n_voxels);
     tau_absorber_single_scattering.resize(n_voxels);
   }
-
+  
   template<typename C, typename V>
   void define(double emission_branching_ratio,
 	      C &atmosphere,
@@ -79,7 +89,7 @@ struct emission {
 	      double (C::*absorber_density_function)(const atmo_point),
 	      double (C::*absorber_sigma_function)(const atmo_point),
 	      const V &pts) {
-
+    
     branching_ratio = emission_branching_ratio;
     
     for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
@@ -88,7 +98,7 @@ struct emission {
       absorber_density[i_voxel]=(atmosphere.*absorber_density_function)(pts[i_voxel]);
       absorber_sigma[i_voxel]=(atmosphere.*absorber_sigma_function)(pts[i_voxel]);
     }
-
+    
     //define differential optical depths by coefficientwise multiplication
     dtau_species = species_density.array() * species_sigma.array();
     dtau_absorber = absorber_density.array() * absorber_sigma.array();
@@ -99,10 +109,22 @@ struct emission {
       log_dtau_absorber(i) = dtau_absorber(i) == 0 ? -1e5 : log(dtau_species(i));
       log_abs(i) = abs(i) == 0 ? -1e5 : log(abs(i));
     }
-
+    
     init=true;
   }
-    
+
+  void eigen_to_vec() {
+    for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
+      dtau_species_vec[i_voxel] = dtau_species(i_voxel);
+      log_dtau_species_vec[i_voxel] = log_dtau_species(i_voxel);
+      dtau_absorber_vec[i_voxel] = dtau_absorber(i_voxel);
+      log_dtau_absorber_vec[i_voxel] = log_dtau_absorber(i_voxel);
+      sourcefn_vec[i_voxel] = sourcefn(i_voxel);
+      log_sourcefn_vec[i_voxel] = log_sourcefn(i_voxel);
+    }
+  }
+
+
 };
 
 

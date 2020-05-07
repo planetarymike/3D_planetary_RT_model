@@ -13,10 +13,10 @@
 
 template <int NDIM>
 struct boundary {
-  int entering;//index of voxel the ray is entering
+  int entering; //index of voxel the ray is entering
   static const int n_dimensions = NDIM;
-  int entering_indices[NDIM];//indices in each dimension of the voxel
-  double distance;//distance to the boundary crossing
+  int entering_indices[NDIM]; //indices in each dimension of the voxel
+  double distance; //distance to the boundary crossing
 
   CUDA_CALLABLE_MEMBER
   boundary() {
@@ -66,13 +66,13 @@ struct boundary {
 
 
 
-template <int NDIM>
+template <int NDIM, unsigned int MAX_SIZE>
 class boundary_set {
 private:
   unsigned int begin;
   unsigned int internal_size;
-  unsigned int internal_max_size;
-  boundary<NDIM> *boundaries = NULL;
+  static const unsigned int internal_max_size = MAX_SIZE;
+  boundary<NDIM> boundaries[MAX_SIZE];
 public:
   static const unsigned int n_dimensions = NDIM;
 
@@ -80,39 +80,26 @@ public:
   boundary_set(const int max_size = 0)
   { 
     internal_size=0;begin=0;
-    internal_max_size=max_size;
-    
-    boundaries = new boundary<NDIM>[internal_max_size];
   }
   CUDA_CALLABLE_MEMBER
-  ~boundary_set() {
-    delete [] boundaries;
-  }
+  ~boundary_set() { }
   CUDA_CALLABLE_MEMBER
-  boundary_set(const boundary_set<NDIM> &copy) {
+  boundary_set(const boundary_set<NDIM,MAX_SIZE> &copy) {
     //    assert(n_dimensions == copy.n_dimensions && "only copy same dimension boundaries");
 
     begin = copy.begin;
     internal_size = copy.internal_size;
-    internal_max_size = copy.internal_max_size;
-
-    if (boundaries != NULL) delete [] boundaries;
-    boundaries = new boundary<NDIM>[internal_max_size];
 
     for (unsigned int i=begin;i<begin+internal_size;i++)
       boundaries[i] = copy.boundaries[i];
   }
   CUDA_CALLABLE_MEMBER
-  boundary_set &operator=(const boundary_set<NDIM> &rhs) {
+  boundary_set &operator=(const boundary_set<NDIM,MAX_SIZE> &rhs) {
     //    assert(n_dimensions == rhs.n_dimensions && "only copy same dimension boundaries");
     if(this == &rhs) return *this;
 
     begin = rhs.begin;
     internal_size = rhs.internal_size;
-    internal_max_size = rhs.internal_max_size;
-
-    if (boundaries != NULL) delete [] boundaries;    
-    boundaries = new boundary<NDIM>[internal_max_size];
 
     for (unsigned int i=begin;i<begin+internal_size;i++)
       boundaries[i] = rhs.boundaries[i];
@@ -144,8 +131,8 @@ public:
   void sort() {
     //basic insertion sort, replace with something better when arrays get large
     boundary<NDIM> key;
-    unsigned int i, j;  
-    for (i = begin+1; i < begin+internal_size; i++) 
+    int i, j;  
+    for (i = begin+1; i < (int) (begin+internal_size); i++) 
       {  
         key = boundaries[i];  
         j = i - 1;  
@@ -286,11 +273,11 @@ public:
 
 
 
-template <int NDIM>
+template <int NDIM, int MAX_SIZE>
 struct boundary_intersection_stepper {
   bool init;
   atmo_vector vec;
-  boundary_set<NDIM> boundaries;
+  boundary_set<NDIM, MAX_SIZE> boundaries;
 
   bool inside;
   bool exits_bottom;
@@ -343,14 +330,12 @@ struct boundary_intersection_stepper {
     return *this;
   }
 
-
   CUDA_CALLABLE_MEMBER
-  boundary_intersection_stepper(atmo_vector vecc, boundary_set<NDIM> boundariess)
-    : vec(vecc), boundaries(boundariess)
+  void init_stepper()
   {
     if (boundaries.size() > 0) {
       start_voxel = boundaries[0].entering;
-    
+      
       if (boundaries.back().entering_indices[0] == -1) {
 	exits_bottom = true;
 	exits_top = false;
@@ -360,6 +345,13 @@ struct boundary_intersection_stepper {
       }
     }
     init=true;
+  }
+  
+  CUDA_CALLABLE_MEMBER
+  boundary_intersection_stepper(atmo_vector vecc, boundary_set<NDIM,MAX_SIZE> boundariess)
+    : vec(vecc), boundaries(boundariess)
+  {
+    init_stepper();
   }
   
   CUDA_CALLABLE_MEMBER
