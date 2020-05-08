@@ -340,8 +340,7 @@ struct RT_grid {
       
       for (int i_step=1;i_step<n_subsamples_distance;i_step++) {
 
-	pt = (vec/rMars).extend(d_start/rMars+i_step*(d_step/rMars));
-	pt = pt*rMars;
+	pt = vec.extend(d_start+i_step*d_step);
 	
 	if (n_subsamples!=0) {
 	  interp(current_voxel,pt,interp_vals);

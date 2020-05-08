@@ -7,8 +7,8 @@ IDIR=$(BINDIR) $(BOOSTDIR) $(EIGENDIR)
 CC=g++
 LIBS=-lm 
 MPFLAGS=-fopenmp
-OFLAGS=-Ofast -march=native -DNDEBUG
-#OFLAGS=-O3 -march=native -DNDEBUG
+#OFLAGS=-Ofast -march=native -DNDEBUG
+OFLAGS=-O3 -march=native -DNDEBUG
 
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings

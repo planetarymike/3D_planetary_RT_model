@@ -62,8 +62,8 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   Real ray_phi[n_phi];
 
    
-  spherical_azimuthally_symmetric_grid() {
-    this->sun_direction = {0.,0.,1.};
+  spherical_azimuthally_symmetric_grid()
+  {
     rmethod = rmethod_altitude;
     szamethod = szamethod_uniform;
 

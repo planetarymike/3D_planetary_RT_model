@@ -28,9 +28,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
   Real pts_radii[n_radial_boundaries-1];
   plane radial_boundary_planes[n_radial_boundaries];
   
-  plane_parallel_grid() {
-    this->sun_direction = {0.,0.,1.};
-  }
+  plane_parallel_grid() { }
   
   void setup_voxels(atmosphere &atm)
   {

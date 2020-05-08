@@ -15,6 +15,8 @@ using std::vector;
 
 class geom_primitive {
  protected:
+  static constexpr Real scale = 1e9;
+
   CUDA_CALLABLE_MEMBER
   bool samesign(Real a, Real b) const {
     if ((a>0&&b>0) || (a<0&&b<0) || (a==0&&b==0))
@@ -63,7 +65,7 @@ protected:
 
 public:
   void set_radius(const Real &rr) {
-    r=rr/rMars;
+    r=rr/scale;
     r2=r*r;
   }
 
@@ -77,32 +79,31 @@ public:
     n_hits = 0;
 
     // we solve the quadratic t^2 - 2*(vec.r * vec.cost)*t + (vec.r^2 - r^2) == 0
-    Real r_norm = vec.pt.r/rMars;
-    Real B = r_norm * vec.ray.cost;
-    Real C = r_norm*r_norm - r2;
+    const Real r_norm = vec.pt.r/scale;
+    const Real B = r_norm * vec.ray.cost;
+    const Real C = r_norm * r_norm - r2;
 
-    Real discr = B*B-C;
+    const Real discr = B*B-C;
 
     //we can ignore cases where the ray misses or is tangent
     if (discr > 0) {
-      discr = std::sqrt(discr);
-      
-      Real d0 = -B - discr;
+
+      const Real d0 = (B > 0) ? 
+	-B - std::sqrt(discr) : 
+	-B + std::sqrt(discr); 
       if (d0>0) {
-	distances[n_hits]=d0;
+	distances[n_hits]=d0*scale;
 	n_hits++;
       }
-      Real d1 = -B + discr;
+      const Real d1 = C / d0; 
       if (d1>0) {
-	distances[n_hits]=d1;
+	distances[n_hits]=d1*scale;
 	n_hits++;
       }
     }
 
-    for (int i=0;i<n_hits;i++) {
-      assert(is_zero((vec/rMars).extend(distances[i]).r/r-1.0,ABS) && "vector must intersect sphere at specified distance.");
-      distances[i]*=rMars;
-    }
+    for (int i=0;i<n_hits;i++)
+      assert(is_zero(vec.extend(distances[i]).r/r/scale-1.0,ABS) && "vector must intersect sphere at specified distance.");
   }
 
 };
@@ -127,50 +128,45 @@ public:
   void intersections(const atmo_vector & vec, Real (&distances)[2], int &n_hits) const {
     n_hits = 0;
 
-    Real z_norm = vec.pt.z/rMars;
-    Real r_norm = vec.pt.r/rMars;
+    const Real z_norm = vec.pt.z/scale;
+    const Real r_norm = vec.pt.r/scale;
 
-    Real A = vec.line_z * vec.line_z - cosangle2;
-    Real B = z_norm * vec.line_z - r_norm * vec.ray.cost * cosangle2;
-    Real C = z_norm * z_norm - r_norm * r_norm * cosangle2;
+    const Real A = vec.line_z * vec.line_z - cosangle2;
+    const Real B = z_norm * vec.line_z - r_norm * vec.ray.cost * cosangle2;
+    const Real C = z_norm * z_norm - r_norm * r_norm * cosangle2;
     
     if (!is_zero(A)) {
-      Real discr = B*B-A*C;
+      const Real discr = B*B-A*C;
 
       if (discr > 0) {
-	discr = std::sqrt(discr);
 
-	Real d0;
-	if (B>0)
-	  d0 = (-B - discr)/A;
-	else
-	  d0 = C/(-B + discr);
+	const Real q = (B > 0) ? 
+	  -B - std::sqrt(discr) : 
+	  -B + std::sqrt(discr); 
+
+	const Real d0 = q/A;
 	if (d0 > 0 && samesign(z_norm + d0*vec.line_z, cosangle) ) {
-	  distances[n_hits]=d0;
+	  distances[n_hits]=d0*scale;
 	  n_hits++;
 	}
-	Real d1;	
-	if (B>0)
-	  d1 = C/(-B - discr);
-	else
-	  d1 = (-B + discr)/A;
+	const Real d1 = C/q;
 	if (d1 > 0 && samesign(z_norm + d1*vec.line_z, cosangle)) {
-	  distances[n_hits]=d1;
+	  distances[n_hits]=d1*scale;
 	  n_hits++;
 	}
       }
     } else {
-      Real d = -C/(2*B);
+      const Real d = -C/(2*B);
       if (d>0 && samesign(z_norm + d*vec.line_z, cosangle)) {
-	distances[n_hits]=d;
+	distances[n_hits]=d*scale;
 	n_hits++;
       }
     }
 
     for (int i=0;i<n_hits;i++) {
-      //this test needs work, still fails on floats
-      assert(is_zero((vec/rMars).extend(distances[i]).t-angle,ABS) && "vector must intersect cone at specified distance.");
-      distances[i]*=rMars;
+      //this test needs work, still needs very large error term to pass
+      //std::cout << vec.extend(distances[i]).t-angle << std::endl;
+      assert(is_zero(vec.extend(distances[i]).t-angle,CONEABS) && "vector must intersect cone at specified distance.");
     }
   }
 };

@@ -33,7 +33,7 @@ struct grid {
 				       boundary_intersection_stepper<n_dimensions, n_max_intersections> &stepper) const { }; 
   
   //where the sun is, for single scattering
-  vector<Real> sun_direction;
+  const Real sun_direction[3] = {0.,0.,1.};
   
   //function to get interpolation coefs
   static const int n_interp_points = 2*n_dimensions;

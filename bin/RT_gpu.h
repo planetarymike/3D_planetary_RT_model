@@ -75,24 +75,25 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation &
 		  );
 
   //run kernel on GPU
-  int blockSize = 64;
+  int blockSize = 32;
   int numBlocks = (n_obs_vecs + blockSize - 1) / blockSize;
-
+  
   my_clock kernel_clk;
   kernel_clk.start();
-
+  
   brightness_kernel<N_EMISSIONS,
 		    grid_type,
 		    influence_type><<<numBlocks,blockSize>>>(d_obs_vecs, n_obs_vecs,
 							     d_RT,
 							     d_g, d_los,
 							     n_subsamples);
-
+  
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
-
+  
   kernel_clk.stop();
   kernel_clk.print_elapsed("brightness kernel execution takes ");
+
 
   //retrieve brightness from GPU
   brightness_tracker<n_emissions> *los;

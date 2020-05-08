@@ -8,6 +8,7 @@
 typedef double Real;
 typedef Eigen::VectorXd VectorX;
 typedef Eigen::MatrixXd MatrixX;
+#define CONEABS 1e-6
 #define ABS 1e-6
 #define STRICTABS 1e-10
 #endif

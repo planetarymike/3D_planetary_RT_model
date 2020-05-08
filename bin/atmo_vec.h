@@ -217,10 +217,10 @@ struct atmo_vector {
   }
 
   CUDA_CALLABLE_MEMBER
-  atmo_vector(atmo_point ptt, vector<Real> vec) : atmo_vector(ptt,vec[0],vec[1],vec[2]) { }
+  atmo_vector(const atmo_point ptt, const Real (&vec)[3]) : atmo_vector(ptt,vec[0],vec[1],vec[2]) { }
   
   CUDA_CALLABLE_MEMBER
-  atmo_vector(atmo_point ptt, Real line_xx, Real line_yy, Real line_zz) :
+  atmo_vector(const atmo_point ptt, const Real line_xx, const Real line_yy, const Real line_zz) :
     pt(ptt) 
   {
     //this overload exists to construct rays from points toward the
@@ -250,11 +250,12 @@ struct atmo_vector {
   atmo_point extend(Real dist) const {
     atmo_point retpt;
 
-    retpt.xyz(pt.x+line_x*dist,
-	      pt.y+line_y*dist,
-	      pt.z+line_z*dist);
+    const Real scale = 1e9;
+    retpt.xyz(pt.x/scale + (line_x * dist)/scale,
+	      pt.y/scale + (line_y * dist)/scale,
+	      pt.z/scale + (line_z * dist)/scale);
 
-    return retpt;
+    return retpt*scale;
   }
   CUDA_CALLABLE_MEMBER
   atmo_vector operator*(const Real & scale) const {
