@@ -16,7 +16,7 @@ struct grid {
   CUDA_CALLABLE_MEMBER virtual void point_to_indices(const atmo_point /*pt*/, int (&/*indices*/)[n_dimensions]) const { };
   
   virtual void setup_voxels() {};
-  double rmax,rmin;//max and min altitudes in the atmosphere
+  Real rmax,rmin;//max and min altitudes in the atmosphere
   
   //points inside the voxels to shoot rays from
   atmo_point pts[NVOXELS];
@@ -33,13 +33,13 @@ struct grid {
 				       boundary_intersection_stepper<n_dimensions, n_max_intersections> &stepper) const { }; 
   
   //where the sun is, for single scattering
-  vector<double> sun_direction;
+  vector<Real> sun_direction;
   
   //function to get interpolation coefs
   static const int n_interp_points = 2*n_dimensions;
   CUDA_CALLABLE_MEMBER
   virtual void interp_weights(const int &ivoxel, const atmo_point &pt,
-			      int (&/*indices*/)[n_interp_points], double (&/*weights*/)[n_interp_points] ) const { };
+			      int (&/*indices*/)[n_interp_points], Real (&/*weights*/)[n_interp_points] ) const { };
 
 
   virtual void save_S(const string &fname, const emission<n_voxels> *emiss) const { };

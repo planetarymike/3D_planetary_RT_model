@@ -23,8 +23,8 @@ using std::log;
 template <class V>
 void gauss_quadrature_points(V &pts,
 			     V &wts,
-			     double start,
-			     double end,
+			     Real start,
+			     Real end,
 			     int npts) {
 
   pts.resize(npts);
@@ -37,11 +37,11 @@ void gauss_quadrature_points(V &pts,
 template <class V>
 void uniform_quadrature_points(V &pts,
 			       V &wts,
-			       double start,
-			       double end,
+			       Real start,
+			       Real end,
 			       int npts,
 			       bool cyclic = false,
-			       double offset = 0.0) {
+			       Real offset = 0.0) {
 
   pts.resize(npts);
   wts.resize(npts);
@@ -52,7 +52,7 @@ void uniform_quadrature_points(V &pts,
   else 
     ndivisions = npts;
 
-  double step = ( end - start )/double(ndivisions-1);
+  Real step = ( end - start )/Real(ndivisions-1);
 
   for (int i = 0; i<npts; i++) {
     pts[i] = start + i * step;
@@ -66,19 +66,19 @@ void uniform_quadrature_points(V &pts,
 template <class V>
 void get_radial_log_linear_points(V &rpts,
 				  int nrpts,
-				  double rminatm,
-				  double rexo,
-				  double rmaxatm) {
+				  Real rminatm,
+				  Real rexo,
+				  Real rmaxatm) {
   // gets radial points that are split, with half linearly spaced below
   //   the exobase and half logarithmically spaced above. 
   
   int nbelowrexo=nrpts/2;
   
-  double logmax = log(rmaxatm-rMars);
-  double logmin = log(rexo-rMars);
-  double logspace = (logmax-logmin)/((double) nrpts-nbelowrexo);
+  Real logmax = log(rmaxatm-rMars);
+  Real logmin = log(rexo-rMars);
+  Real logspace = (logmax-logmin)/((Real) nrpts-nbelowrexo);
 
-  double linspace = (rexo-rminatm)/((double) nbelowrexo-1);
+  Real linspace = (rexo-rminatm)/((Real) nbelowrexo-1);
 
   rpts.clear();
   for (int i = 0; i<nrpts; i++) {

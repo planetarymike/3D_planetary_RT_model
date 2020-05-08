@@ -1,6 +1,7 @@
-//generate_source_function.cpp -- program to generate a source
+//Generate_source_function.cpp -- program to generate a source
 //function for comparison with analytic solutions and other models
 
+#include "Real_is_float.h"
 #include "cuda_compatibility.h"
 #include "atmosphere.h"
 #include "RT_grid.h"
@@ -8,15 +9,14 @@
 #include "grid_plane_parallel.h"
 #include "grid_spherical_azimuthally_symmetric.h"
 
-
 int main(int argc, char* argv[]) {
 
   //define the physical atmosphere
-  double exobase_temp = 200;//K
+  Real exobase_temp = 200;//K
   krasnopolsky_temperature temp(exobase_temp);
 
-  double H_exobase_density = 5e5;// cm-3
-  double CO2_exobase_density = 2e8;//cm-3
+  Real H_exobase_density = 5e5;// cm-3
+  Real CO2_exobase_density = 2e8;//cm-3
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,
 		    temp);
@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
   holstein_approx hol; //this is the most time consuming part of startup ~0.4s
 
   //define the RT grid
+  static const int n_emissions=2;
   vector<string> emission_names = {"H Lyman alpha", "H Lyman beta"};
 
   // static const int n_radial_boundaries = 40;
@@ -48,7 +49,9 @@ int main(int argc, char* argv[]) {
   
 
 
-  RT_grid<2,typeof(grid),holstein_approx> RT(emission_names, grid, hol);
+  RT_grid<n_emissions,
+	  typeof(grid),
+	  holstein_approx> RT(emission_names, grid, hol);
 
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",
@@ -58,10 +61,10 @@ int main(int argc, char* argv[]) {
 		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
   //solve for H lyman beta
   RT.define_emission("H Lyman beta",
-		       lyman_beta_branching_ratio,
-		       atm,
-		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
-		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+  		       lyman_beta_branching_ratio,
+  		       atm,
+  		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
+  		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
 
   //solve for the source function
   //  RT.save_influence = true;
@@ -73,7 +76,7 @@ int main(int argc, char* argv[]) {
   //simulate a fake observation
   observation obs(emission_names);
 
-  vector<double> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
+  vector<Real> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obs.emission_g_factors = g;
   
   // std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
@@ -92,10 +95,11 @@ int main(int argc, char* argv[]) {
 
   
   vector<int> sizes = {10,100,300,600,1200,2400};
+  //vector<int> sizes = {600};
 
   for (auto&& size: sizes) {
     std::cout << "simulating image size "<< size << "x" << size << ":" << std::endl;
-    double dist = 30*rMars;
+    Real dist = 30*rMars;
     obs.fake(dist,30,size);
     observation obs_nointerp = obs;
     RT.brightness_gpu(obs);

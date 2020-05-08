@@ -13,7 +13,7 @@ OFLAGS=-Ofast -march=native -DNDEBUG
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings
 NLIBS=-lm
-NOFLAGS= -O3 -DNDEBUG
+NOFLAGS= -O3 -DNDEBUG -lineinfo
 CUDA_HELP_IDIR=-I/home/mike/Documents/Utilities/cuda-samples/Common/
 
 
@@ -34,7 +34,7 @@ generate_source_function_intel:
 
 generate_source_function_gpu:
 	$(NCC) generate_source_function_gpu.cu \
-	$(COMPILER_OPT) $(IDIR) $(CUDA_HELP_IDIR) $(NLIBS) $(NOFLAGS) -lineinfo \
+	$(COMPILER_OPT) $(IDIR) $(CUDA_HELP_IDIR) $(NLIBS) $(NOFLAGS) \
 	-o generate_source_function_gpu.x
 
 generate_source_function_gpu_debug:

@@ -16,7 +16,7 @@ struct boundary {
   int entering; //index of voxel the ray is entering
   static const int n_dimensions = NDIM;
   int entering_indices[NDIM]; //indices in each dimension of the voxel
-  double distance; //distance to the boundary crossing
+  Real distance; //distance to the boundary crossing
 
   CUDA_CALLABLE_MEMBER
   boundary() {
@@ -157,9 +157,9 @@ public:
   }
 
   CUDA_CALLABLE_MEMBER
-  void add_intersections(const double start, const int dim, 
-			 const int idx, const double &coordinate,
-			 const double (&distances)[2], const int n_hits) {
+  void add_intersections(const Real start, const int dim, 
+			 const int idx, const Real &coordinate,
+			 const Real (&distances)[2], const int n_hits) {
     boundary<NDIM> new_boundary;
     new_boundary.reset();
 
@@ -286,7 +286,7 @@ struct boundary_intersection_stepper {
 
   int start_voxel;
   int current_voxel;
-  double pathlength;
+  Real pathlength;
 
   CUDA_CALLABLE_MEMBER
   boundary_intersection_stepper() : init(false) { }

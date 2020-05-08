@@ -9,11 +9,11 @@
 
 template <int N_EMISS>
 struct tau_tracker {
-  double tau_species_initial[N_EMISS];
-  double tau_species_final[N_EMISS];
-  double tau_absorber_initial[N_EMISS];
-  double tau_absorber_final[N_EMISS];
-  double max_tau_species;
+  Real tau_species_initial[N_EMISS];
+  Real tau_species_final[N_EMISS];
+  Real tau_absorber_initial[N_EMISS];
+  Real tau_absorber_final[N_EMISS];
+  Real max_tau_species;
 
   CUDA_CALLABLE_MEMBER
   tau_tracker() {
@@ -94,7 +94,7 @@ struct tau_tracker {
 
 template <int N_EMISS>
 struct brightness_tracker : tau_tracker<N_EMISS> {
-  double brightness[N_EMISS];
+  Real brightness[N_EMISS];
 
   CUDA_CALLABLE_MEMBER
   brightness_tracker() : tau_tracker<N_EMISS>() {
@@ -132,9 +132,9 @@ struct brightness_tracker : tau_tracker<N_EMISS> {
 template <int N>
 class interpolated_values {
 public:
-  double dtau_species_interp[N];
-  double dtau_absorber_interp[N];
-  double sourcefn_interp[N];
+  Real dtau_species_interp[N];
+  Real dtau_absorber_interp[N];
+  Real sourcefn_interp[N];
 };
 
 #endif

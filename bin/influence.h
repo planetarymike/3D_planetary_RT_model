@@ -29,27 +29,27 @@ using boost::math::quadrature::tanh_sinh;
 using boost::math::interpolators::cardinal_cubic_b_spline;
 
 struct influence {\
-  virtual double Tintint(const double /*tau*/) const { return 0; };
-  vector<double> Tintint(vector<double> tau) const {
-    vector<double> retval;
+  virtual Real Tintint(const Real /*tau*/) const { return 0; };
+  vector<Real> Tintint(vector<Real> tau) const {
+    vector<Real> retval;
     for(auto&& t: tau)
       retval.push_back(Tintint(t));
     return retval;
   }
 
-  virtual double Tintabs(const double /*tau*/, const double /*abs*/) const { return 0; };
+  virtual Real Tintabs(const Real /*tau*/, const Real /*abs*/) const { return 0; };
 
-  virtual double Tint(const double /*tau*/) const { return 0; };
-  vector<double> Tint(vector<double> tau) const {
-    vector<double> retval;
+  virtual Real Tint(const Real /*tau*/) const { return 0; };
+  vector<Real> Tint(vector<Real> tau) const {
+    vector<Real> retval;
     for(auto&& t: tau)
       retval.push_back(Tint(t));
     return retval;
   }
 
-  virtual double T(const double /*tau*/) const { return 0; };
-  vector<double> T(vector<double> tau) const {
-    vector<double> retval;
+  virtual Real T(const Real /*tau*/) const { return 0; };
+  vector<Real> T(vector<Real> tau) const {
+    vector<Real> retval;
     for(auto&& t: tau)
       retval.push_back(T(t));
     return retval;
@@ -58,20 +58,20 @@ struct influence {\
 
 struct holstein_integrand {
   int order;
-  double tau;
-  double abs;
+  Real tau;
+  Real abs;
 
   holstein_integrand() { }
 
-  holstein_integrand(int orderr, double tauu, double abss) :
+  holstein_integrand(int orderr, Real tauu, Real abss) :
     order(orderr), tau(tauu), abs(abss) { }
   
-  double operator()(double x) const {
-    double phi = exp(-x*x);
+  Real operator()(Real x) const {
+    Real phi = exp(-x*x);
     
     assert((order == 1 || order == 2));
 
-    double retval;
+    Real retval;
     if (order == 1)
       retval = phi*exp(-tau*phi-tau*abs);
     if (order == 2)
@@ -83,25 +83,25 @@ struct holstein_integrand {
 };
 
 struct holstein_exact {
-  double integration_constant;
-  double abs;
+  Real integration_constant;
+  Real abs;
 
-  holstein_exact(double abss = 0.0)
+  holstein_exact(Real abss = 0.0)
     : abs(abss)
   {
     integration_constant = M_2_SQRTPI; // 2/sqrt(pi)
   }
 
-  double result(double tau, int order = 1) const {
+  Real result(Real tau, int order = 1) const {
     holstein_integrand integrand(order,tau,abs);
-    exp_sinh<double> integrator;
+    exp_sinh<Real> integrator;
 
-    double result = integrator.integrate(integrand);
+    Real result = integrator.integrate(integrand);
 
     return integration_constant*result;
   }
 
-  double operator()(double tau) const {
+  Real operator()(Real tau) const {
     return this->result(tau, 1);
   }
   
@@ -113,11 +113,11 @@ struct holstein_T_integral_exact {
 
   holstein_T_integral_exact() { }
 
-  double operator()(double tau, double abs = 0.0) const {
+  Real operator()(Real tau, Real abs = 0.0) const {
     holstein_exact exact(abs);
-    tanh_sinh<double> integrator;
+    tanh_sinh<Real> integrator;
 
-    double result = integrator.integrate(exact, 0.0, tau, 1e-6);
+    Real result = integrator.integrate(exact, 0.0, tau, ABS);
 
     return result;
   }
@@ -128,11 +128,11 @@ struct holstein_T_integral_exact {
 
 //   holstein_Tint_integral_exact() { }
 
-//   double operator()(double tau) const {
+//   Real operator()(Real tau) const {
 //     holstein_T_integral_exact exact;
-//     tanh_sinh<double> integrator;
+//     tanh_sinh<Real> integrator;
     
-//     double result = integrator.integrate(exact, 0.0, tau, 1e-3);
+//     Real result = integrator.integrate(exact, 0.0, tau, ABS);
 
 //     return result;
 //   }
@@ -141,34 +141,34 @@ struct holstein_T_integral_exact {
 
 
 // struct holstein_T_integral_with_absorption_interp {
-//   vector<double> logtau_vec, tau_vec;
-//   vector<double> logabs_vec, abs_vec;
+//   vector<Real> logtau_vec, tau_vec;
+//   vector<Real> logabs_vec, abs_vec;
 //   Bilinear_interp interp;
 
 //   holstein_T_integral_with_absorption_interp()
 //   {
 //     const int ntaupts=100;
-//     const double logtaumin = 1e-3;
-//     const double logtaumax = 1e3;
-//     const double logtaustep = (logtaumax-logtaumin)/(ntaupts-1);
+//     const Real logtaumin = 1e-3;
+//     const Real logtaumax = 1e3;
+//     const Real logtaustep = (logtaumax-logtaumin)/(ntaupts-1);
 //     for (int itau = 0; itau < ntaupts; itau++) {
 //       logtau_vec.push_back(logtaumin+itau*logtaustep);
 //       tau_vec.push_back(exp(logtau_vec[itau]));
 //     }
 
 //     const int nabspts=40;
-//     const double logabsmin = 1e-5;
-//     const double logabsmax = 1e2;
-//     const double logabsstep = (logabsmax-logabsmin)/(nabspts-1);
+//     const Real logabsmin = 1e-5;
+//     const Real logabsmax = 1e2;
+//     const Real logabsstep = (logabsmax-logabsmin)/(nabspts-1);
 //     for (int iabs = 0; iabs < nabspts; iabs++) {
 //       logabs_vec.push_back(logabsmin+iabs*logabsstep);
 //       abs_vec.push_back(exp(logabs_vec[iabs]));
 //     }
 
-//     MatrixXd logHol;
+//     MatrixX logHol;
 //     logHol.resize(ntaupts,nabspts);
 
-//     double tau,abs;
+//     Real tau,abs;
 // #pragma omp parallel for private(tau,abs) shared(logHol) default(none)
 //     for (int itau = 0; itau < ntaupts; itau++) {
 //       tau = tau_vec[itau];
@@ -177,9 +177,9 @@ struct holstein_T_integral_exact {
 // 	abs = abs_vec[iabs];
 
 // 	holstein_exact exact(abs);
-// 	tanh_sinh<double> integrator;
+// 	tanh_sinh<Real> integrator;
 	
-// 	double result = integrator.integrate(exact, 0.0, tau, 1e-6);
+// 	Real result = integrator.integrate(exact, 0.0, tau, ABS);
 // 	logHol(itau,iabs) = result;
 //       }
 //     }
@@ -187,12 +187,12 @@ struct holstein_T_integral_exact {
 //     interp = Bilinear_interp(logtau_vec, logabs_vec, logHol);
 //   }
   
-//   double operator()(const double tau, const double abs) {
+//   Real operator()(const Real tau, const Real abs) {
 //     assert(abs < abs_vec.back() && "absorption must be less than max absorption.");
 //     assert(tau < tau_vec.back() && "optical depth must be less than max tau");
 
-//     double logtau=log(tau);
-//     double logabs=log(abs);
+//     Real logtau=log(tau);
+//     Real logabs=log(abs);
     
 //     if (logabs < logabs_vec[0])
 //       logabs = logabs_vec[0];
@@ -209,27 +209,27 @@ struct holstein_approx : influence {
   //  holstein_Tint_integral_exact Tintint_exact;
   //  holstein_T_integral_with_absorption_interp Tintabs_interp;
   
-  double taumin;
-  double taumax;
+  Real taumin;
+  Real taumax;
   static const int ntau = 200;
 
-  double logtaumin;
-  double logtaustep;
-  double invlogtaustep;
+  Real logtaumin;
+  Real logtaustep;
+  Real invlogtaustep;
 
-  double logtau[ntau];
-  double logG[ntau];
-  double logT[ntau];
-  //double logTincrement[ntau-1];
-  double logTint[ntau];
-  //double logTintincrement[ntau-1];
+  Real logtau[ntau];
+  Real logG[ntau];
+  Real logT[ntau];
+  //Real logTincrement[ntau-1];
+  Real logTint[ntau];
+  //Real logTintincrement[ntau-1];
 
-  cardinal_cubic_b_spline<double> loglogGspline;
-  cardinal_cubic_b_spline<double> loglogTspline;
-  cardinal_cubic_b_spline<double> loglogTintspline;
+  cardinal_cubic_b_spline<Real> loglogGspline;
+  cardinal_cubic_b_spline<Real> loglogTspline;
+  cardinal_cubic_b_spline<Real> loglogTintspline;
 
-  holstein_approx(double tauminn=1e-6,
-		  double taumaxx=1e6) :
+  holstein_approx(Real tauminn=1e-6,
+		  Real taumaxx=1e6) :
     taumin(tauminn), taumax(taumaxx) {
     
     logtaumin = log(taumin);
@@ -248,21 +248,21 @@ struct holstein_approx : influence {
     //   logTintincrement[itau] = (logTint[itau+1]-logTint[itau])/(logtau[itau+1]-logtau[itau]);
     // }
     
-    loglogGspline = cardinal_cubic_b_spline<double>(logG,
+    loglogGspline = cardinal_cubic_b_spline<Real>(logG,
 						    ntau,
 						    logtaumin,
 						    logtaustep);
-    loglogTspline = cardinal_cubic_b_spline<double>(logT,
+    loglogTspline = cardinal_cubic_b_spline<Real>(logT,
 						    ntau,
 						    logtaumin,
 						    logtaustep);
-    loglogTintspline = cardinal_cubic_b_spline<double>(logTint,
+    loglogTintspline = cardinal_cubic_b_spline<Real>(logTint,
 						       ntau,
     						       logtaumin,
     						       logtaustep);
   }
 
-  double Tint(const double tau) const {
+  Real Tint(const Real tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 
     if (tau < taumin) {
@@ -272,29 +272,33 @@ struct holstein_approx : influence {
     }
   }
 
-  inline int get_lerp_loc(double logtau_target) const {
+  inline int get_lerp_loc(Real logtau_target) const {
     int itau = (int) ((logtau_target-logtaumin)*invlogtaustep);
+    if (logtau_target<logtau[itau])
+      itau--;
+    if (logtau[itau+1]<=logtau_target)
+      itau++;
     assert(0<=itau && itau<ntau && "itau must be in range");
     assert(logtau[itau]<=logtau_target && logtau_target < logtau[itau+1] && "target tau must be in this increment");
     return itau;
   }
   
   CUDA_CALLABLE_MEMBER
-  double Tint_lerp(const double tau) const {
+  Real Tint_lerp(const Real tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
     
     if (tau < taumin) {
       return 0.0;
     }  else {
-      double logtau_target = log(tau);
+      Real logtau_target = log(tau);
       int itau = get_lerp_loc(logtau_target);
-      double lerp = logTint[itau]+(logTint[itau+1]-logTint[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
+      Real lerp = logTint[itau]+(logTint[itau+1]-logTint[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
       return exp(lerp);
     }
   }
 
   
-  double T(const double tau) const {
+  Real T(const Real tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 
     if (tau < taumin) {
@@ -305,15 +309,15 @@ struct holstein_approx : influence {
   }
 
   CUDA_CALLABLE_MEMBER
-  double T_lerp(const double tau) const {
+  Real T_lerp(const Real tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
     
     if (tau < taumin) {
       return 1.0;
     }  else {
-      double logtau_target = log(tau);
+      Real logtau_target = log(tau);
       int itau = get_lerp_loc(logtau_target);
-      double lerp = logT[itau]+(logT[itau+1]-logT[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
+      Real lerp = logT[itau]+(logT[itau+1]-logT[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
       
       return exp(lerp);
     }
@@ -321,7 +325,7 @@ struct holstein_approx : influence {
 
 
   
-  double G(const double tau) const {
+  Real G(const Real tau) const {
     assert(tau<taumax && "tau must be in the simulated range.");
 
     if (tau < taumin) {

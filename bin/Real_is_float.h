@@ -8,5 +8,7 @@
 typedef float Real;
 typedef Eigen::VectorXf VectorX;
 typedef Eigen::MatrixXf MatrixX;
+#define ABS 1e-3
+#define STRICTABS 1e-5
 
 #endif

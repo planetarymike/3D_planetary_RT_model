@@ -13,7 +13,7 @@ __global__
 void brightness_kernel(const atmo_vector *obs_vecs, const int n_obs_vecs,
 		       const RT_grid<N_EMISSIONS,grid_type,influence_type> *RT, 
 		       //const grid_type *grid, const emission *emissions, const influence_type *transmission,
-		       const double *g, brightness_tracker<N_EMISSIONS> *los,
+		       const Real *g, brightness_tracker<N_EMISSIONS> *los,
 		       const int n_subsamples = 5)
 {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -60,12 +60,12 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation &
   checkCudaErrors(
 		  cudaMemcpy(d_obs_vecs, obs.get_vecs().data(), n_obs_vecs*sizeof(atmo_vector), cudaMemcpyHostToDevice)
 		  );
-  double *d_g;
+  Real *d_g;
   checkCudaErrors(
-		  cudaMalloc(&d_g, n_emissions*sizeof(double))
+		  cudaMalloc(&d_g, n_emissions*sizeof(Real))
 		  );
   checkCudaErrors(
-		  cudaMemcpy(d_g, obs.emission_g_factors.data(), n_emissions*sizeof(double), cudaMemcpyHostToDevice)
+		  cudaMemcpy(d_g, obs.emission_g_factors.data(), n_emissions*sizeof(Real), cudaMemcpyHostToDevice)
 		  );
 
   //prepare brightness objects
@@ -75,7 +75,7 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation &
 		  );
 
   //run kernel on GPU
-  int blockSize = 512;
+  int blockSize = 64;
   int numBlocks = (n_obs_vecs + blockSize - 1) / blockSize;
 
   my_clock kernel_clk;
@@ -88,12 +88,11 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation &
 							     d_g, d_los,
 							     n_subsamples);
 
-  kernel_clk.stop();
-  kernel_clk.print_elapsed("brightness kernel execution takes ");
-
-
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
+
+  kernel_clk.stop();
+  kernel_clk.print_elapsed("brightness kernel execution takes ");
 
   //retrieve brightness from GPU
   brightness_tracker<n_emissions> *los;

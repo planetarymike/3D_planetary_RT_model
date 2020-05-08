@@ -35,32 +35,32 @@ using boost::math::interpolators::cardinal_cubic_b_spline;
 
 //generic temperature class
 struct temperature {
-  double T_exo;
-  double T;
-  double Tprime;
+  Real T_exo;
+  Real T;
+  Real Tprime;
   
-  virtual void get(const double &r) { };
+  virtual void get(const Real &r) { };
 };
 
 struct krasnopolsky_temperature : public temperature {
   // computes the analytic thermospheric temperature as given by Krasnopolsky (2002)
   
-  double T_tropo;
-  double r_tropo;
-  double shape_parameter;
+  Real T_tropo;
+  Real r_tropo;
+  Real shape_parameter;
 
-  krasnopolsky_temperature(double T_exoo = 200.0,
-			   double T_tropoo = 125.0,
-			   double r_tropoo = rMars + 90e5,
-			   double shape_parameterr = 11.4) {
+  krasnopolsky_temperature(Real T_exoo = 200.0,
+			   Real T_tropoo = 125.0,
+			   Real r_tropoo = rMars + 90e5,
+			   Real shape_parameterr = 11.4) {
     T_exo = T_exoo; 
     T_tropo = T_tropoo; 
     r_tropo = r_tropoo; 
     shape_parameter = shape_parameterr;
   }
 
-  void get(const double &r) {
-    const double rdiff = r - r_tropo;
+  void get(const Real &r) {
+    const Real rdiff = r - r_tropo;
     T = T_exo - (T_exo - T_tropo)*exp(-rdiff*rdiff*1e-10/(shape_parameter*T_exo));
     Tprime = ( T_exo - T ) * ( 2*rdiff*1e-10 / (shape_parameter*T_exo) );
   }
@@ -69,12 +69,12 @@ struct krasnopolsky_temperature : public temperature {
 
 //diffusion coefficients
 struct diffusion_coefs {
-  double DH; // diffusion coefficient of hydrogen through CO2
-  double KK; // eddy diffusion coefficient
+  Real DH; // diffusion coefficient of hydrogen through CO2
+  Real KK; // eddy diffusion coefficient
   
-  void get(const double &r, const double &T, const double &Texo, const double &nCO2) {
-    const double DH0 = 8.4e17;// cm^2 s^-1
-    const double s = 0.6;
+  void get(const Real &r, const Real &T, const Real &Texo, const Real &nCO2) {
+    const Real DH0 = 8.4e17;// cm^2 s^-1
+    const Real s = 0.6;
     DH = std::pow(T,s) * DH0/nCO2;
     KK = 1.2e12 * std::sqrt(Texo/nCO2); 
   }
@@ -86,20 +86,20 @@ struct diffusion_coefs {
 struct thermosphere_diffeq {
   diffusion_coefs diff;
   temperature *temp;
-  double H_escape_flux;
-  double rexo;
+  Real H_escape_flux;
+  Real rexo;
 
-  thermosphere_diffeq(temperature &tempp, double &H_escape_fluxx, double &rexoo)
+  thermosphere_diffeq(temperature &tempp, Real &H_escape_fluxx, Real &rexoo)
     : temp(&tempp), H_escape_flux(H_escape_fluxx), rexo(rexoo) { }
 
   // x[0] = log(nCO2), x[1] = log(nH)
-  void operator()( const vector<double> &x , vector<double> &dxdr , const double &r ) {
+  void operator()( const vector<Real> &x , vector<Real> &dxdr , const Real &r ) {
     temp->get(r);
     diff.get(r, temp->T, temp->T_exo, exp(x[0]) );
 
-    double Hninv = G*mMars*mCO2/(kB*(temp->T)*r*r)+(temp->Tprime)/(temp->T);
-    double alpha = -0.25;
-    double HHinv = G*mMars*mH/(kB*temp->T*r*r)+(1+alpha)*(temp->Tprime)/(temp->T);
+    Real Hninv = G*mMars*mCO2/(kB*(temp->T)*r*r)+(temp->Tprime)/(temp->T);
+    Real alpha = -0.25;
+    Real HHinv = G*mMars*mH/(kB*temp->T*r*r)+(1+alpha)*(temp->Tprime)/(temp->T);
     
     dxdr[0] = -Hninv;
     dxdr[1] = -1./(diff.DH+diff.KK)*( H_escape_flux * ( rexo*rexo /r /r ) / exp(x[1])
@@ -111,22 +111,22 @@ struct thermosphere_diffeq {
 
 struct push_back_quantities
 {
-  vector< vector<double>* > vec_ptrs;
+  vector< vector<Real>* > vec_ptrs;
 
   template<bool...> struct bool_pack{};
   template<class... Ts>
   using conjunction = std::is_same<bool_pack<true,Ts::value...>, bool_pack<Ts::value..., true>>;
   template<typename... Ts>
-  using AllVecs = typename std::enable_if<conjunction<std::is_convertible<Ts, vector<double>*>...>::value>::type;
+  using AllVecs = typename std::enable_if<conjunction<std::is_convertible<Ts, vector<Real>*>...>::value>::type;
   template<typename... Ts, typename = AllVecs<Ts...>>
   push_back_quantities(Ts... v0) {
-    vector<vector<double>*> vecs = { v0... };
+    vector<vector<Real>*> vecs = { v0... };
     for (auto&& v : vecs) {
       vec_ptrs.push_back(v);
     }
   }
 
-  void operator()( const vector<double> &x , double r )
+  void operator()( const vector<Real> &x , Real r )
   {
     for(unsigned int i=0; i<x.size(); i++)
       (*(vec_ptrs[i])).push_back(x[i]);
@@ -136,14 +136,14 @@ struct push_back_quantities
 
 
 struct chamberlain_exosphere {
-  double rexo;
-  double Texo;
-  double nHexo;
-  double lambdac;
-  double effusion_velocity;
-  double H_escape_flux;
+  Real rexo;
+  Real Texo;
+  Real nHexo;
+  Real lambdac;
+  Real effusion_velocity;
+  Real H_escape_flux;
 
-  chamberlain_exosphere(double &rexoo, double &Texoo, double &nHexoo)
+  chamberlain_exosphere(Real &rexoo, Real &Texoo, Real &nHexoo)
     : rexo(rexoo), Texo(Texoo), nHexo(nHexoo)
   {
     lambdac = G*mMars*mH/(kB*Texo*rexo);//chamberlain lambda @ rexo
@@ -151,37 +151,37 @@ struct chamberlain_exosphere {
     H_escape_flux = nHexo * effusion_velocity;
   }
 
-  double nH(double r) {
+  Real nH(Real r) {
     // computes hydrogen number density as a function of altitude above
     // the exobase, assuming a chamberlain exosphere w/o satellite particles
 
-    if ((r-rexo)/rexo<1e-6) 
+    if ((r-rexo)/rexo<ABS) 
       //if we are very close to the exobase due to a rounding error,
       //fix the issue
       r = rexo;
     
-    const double lambda = G*mMars*mH/(kB*Texo*r);//chamberlain lambda
-    const double psione = lambda*lambda/(lambda+lambdac);
+    const Real lambda = G*mMars*mH/(kB*Texo*r);//chamberlain lambda
+    const Real psione = lambda*lambda/(lambda+lambdac);
 
     //gamma_p = complementary normalized incomplete gamma function
-    const double g1 = gamma_p(1.5, lambda);
-    const double g1c = gamma_p(1.5, lambdac);
-    const double g2 = gamma_p(1.5, lambda - psione);
+    const Real g1 = gamma_p(1.5, lambda);
+    const Real g1c = gamma_p(1.5, lambdac);
+    const Real g2 = gamma_p(1.5, lambda - psione);
   
     // calculate the fraction of the exobase density at this altitude:
     // this looks different than the formula in C&H b/c the incomplete
     // gamma function in the gsl is normalized; to get gamma(3/2,x) from
     // C&H we have to multiply g1 by Gamma(3/2). This enables us to pull
     // the complete Gamma function outside the parens.
-    double frac = ( 1.0 + g1 - sqrt( 1.0 - lambda*lambda/(lambdac*lambdac) ) * exp(-psione) * ( 1.0 + g2 ) );  
+    Real frac = ( 1.0 + g1 - sqrt( 1.0 - lambda*lambda/(lambdac*lambdac) ) * exp(-psione) * ( 1.0 + g2 ) );  
     // normalize to the fraction at the exobase:
-    double norm = (1.0 + g1c);
+    Real norm = (1.0 + g1c);
     frac /= norm;
 
     // multiply by the exobase density and return
     return nHexo*frac*exp(lambda-lambdac);
   }
-  double operator ()(double r) {
+  Real operator ()(Real r) {
     return this->nH(r);
   }
 
@@ -189,18 +189,18 @@ struct chamberlain_exosphere {
   template <typename T>
   struct nHfinder {
     T *parent;
-    double nHtarget;
+    Real nHtarget;
 
-    nHfinder(T *parentt, double &nHtargett)
+    nHfinder(T *parentt, Real &nHtargett)
       : parent(parentt), nHtarget(nHtargett)
     { }
 
-    double operator()(double r) {
+    Real operator()(Real r) {
       return parent->nH(r) - nHtarget;
     }
   };
 
-  double r(double &nHtarget) {  //find r corresponding to a given nH
+  Real r(Real &nHtarget) {  //find r corresponding to a given nH
     assert(nHtarget<nHexo && "exosphere nH must be less than nHexo");
 
 
@@ -208,17 +208,17 @@ struct chamberlain_exosphere {
     using boost::math::tools::eps_tolerance;
 
     
-    double guess = kB*Texo/G/mMars/mH*log(nHexo/nHtarget)+rexo;
-    double factor = 2;
+    Real guess = kB*Texo/G/mMars/mH*log(nHexo/nHtarget)+rexo;
+    Real factor = 2;
 
     const boost::uintmax_t maxit = 20;
     boost::uintmax_t it = maxit;      
     bool is_rising = false;
     int get_digits = 8;
-    eps_tolerance<double> tol(get_digits);
+    eps_tolerance<Real> tol(get_digits);
 
     nHfinder<chamberlain_exosphere> find(this,nHtarget);
-    std::pair<double, double> r = bracket_and_solve_root(find,
+    std::pair<Real, Real> r = bracket_and_solve_root(find,
 							 guess, factor, is_rising, tol, it);
 
 
@@ -243,65 +243,65 @@ struct chamberlain_exosphere {
 };
 
 struct atmosphere {
-  double rmin;// cm, exobase altitude
-  double rexo;// cm, minimum altitude in model atmosphere
-  double rmax;// cm, max altitude in model atmosphere
+  Real rmin;// cm, exobase altitude
+  Real rexo;// cm, minimum altitude in model atmosphere
+  Real rmax;// cm, max altitude in model atmosphere
 
-  virtual double nH(const atmo_point pt) { return 0; };
-  virtual vector<double> nH(const vector<atmo_point> pts) {
-    vector<double> ret;
+  virtual Real nH(const atmo_point pt) { return 0; };
+  virtual vector<Real> nH(const vector<atmo_point> pts) {
+    vector<Real> ret;
     ret.resize(pts.size());
     for(unsigned int i=0;i<pts.size();i++)
       ret[i] = nH(pts[i]);
     return ret;
   }
-  virtual double nH(const double r) {
+  virtual Real nH(const Real r) {
     //return subsolar densities if not overridden
     atmo_point p;
     p.rtp(r,0.,0.);
     return nH(p);
   }
 
-  virtual double r_from_nH(const double nH) { return 0; }
+  virtual Real r_from_nH(const Real nH) { return 0; }
 
-  virtual double nCO2(const atmo_point pt) { return 0; };
-  virtual vector<double> nCO2(const vector<atmo_point> pts) {
-    vector<double> ret;
+  virtual Real nCO2(const atmo_point pt) { return 0; };
+  virtual vector<Real> nCO2(const vector<atmo_point> pts) {
+    vector<Real> ret;
     ret.resize(pts.size());
     for(unsigned int i=0;i<pts.size();i++)
       ret[i] = nCO2(pts[i]);
     return ret;
   }
-  virtual double nCO2(const double r) {
+  virtual Real nCO2(const Real r) {
     //return subsolar densities if not overridden
     atmo_point p;
     p.rtp(r,0.,0.);
     return nCO2(p);
   }
 
-  atmosphere(double rminn, double rexoo, double rmaxx)
+  atmosphere(Real rminn, Real rexoo, Real rmaxx)
     : rmin(rminn), rexo(rexoo), rmax(rmaxx) { }
 
-  double s_null(const atmo_point pt) {
+  Real s_null(const atmo_point pt) {
     return 0.0;
   }
 
   //really ought to refactor so cross section info is stored in a
   //totally seperate object
-  virtual double sH_lya(const atmo_point pt) {
+  virtual Real sH_lya(const atmo_point pt) {
     return 0.0;
   }
-  virtual double sH_lya(const double r) {
+  virtual Real sH_lya(const Real r) {
     //return subsolar densities if not overridden
     atmo_point p;
     p.rtp(r,0.,0.);
     return sH_lya(p);
   }
   
-  virtual double sCO2_lya(const atmo_point pt) {
+  virtual Real sCO2_lya(const atmo_point pt) {
     return 0.0;
   }
-  virtual double sCO2_lya(const double r) {
+  virtual Real sCO2_lya(const Real r) {
     //return subsolar densities if not overridden
     atmo_point p;
     p.rtp(r,0.,0.);
@@ -314,12 +314,12 @@ struct atmosphere {
 //now a structure to hold the atmosphere and interpolate when
 //necessary
 struct chamb_diff_1d : atmosphere {
-  double nHexo;   // cm-3, H density at exobase
-  double nCO2exo; // cm-3, CO2 density at exobase
+  Real nHexo;   // cm-3, H density at exobase
+  Real nCO2exo; // cm-3, CO2 density at exobase
 
-  double rmindiffusion; // cm, minimum altitude to solve the diffusion equation 
-  double nHrmindiffusion; // nH at this altitude
-  double nCO2rmindiffusion;
+  Real rmindiffusion; // cm, minimum altitude to solve the diffusion equation 
+  Real nHrmindiffusion; // nH at this altitude
+  Real nCO2rmindiffusion;
   
   temperature *temp;
   chamberlain_exosphere exosphere;
@@ -327,25 +327,25 @@ struct chamb_diff_1d : atmosphere {
 
   //thermosphere interpolation object
   int n_thermosphere_steps;
-  double thermosphere_step_r;
-  vector<double> lognCO2thermosphere;
-  vector<double> lognHthermosphere;
-  vector<double> r_thermosphere;
-  cardinal_cubic_b_spline<double> lognCO2_thermosphere_spline;
+  Real thermosphere_step_r;
+  vector<Real> lognCO2thermosphere;
+  vector<Real> lognHthermosphere;
+  vector<Real> r_thermosphere;
+  cardinal_cubic_b_spline<Real> lognCO2_thermosphere_spline;
   Linear_interp invlognCO2_thermosphere;
-  cardinal_cubic_b_spline<double> lognH_thermosphere_spline;
+  cardinal_cubic_b_spline<Real> lognH_thermosphere_spline;
   Linear_interp invlognH_thermosphere;
   
   //exosphere interpolation
   int n_exosphere_steps;
-  double exosphere_step_logr;
-  vector<double> lognHexosphere;
-  vector<double> logr_exosphere;
-  cardinal_cubic_b_spline<double> lognH_exosphere_spline;
+  Real exosphere_step_logr;
+  vector<Real> lognHexosphere;
+  vector<Real> logr_exosphere;
+  cardinal_cubic_b_spline<Real> lognH_exosphere_spline;
   Linear_interp invlognH_exosphere;
 
-  chamb_diff_1d(double nHexoo, // a good number is 10^5-6
-		double nCO2exoo, //a good number is 10^9 (?)
+  chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
+		Real nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp)
     : chamb_diff_1d(/*          rmin = */rMars + 80e5,
 		    /*          rexo = */rMars + 200e5,
@@ -355,12 +355,12 @@ struct chamb_diff_1d : atmosphere {
 		    nCO2exoo,
 		    tempp)   { }
 
-  chamb_diff_1d(double rminn,
-		double rexoo,
-		double nHmin,
-		double rmindiffusionn,
-		double nHexoo, // a good number is 10^5-6
-		double nCO2exoo, //a good number is 10^9 (?)
+  chamb_diff_1d(Real rminn,
+		Real rexoo,
+		Real nHmin,
+		Real rmindiffusionn,
+		Real nHexoo, // a good number is 10^5-6
+		Real nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp)
     : atmosphere(rminn,rexoo,-1),
       nHexo(nHexoo),
@@ -376,12 +376,12 @@ struct chamb_diff_1d : atmosphere {
     
     //integrate the differential equation to get the species densities
     //in the thermosphere
-    vector<double> nexo(2);
+    vector<Real> nexo(2);
     nexo[0] = log(nCO2exo);
     nexo[1] = log(nHexo);
 
     //use a constant stepper for easy interpolation
-    runge_kutta4< vector<double> > stepper;
+    runge_kutta4< vector<Real> > stepper;
     n_thermosphere_steps = 20;
     thermosphere_step_r = -(rexo-rmin)/(n_thermosphere_steps-1.);
     integrate_const( stepper , diffeq ,
@@ -390,12 +390,12 @@ struct chamb_diff_1d : atmosphere {
 					   &lognHthermosphere,
 					   &r_thermosphere ) );
     //interpolate the densities in the thermosphere
-    lognCO2_thermosphere_spline = cardinal_cubic_b_spline<double>(lognCO2thermosphere.rbegin(),
+    lognCO2_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognCO2thermosphere.rbegin(),
 								  lognCO2thermosphere.rend(),
 								  rmin,
 								  -thermosphere_step_r);
     invlognCO2_thermosphere = Linear_interp(lognCO2thermosphere,r_thermosphere);
-    lognH_thermosphere_spline = cardinal_cubic_b_spline<double>(lognHthermosphere.rbegin(),
+    lognH_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognHthermosphere.rbegin(),
 								lognHthermosphere.rend(),
 								rmin,
 								-thermosphere_step_r);
@@ -411,7 +411,7 @@ struct chamb_diff_1d : atmosphere {
       logr_exosphere.push_back( log(rexo) + iexo * exosphere_step_logr );
       lognHexosphere.push_back( log( exosphere( exp( logr_exosphere[iexo] ) ) ) );
     }
-    lognH_exosphere_spline = cardinal_cubic_b_spline<double>(lognHexosphere.begin(),
+    lognH_exosphere_spline = cardinal_cubic_b_spline<Real>(lognHexosphere.begin(),
 							     lognHexosphere.end(),
 							     log(rexo),
 							     exosphere_step_logr);
@@ -420,7 +420,7 @@ struct chamb_diff_1d : atmosphere {
   }
 
 
-  double nCO2(const double &r) {
+  Real nCO2(const Real &r) {
     if (r>rexo)
       return 0.0;
     else {
@@ -429,12 +429,12 @@ struct chamb_diff_1d : atmosphere {
     }
   }
 
-  double nCO2(const atmo_point pt) {
+  Real nCO2(const atmo_point pt) {
     return nCO2(pt.r);
   }
 
 
-  double nH(const double &r) {
+  Real nH(const Real &r) {
     if (r>=rexo)
       return exp(lognH_exosphere_spline(log(r)));
     else {
@@ -447,42 +447,42 @@ struct chamb_diff_1d : atmosphere {
     }
   }
 
-  double nH(const atmo_point pt) {
+  Real nH(const atmo_point pt) {
     return nH(pt.r);
   }
 
-  double sH_lya(const double r) {
+  Real sH_lya(const Real r) {
     temp->get(r);
     return lyman_alpha_line_center_cross_section_coef/sqrt(temp->T);
   }    
-  double sH_lya(const atmo_point pt) {
+  Real sH_lya(const atmo_point pt) {
     return sH_lya(pt.r);
   }
 
-  double sCO2_lya(const double r) {
+  Real sCO2_lya(const Real r) {
     return CO2_lyman_alpha_absorption_cross_section;
   }
-  double sCO2_lya(const atmo_point pt) {
+  Real sCO2_lya(const atmo_point pt) {
     return sCO2_lya(pt.r);
   }
 
-  double sH_lyb(const double r) {
+  Real sH_lyb(const Real r) {
     temp->get(r);
     return lyman_beta_line_center_cross_section_coef/sqrt(temp->T);
   }    
-  double sH_lyb(const atmo_point pt) {
+  Real sH_lyb(const atmo_point pt) {
     return sH_lyb(pt.r);
   }
 
-  double sCO2_lyb(const double r) {
+  Real sCO2_lyb(const Real r) {
     return CO2_lyman_beta_absorption_cross_section;
   }
-  double sCO2_lyb(const atmo_point pt) {
+  Real sCO2_lyb(const atmo_point pt) {
     return sCO2_lyb(pt.r);
   }
 
 
-  double r_from_nH(double nHtarget) {
+  Real r_from_nH(Real nHtarget) {
     if (nHtarget==nHexo) {
       return rexo;
     } else if (nHtarget<nHexo) {
@@ -495,16 +495,16 @@ struct chamb_diff_1d : atmosphere {
   }
   
 
-  double nCO2_exact(const double &r) {
+  Real nCO2_exact(const Real &r) {
     if (r>rexo)
       return 0.0;
     else {
       assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
-      vector<double> lognCO2thermosphere_tmp;
-      vector<double> lognHthermosphere_tmp;
-      vector<double> r_thermosphere_tmp;
+      vector<Real> lognCO2thermosphere_tmp;
+      vector<Real> lognHthermosphere_tmp;
+      vector<Real> r_thermosphere_tmp;
 
-      vector<double> nexo(2);
+      vector<Real> nexo(2);
       nexo[0] = log(nCO2exo);
       nexo[1] = log(nHexo);
       integrate( diffeq , nexo , rexo , r , thermosphere_step_r,
@@ -516,17 +516,17 @@ struct chamb_diff_1d : atmosphere {
   }
 
 
-  double nH_exact(const double &r) {
+  Real nH_exact(const Real &r) {
     if (r>=rexo)
       return exosphere(r);
     else {
       assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
       if (r>=rmindiffusion) {
-	vector<double> lognCO2thermosphere_tmp;
-	vector<double> lognHthermosphere_tmp;
-	vector<double> r_thermosphere_tmp;
+	vector<Real> lognCO2thermosphere_tmp;
+	vector<Real> lognHthermosphere_tmp;
+	vector<Real> r_thermosphere_tmp;
 	
-	vector<double> nexo(2);
+	vector<Real> nexo(2);
 	nexo[0] = log(nCO2exo);
 	nexo[1] = log(nHexo);
 	integrate( diffeq , nexo , rexo , r , thermosphere_step_r,
@@ -540,9 +540,9 @@ struct chamb_diff_1d : atmosphere {
   }
 
 
-  void write_vector(std::ofstream &file, std::string preamble, vector<double> &data) {
-    Eigen::VectorXd write_out = Eigen::Map<Eigen::VectorXd>(data.data(),
-							    data.size());
+  void write_vector(std::ofstream &file, std::string preamble, vector<Real> &data) {
+    VectorX write_out = Eigen::Map<VectorX>(data.data(),
+					    data.size());
 
     file << preamble << write_out.transpose() << "\n";
   }

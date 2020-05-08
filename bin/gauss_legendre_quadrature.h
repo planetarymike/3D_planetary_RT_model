@@ -10,13 +10,13 @@
 using std::vector;
 using std::abs;
 
-void gauleg(const double x1, const double x2, vector<double> &x, vector<double> &w)
+void gauleg(const Real x1, const Real x2, vector<Real> &x, vector<Real> &w)
 // Given a lower and upper limit, this returns arrays x and w (of length n),
 // containing the abcissas and wieghts of the Gauss-Legendre n-point quadrature 
 // formula (see NR pg 183)
 {
-  const double EPS = 1.0e-14; // EPS is the relative precision
-  double z1, z, xm, xl, pp, p3, p2, p1;
+  const Real EPS = 1.0e-14; // EPS is the relative precision
+  Real z1, z, xm, xl, pp, p3, p2, p1;
   int n = x.size(); // the number of abcissas and weights
   int m = (n+1)/2; // number of roots to find since roots are symmetric
   xm = 0.5*(x2+x1);

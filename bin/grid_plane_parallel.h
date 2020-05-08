@@ -24,8 +24,8 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
 			   N_RADIAL_BOUNDARIES>;
 
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
-  double radial_boundaries[n_radial_boundaries];
-  double pts_radii[n_radial_boundaries-1];
+  Real radial_boundaries[n_radial_boundaries];
+  Real pts_radii[n_radial_boundaries-1];
   plane radial_boundary_planes[n_radial_boundaries];
   
   plane_parallel_grid() {
@@ -53,8 +53,8 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
   
   void setup_rays() {
     //in a plane-parallel grid only the angle with the vertical matters
-    vector<double> ray_theta;
-    vector<double> ray_weights;
+    vector<Real> ray_theta;
+    vector<Real> ray_weights;
 
     gauss_quadrature_points(ray_theta,ray_weights,0,pi,parent_grid::n_rays);
     
@@ -85,7 +85,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
 
   template <class V>
   CUDA_CALLABLE_MEMBER 
-  int find_coordinate_index(const double &pt_coord, const V &boundaries, int n_boundaries) const {
+  int find_coordinate_index(const Real &pt_coord, const V &boundaries, int n_boundaries) const {
     int i;
     
     for (i=0;i<n_boundaries;i++)
@@ -126,7 +126,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
     
     //do the intersections for each coordinate
     int n_hits = 0;
-    double temp_distances[2] = {-1,-1};
+    Real temp_distances[2] = {-1,-1};
     for (unsigned int ir=0;ir<n_radial_boundaries;ir++) {
       radial_boundary_planes[ir].intersections(vec, temp_distances, n_hits);
       stepper.boundaries.add_intersections(vec.pt.r, 0,
@@ -148,12 +148,12 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
     if (file.is_open())
       {
 
-	VectorXd r_boundaries_write_out = Eigen::Map<const VectorXd>(radial_boundaries,
+	VectorX r_boundaries_write_out = Eigen::Map<const VectorX>(radial_boundaries,
 								     n_radial_boundaries);
 
 	file << "radial boundaries [cm]: " << r_boundaries_write_out.transpose() << "\n\n";
 
-	VectorXd r_pts_write_out = Eigen::Map<const VectorXd>(pts_radii,
+	VectorX r_pts_write_out = Eigen::Map<const VectorX>(pts_radii,
 							      n_radial_boundaries-1);
 
 	file << "pts radii [cm]: " << r_pts_write_out.transpose() << "\n\n";

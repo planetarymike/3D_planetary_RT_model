@@ -33,9 +33,9 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   static const int rmethod_altitude = 0;
   static const int rmethod_lognH = 1;
     
-  double radial_boundaries[n_radial_boundaries];
-  double pts_radii[n_radial_boundaries-1];
-  double log_pts_radii[n_radial_boundaries-1];
+  Real radial_boundaries[n_radial_boundaries];
+  Real pts_radii[n_radial_boundaries-1];
+  Real log_pts_radii[n_radial_boundaries-1];
   sphere radial_boundary_spheres[n_radial_boundaries];
 
   static const int sza_dimension = 1;
@@ -44,8 +44,8 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   static const int szamethod_uniform = 0;
   static const int szamethod_uniform_cos = 1;
 
-  double sza_boundaries[n_sza_boundaries];
-  double pts_sza[n_sza_boundaries-1];
+  Real sza_boundaries[n_sza_boundaries];
+  Real pts_sza[n_sza_boundaries-1];
   cone sza_boundary_cones[n_sza_boundaries-2];//there are extra
 					      //boundaries outside of
 					      //the range to put
@@ -57,9 +57,9 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   // bool save_intersections;
 
   static const int n_theta = N_RAY_THETA;
-  double ray_theta[n_theta];
+  Real ray_theta[n_theta];
   static const int n_phi = N_RAY_PHI;
-  double ray_phi[n_phi];
+  Real ray_phi[n_phi];
 
    
   spherical_azimuthally_symmetric_grid() {
@@ -81,19 +81,19 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     // important and max(tau) > 10; this leads to many required
     // gridpoints
     if (rmethod == rmethod_altitude) {
-      vector<double> radial_boundaries_vector;
+      vector<Real> radial_boundaries_vector;
       get_radial_log_linear_points(radial_boundaries_vector, n_radial_boundaries,
 				   atm.rmin, atm.rexo, atm.rmax);
       for (int i=0;i<n_radial_boundaries;i++)
 	radial_boundaries[i] = radial_boundaries_vector[i];
     }
     if (rmethod == rmethod_lognH) {
-      double lognH_max = log(atm.nH(atm.rmin));
-      double lognH_min = log(atm.nH(atm.rmax));
-      double lognH_step = (lognH_max-lognH_min)/(n_radial_boundaries-1.);
+      Real lognH_max = log(atm.nH(atm.rmin));
+      Real lognH_min = log(atm.nH(atm.rmax));
+      Real lognH_step = (lognH_max-lognH_min)/(n_radial_boundaries-1.);
       
       for(int i=0;i<n_radial_boundaries;i++) {
-	double nH_target=exp(lognH_max-i*lognH_step);
+	Real nH_target=exp(lognH_max-i*lognH_step);
 	radial_boundaries[i]=atm.r_from_nH(nH_target);
       }
     }
@@ -111,13 +111,13 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     assert((szamethod == szamethod_uniform || szamethod == szamethod_uniform_cos)
 	   && "szamethod must match a defined sza points method");
     if (szamethod == szamethod_uniform) {
-      double sza_spacing = pi / (n_sza_boundaries - 2.);
+      Real sza_spacing = pi / (n_sza_boundaries - 2.);
       for (int i=0;i<n_sza_boundaries;i++) {
 	sza_boundaries[i]=(i-0.5)*sza_spacing;
       }
     }
     if (szamethod == szamethod_uniform_cos) {
-      double cos_sza_spacing = 2.0 / (n_sza_boundaries - 2.);
+      Real cos_sza_spacing = 2.0 / (n_sza_boundaries - 2.);
       using std::acos;
       
       sza_boundaries[0] = -acos(1.0-0.5*cos_sza_spacing);
@@ -151,14 +151,14 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
   void setup_rays()
   {
-    vector<double> ray_theta_vector;
-    vector<double> ray_weights_theta;
+    vector<Real> ray_theta_vector;
+    vector<Real> ray_weights_theta;
     gauss_quadrature_points(ray_theta_vector,ray_weights_theta,0,pi,n_theta);
 
     for (int i=0;i<n_theta;i++)
       ray_theta[i] = ray_theta_vector[i];
     
-    double phi_spacing = 2*pi/n_phi;
+    Real phi_spacing = 2*pi/n_phi;
     for (int i=0;i<n_phi;i++)
       ray_phi[i] = (i+0.5)*phi_spacing;
     
@@ -199,7 +199,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
   template <class V>
   CUDA_CALLABLE_MEMBER 
-  int find_coordinate_index(const double &pt_coord, const V &boundaries, int n_boundaries) const {
+  int find_coordinate_index(const Real &pt_coord, const V &boundaries, int n_boundaries) const {
     int i;
     
     for (i=0;i<n_boundaries;i++)
@@ -244,7 +244,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
     //do the intersections for each coordinate
     int n_hits = 0;
-    double temp_distances[2] = {-1,-1};
+    Real temp_distances[2] = {-1,-1};
     for (unsigned int ir=0;ir<n_radial_boundaries;ir++) {
       radial_boundary_spheres[ir].intersections(vec, temp_distances, n_hits);
       stepper.boundaries.add_intersections(vec.pt.r, r_dimension,
@@ -274,10 +274,12 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   }
 
   CUDA_CALLABLE_MEMBER 
-  void interp_weights(const int &ivoxel, const atmo_point &pt,
-		      int (&indices)[parent_grid::n_interp_points], double (&weights)[parent_grid::n_interp_points]) const {
+  void interp_weights(const int &ivoxel, const atmo_point &ptt,
+		      int (&indices)[parent_grid::n_interp_points], Real (&weights)[parent_grid::n_interp_points]) const {
     // n_interp_points = 4, because this is a 2d grid with linear interpolation
 
+    atmo_point pt = ptt;
+    
     int coord_indices[parent_grid::n_dimensions];
     voxel_to_indices(ivoxel, coord_indices);
     int r_idx;
@@ -285,15 +287,29 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     int sza_idx;
     sza_idx = coord_indices[sza_dimension];
 
+    const double eps = ABS;
+    if (pt.r < radial_boundaries[r_idx] && radial_boundaries[r_idx]/pt.r>(1-eps))
+      pt.r = radial_boundaries[r_idx]+eps;
+    if (radial_boundaries[r_idx+1]<pt.r && pt.r/radial_boundaries[r_idx+1]<(1+eps))
+      pt.r = radial_boundaries[r_idx+1]-eps;
     assert(radial_boundaries[r_idx] <= pt.r &&
 	   pt.r <= radial_boundaries[r_idx+1]
 	   && "pt must be in identified voxel.");
+
+    // if (pts_sza[0]-pt.t<eps)
+    //   pt.t=pts_sza[0]+eps;
+    // if (pt.t-pts_sza[n_sza_boundaries-2]<eps)
+    //   pt.t=pts_sza[n_sza_boundaries-2]-eps;
+    if (pt.t<sza_boundaries[sza_idx] && sza_boundaries[sza_idx]/pt.t>(1-eps))
+      pt.t = sza_boundaries[sza_idx]+eps;
+    if (sza_boundaries[sza_idx+1]<pt.t && pt.t/sza_boundaries[sza_idx+1]<(1+eps))
+      pt.t = sza_boundaries[sza_idx+1]-eps;
     assert(sza_boundaries[sza_idx] <= pt.t &&
 	   pt.t <= sza_boundaries[sza_idx+1] &&
 	   "pt must be in identified voxel.");
 
     int r_lower_pt_idx, r_upper_pt_idx;
-    double r_wt;
+    Real r_wt;
     if (r_idx == 0 && pt.r <= pts_radii[0]) {
       //we are below the lowest radial point in the source function grid
       r_lower_pt_idx=r_upper_pt_idx=0;
@@ -321,7 +337,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     }
 
     int sza_lower_pt_idx, sza_upper_pt_idx;
-    double sza_wt;
+    Real sza_wt;
     //we are always inside the SZA grid
     assert(pts_sza[0] <= pt.t && pt.t < pts_sza[n_sza_boundaries-2] && "pt must be inside SZA grid.");
     //pts at which interp quanities are defined are offset from the
@@ -348,12 +364,12 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     indices_to_voxel(r_upper_pt_idx, sza_upper_pt_idx, indices[3]);
     weights[3] =      r_wt    *      sza_wt     ;
 
-    assert(std::abs(weights[0]+weights[1]+weights[2]+weights[3] - 1.0) < 1e-5
+    assert(std::abs(weights[0]+weights[1]+weights[2]+weights[3] - 1.0) < ABS
 	   && "interpolation weights must sum to 1.");
   }
 
-  VectorXd sza_slice(VectorXd quantity, int i_sza) const {
-    VectorXd ret;
+  VectorX sza_slice(VectorX quantity, int i_sza) const {
+    VectorX ret;
     int indices[parent_grid::n_dimensions];
     indices[sza_dimension] = i_sza;
     
@@ -373,22 +389,22 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     if (file.is_open())
       {
 
-	VectorXd r_boundaries_write_out = Eigen::Map<const VectorXd>(radial_boundaries,
+	VectorX r_boundaries_write_out = Eigen::Map<const VectorX>(radial_boundaries,
 								     n_radial_boundaries);
 
 	file << "radial boundaries [cm]: " << r_boundaries_write_out.transpose() << "\n\n";
 
-	VectorXd r_pts_write_out = Eigen::Map<const VectorXd>(pts_radii,
+	VectorX r_pts_write_out = Eigen::Map<const VectorX>(pts_radii,
 							      n_radial_boundaries-1);
 
 	file << "pts radii [cm]: " << r_pts_write_out.transpose() << "\n\n";
        	
-	VectorXd sza_boundaries_write_out = Eigen::Map<const VectorXd>(sza_boundaries,
+	VectorX sza_boundaries_write_out = Eigen::Map<const VectorX>(sza_boundaries,
 								       n_sza_boundaries);
 
 	file << "sza boundaries [rad]: " << sza_boundaries_write_out.transpose() << "\n\n";
 	
-	VectorXd sza_pts_write_out = Eigen::Map<const VectorXd>(pts_sza,
+	VectorX sza_pts_write_out = Eigen::Map<const VectorX>(pts_sza,
 								n_sza_boundaries-1);
 
 	file << "pts sza [rad]: " << sza_pts_write_out.transpose() << "\n\n";

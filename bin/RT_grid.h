@@ -50,12 +50,12 @@ struct RT_grid {
   
   template<typename C>
   void define_emission(string emission_name,
-		       double emission_branching_ratio,
+		       Real emission_branching_ratio,
 		       C &atmosphere,
-		       double (C::*species_density_function)(const atmo_point) ,
-		       double (C::*species_sigma_function)(const atmo_point),
-		       double (C::*absorber_density_function)(const atmo_point),
-		       double (C::*absorber_sigma_function)(const atmo_point)) {
+		       Real (C::*species_density_function)(const atmo_point) ,
+		       Real (C::*species_sigma_function)(const atmo_point),
+		       Real (C::*absorber_density_function)(const atmo_point),
+		       Real (C::*absorber_sigma_function)(const atmo_point)) {
 
     //find emission name (dumb search but n_emissions is small and these are called infrequently)
     int n;
@@ -121,7 +121,7 @@ struct RT_grid {
     for (int i_emission=0; i_emission < n_emissions; i_emission++) {
       
       //see Bishop1999 for derivation of this formula
-      double coef = stepper.vec.ray.domega;
+      Real coef = stepper.vec.ray.domega;
 
       //bishop formulation
       coef *= ((transmission.T_lerp(los.tau_species_initial[i_emission])
@@ -141,7 +141,7 @@ struct RT_grid {
 
   void get_single_scattering_optical_depths(boundary_intersection_stepper<grid_type::n_dimensions,
 					                                  grid_type::n_max_intersections>& stepper,
-					    double& max_tau_species)
+					    Real& max_tau_species)
   {
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       emissions[i_emission].tau_species_single_scattering(stepper.start_voxel) += (emissions[i_emission].dtau_species(stepper.current_voxel)
@@ -149,13 +149,13 @@ struct RT_grid {
       emissions[i_emission].tau_absorber_single_scattering(stepper.start_voxel) += (emissions[i_emission].dtau_absorber(stepper.current_voxel)
 										    * stepper.pathlength);
       
-      double tscomp = emissions[i_emission].tau_species_single_scattering(stepper.start_voxel);
+      Real tscomp = emissions[i_emission].tau_species_single_scattering(stepper.start_voxel);
       max_tau_species = tscomp > max_tau_species ? tscomp : max_tau_species;    
     }
   }
   
 
-  void get_single_scattering(const atmo_point &pt, double &max_tau_species) {
+  void get_single_scattering(const atmo_point &pt, Real &max_tau_species) {
 
     if (pt.z<0&&pt.x*pt.x+pt.y*pt.y<grid.rmin*grid.rmin) {
       //if the point is behind the planet, no single scattering
@@ -178,17 +178,17 @@ struct RT_grid {
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       emissions[i_emission].influence_matrix *= emissions[i_emission].branching_ratio;
 
-      MatrixXd kernel = MatrixXd::Identity(grid.n_voxels,grid.n_voxels);
+      MatrixX kernel = MatrixX::Identity(grid.n_voxels,grid.n_voxels);
       kernel -= emissions[i_emission].influence_matrix;
 
       emissions[i_emission].sourcefn=kernel.partialPivLu().solve(emissions[i_emission].singlescat);//partialPivLu has multithreading support
 
       // // iterative solution.
-      // double err = 1;
+      // Real err = 1;
       // int it = 0;
-      // VectorXd sourcefn_old(grid.n_voxels);
+      // VectorX sourcefn_old(grid.n_voxels);
       // sourcefn_old = emissions[i_emission].singlescat;
-      // while (err > 1e-6 && it < 500) {
+      // while (err > ABS && it < 500) {
       // 	emissions[i_emission].sourcefn = emissions[i_emission].singlescat + emissions[i_emission].influence_matrix * sourcefn_old;
 
       // 	err=((emissions[i_emission].sourcefn-sourcefn_old).array().abs()/sourcefn_old.array()).maxCoeff();
@@ -221,11 +221,11 @@ struct RT_grid {
     }
     
     atmo_vector vec;
-    double max_tau_species = 0;
+    Real max_tau_species = 0;
   
 #pragma omp parallel for firstprivate(vec) shared(max_tau_species,std::cout) default(none)
     for (int i_pt = 0; i_pt < grid.n_voxels; i_pt++) {
-      double omega = 0.0; // make sure sum(domega) = 4*pi
+      Real omega = 0.0; // make sure sum(domega) = 4*pi
     
       //now integrate outward along the ray grid:
       for (int i_ray=0; i_ray < grid.n_rays; i_ray++) {
@@ -240,7 +240,7 @@ struct RT_grid {
 	  max_tau_species = los.max_tau_species;
       }
 
-      if ((omega - 1.0 > 1e-6) || (omega - 1.0 < -1e-6)) {
+      if ((omega - 1.0 > ABS) || (omega - 1.0 < -ABS)) {
 	std::cout << "omega != 4*pi\n";
 	throw(10);
       }
@@ -278,8 +278,8 @@ struct RT_grid {
 
 
   CUDA_CALLABLE_MEMBER
-  double interp_array(const int *indices, const double *weights, const double *arr) const {
-    double retval=0;
+  Real interp_array(const int *indices, const Real *weights, const Real *arr) const {
+    Real retval=0;
     for (int i=0;i<grid.n_interp_points;i++)
       retval+=weights[i]*arr[indices[i]];
     return retval;
@@ -288,7 +288,7 @@ struct RT_grid {
   void interp(const int &ivoxel, const atmo_point &pt, interpolated_values<n_emissions> &retval) const {
 
     int indices[grid_type::n_interp_points];
-    double weights[grid_type::n_interp_points];
+    Real weights[grid_type::n_interp_points];
 
     grid.interp_weights(ivoxel,pt,indices,weights);
     
@@ -304,7 +304,7 @@ struct RT_grid {
   
   //interpolated brightness routine
   CUDA_CALLABLE_MEMBER
-  void brightness(const atmo_vector &vec, const double *g,
+  void brightness(const atmo_vector &vec, const Real *g,
 		  brightness_tracker<n_emissions> &los,
 		  const int n_subsamples=5) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
@@ -327,22 +327,28 @@ struct RT_grid {
       n_subsamples_distance=2;
     
     for(unsigned int i_bound=1;i_bound<stepper.boundaries.size();i_bound++) {
-      double d_start=stepper.boundaries[i_bound-1].distance;
-      //first factor here accounts for small rounding errors in boundary crossings
-      double d_step=(1-1e-6)*(stepper.boundaries[i_bound].distance-d_start)/(n_subsamples_distance-1);
+      Real d_start=stepper.boundaries[i_bound-1].distance;
+      Real d_step=(stepper.boundaries[i_bound].distance-d_start)/(n_subsamples_distance-1);
+
+      //account for small rounding errors in boundary crossings
+      const Real eps = ABS;
+      d_start += eps/2.*d_step;
+      d_step *= 1-eps;
+
       int current_voxel = stepper.boundaries[i_bound-1].entering;
 
       
       for (int i_step=1;i_step<n_subsamples_distance;i_step++) {
 
-	pt = vec.extend(d_start+i_step*d_step);
-
+	pt = (vec/rMars).extend(d_start/rMars+i_step*(d_step/rMars));
+	pt = pt*rMars;
+	
 	if (n_subsamples!=0) {
 	  interp(current_voxel,pt,interp_vals);
 	}
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 
-	  double dtau_species_temp, dtau_absorber_temp, sourcefn_temp;
+	  Real dtau_species_temp, dtau_absorber_temp, sourcefn_temp;
 	  
 	  if (n_subsamples == 0) {
 	    dtau_species_temp  = emissions[i_emission].dtau_species_vec[current_voxel];
@@ -391,13 +397,13 @@ struct RT_grid {
   }
 
   vector<brightness_tracker<n_emissions>> brightness(const vector<atmo_vector> &vecs,
-					const vector<double> &g,
+					const vector<Real> &g,
 					const int n_subsamples=5) const {
     vector<brightness_tracker<n_emissions>> retval;
     
     retval.resize(vecs.size(),brightness_tracker<n_emissions>());
 
-    double g_arr[n_emissions];
+    Real g_arr[n_emissions];
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       g_arr[i_emission] = g[i_emission];
 
@@ -434,7 +440,7 @@ struct RT_grid {
   }
 
   //hooks for porting to gpu
-  void brightness_gpu(observation &obs, const int n_subsamples=10);
+  void brightness_gpu(observation &obs, const int n_subsamples=5);
   
 };
 

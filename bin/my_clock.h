@@ -21,12 +21,12 @@ struct my_clock {
     stop_time = clock();
   }
 
-  double elapsed() {
+  Real elapsed() {
     return (stop_time-start_time)*1.0/CLOCKS_PER_SEC;
   }
   
-  void print_elapsed(string preamble = "Elapsed time is ", double tare = 0.0) {
-    double secs = elapsed() - tare;
+  void print_elapsed(string preamble = "Elapsed time is ", Real tare = 0.0) {
+    Real secs = elapsed() - tare;
 
     std::cout << preamble;
     if (secs < 0.001) {

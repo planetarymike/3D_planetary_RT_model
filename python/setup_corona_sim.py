@@ -13,7 +13,8 @@ extension = Extension("py_corona_sim",
                       extra_link_args=["-lm","-fPIC","-fopenmp"],
                       include_dirs=["../bin/",
                                     "/home/mike/Documents/Utilities/boost_1_72_0/",
-                                    "/home/mike/Documents/Utilities/eigen-3.3.7/"])
+                                    "/home/mike/Documents/Utilities/eigen-3.3.7/",
+                                    "/home/mike/Documents/Utilities/cuda-samples/Common/"])
 
 #    extra_objects=["/required_procedures/ipbackgroundCFR_fun.o"]
 

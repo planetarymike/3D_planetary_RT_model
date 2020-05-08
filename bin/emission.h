@@ -8,8 +8,6 @@
 #include "atmo_vec.h"
 
 using std::string;
-using Eigen::VectorXd;
-using Eigen::MatrixXd;
 
 template <int N_VOXELS>
 struct emission {
@@ -18,42 +16,42 @@ struct emission {
   bool init;
   bool solved;
   
-  double branching_ratio;
+  Real branching_ratio;
   
   //these store physical atmospheric parameters on the grid (dimension n_voxels)
   //even though n_voxels is known at compile time, Eigen docs
   //recommend using dynamic matrices for arrays larger than 16x16
   //don't make these fixed-size
-  VectorXd species_density; //densities of scatterers and absorbers on the tabulated grid
-  VectorXd absorber_density; 
-  VectorXd species_sigma;//scatterer and absorber cross section on the tabulated grid
-  VectorXd absorber_sigma;
+  VectorX species_density; //densities of scatterers and absorbers on the tabulated grid
+  VectorX absorber_density; 
+  VectorX species_sigma;//scatterer and absorber cross section on the tabulated grid
+  VectorX absorber_sigma;
 
-  VectorXd dtau_species;
-  VectorXd log_dtau_species; //quantities that need to be interpolated are also stored as log
-  VectorXd dtau_absorber;
-  VectorXd log_dtau_absorber;
-  VectorXd abs; //ratio of dtau_abs to dtau_species
-  VectorXd log_abs; 
+  VectorX dtau_species;
+  VectorX log_dtau_species; //quantities that need to be interpolated are also stored as log
+  VectorX dtau_absorber;
+  VectorX log_dtau_absorber;
+  VectorX abs; //ratio of dtau_abs to dtau_species
+  VectorX log_abs; 
 
   //Radiative transfer parameters
-  MatrixXd influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
+  MatrixX influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
 
-  VectorXd singlescat; //have dimensions (n_voxels)  
-  VectorXd sourcefn; 
-  VectorXd log_sourcefn; 
+  VectorX singlescat; //have dimensions (n_voxels)  
+  VectorX sourcefn; 
+  VectorX log_sourcefn; 
 
   //vectors to compute the single scattering have dimensions (n_voxels)  
-  VectorXd tau_species_single_scattering;
-  VectorXd tau_absorber_single_scattering;
+  VectorX tau_species_single_scattering;
+  VectorX tau_absorber_single_scattering;
 
   //cuda vectors
-  double dtau_species_vec[n_voxels];
-  double log_dtau_species_vec[n_voxels];
-  double dtau_absorber_vec[n_voxels];
-  double log_dtau_absorber_vec[n_voxels];
-  double sourcefn_vec[n_voxels];
-  double log_sourcefn_vec[n_voxels];
+  Real dtau_species_vec[n_voxels];
+  Real log_dtau_species_vec[n_voxels];
+  Real dtau_absorber_vec[n_voxels];
+  Real log_dtau_absorber_vec[n_voxels];
+  Real sourcefn_vec[n_voxels];
+  Real log_sourcefn_vec[n_voxels];
   
   
   emission() {
@@ -82,12 +80,12 @@ struct emission {
   }
   
   template<typename C, typename V>
-  void define(double emission_branching_ratio,
+  void define(Real emission_branching_ratio,
 	      C &atmosphere,
-	      double (C::*species_density_function)(const atmo_point),
-	      double (C::*species_sigma_function)(const atmo_point),
-	      double (C::*absorber_density_function)(const atmo_point),
-	      double (C::*absorber_sigma_function)(const atmo_point),
+	      Real (C::*species_density_function)(const atmo_point),
+	      Real (C::*species_sigma_function)(const atmo_point),
+	      Real (C::*absorber_density_function)(const atmo_point),
+	      Real (C::*absorber_sigma_function)(const atmo_point),
 	      const V &pts) {
     
     branching_ratio = emission_branching_ratio;

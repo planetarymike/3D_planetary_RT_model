@@ -1,6 +1,7 @@
 //generate_source_function.cpp -- program to generate a source
 //function for comparison with analytic solutions and other models
 
+#include "Real_is_double.h"
 #include "cuda_compatibility.h"
 #include "atmosphere.h"
 #include "RT_grid.h"
@@ -10,11 +11,11 @@
 int main(int argc, char* argv[]) {
 
   //define the physical atmosphere
-  double exobase_temp = 200;//K
+  Real exobase_temp = 200;//K
   krasnopolsky_temperature temp(exobase_temp);
 
-  double H_exobase_density = 5e5;// cm-3
-  double CO2_exobase_density = 2e8;//cm-3
+  Real H_exobase_density = 5e5;// cm-3
+  Real CO2_exobase_density = 2e8;//cm-3
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,
 		    temp);
@@ -76,7 +77,7 @@ int main(int argc, char* argv[]) {
   //simulate a fake observation
   observation obs(emission_names);
 
-  vector<double> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
+  vector<Real> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obs.emission_g_factors = g;
   
   // std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
@@ -94,7 +95,7 @@ int main(int argc, char* argv[]) {
   // 	    << " R" << std::endl;
 
 
-  double dist = 30*rMars;
+  Real dist = 30*rMars;
   obs.fake(dist,30,600);
   observation obs_nointerp = obs;
   

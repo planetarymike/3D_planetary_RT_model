@@ -14,11 +14,11 @@ struct Base_interp
 // chapter. Only interp is called by the user.
 {
   int n, mmm, jsav, cor, dj;
-  double *xx, *yy;
+  Real *xx, *yy;
 
   Base_interp() { }
   
-  Base_interp(vector<double> &x, vector<double> &y, int m)
+  Base_interp(vector<Real> &x, vector<Real> &y, int m)
   // constructor. set up for interpolating on a table of x's and y's
   // of length m. Normally called by derived class, not user.
     : n(x.size()), mmm(m), jsav(0), cor(0) {
@@ -26,15 +26,15 @@ struct Base_interp
       xx = NULL;
       yy = NULL;
     } else {
-      xx = new double[n];
-      yy = new double[n];
+      xx = new Real[n];
+      yy = new Real[n];
     }
     for (int i=0;i<n;i++) {
       xx[i]=x[i];
       yy[i]=y[i];
     }
     
-    dj = std::min(1, (int) pow((double) n, 0.25) );
+    dj = std::min(1, (int) pow((Real) n, 0.25) );
   }
 
   Base_interp(const Base_interp &B) {
@@ -47,8 +47,8 @@ struct Base_interp
       xx = NULL;
       yy = NULL;
     } else {
-      xx = new double[n];
-      yy = new double[n];
+      xx = new Real[n];
+      yy = new Real[n];
     }
     for (int i=0; i<n; i++) {
       xx[i]=B.xx[i];
@@ -66,8 +66,8 @@ struct Base_interp
       xx = NULL;
       yy = NULL;
     } else {
-      xx = new double[n];
-      yy = new double[n];
+      xx = new Real[n];
+      yy = new Real[n];
     }
     for (int i=0; i<n; i++) {
       xx[i]=B.xx[i];
@@ -84,7 +84,7 @@ struct Base_interp
   }
 
 
-  double operator()(double x)
+  Real operator()(Real x)
   // Given a value x, return an interpolated value, using data
   // pointed to by xx and yy.
   {
@@ -92,7 +92,7 @@ struct Base_interp
     return rawinterp(jlo, x);
   }
 
-  int index(double x)
+  int index(Real x)
   // Given a value x, return an interpolated value, using data
   // pointed to by xx and yy.
   {
@@ -100,15 +100,15 @@ struct Base_interp
     return jlo;
   }
 
-  int locate(const double x);
-  int hunt(const double x);
+  int locate(const Real x);
+  int hunt(const Real x);
 
-  virtual double rawinterp(int jlo, double x) = 0;
+  virtual Real rawinterp(int jlo, Real x) = 0;
   // derived classes provide this as the actual interpolation method used.
 
 };
 
-int Base_interp::locate(const double x)
+int Base_interp::locate(const Real x)
 // given a value x, return a value j such that x is (insofar as
 // possible) centered in the subrange xx[j..j+mmm-1], where xx is the
 // stored pointer. The values in xx must be monotonic, either
@@ -140,7 +140,7 @@ int Base_interp::locate(const double x)
 }
 
 
-int Base_interp::hunt(const double x)
+int Base_interp::hunt(const Real x)
 // given a value x, return a value j such that x is (insofar as
 // possible) centered in the subrange xx[j..j+mmm-1], where xx is the
 // stored pointer. The values in xx must be monotonic, either
@@ -201,15 +201,13 @@ struct Linear_interp : Base_interp
 {
   Linear_interp() : Base_interp() {}
 
-  Linear_interp(vector<double> &xv, vector<double> &yv) : Base_interp(xv,yv,2) {}
+  Linear_interp(vector<Real> &xv, vector<Real> &yv) : Base_interp(xv,yv,2) {}
   
-  double rawinterp(int j, double x) {
+  Real rawinterp(int j, Real x) {
     if(xx[j] == xx[j+1]) return yy[j]; // table defective, but recover
     else return yy[j] + ((x-xx[j])/(xx[j+1]-xx[j]))*(yy[j+1]-yy[j]);
   }
 };
-
-using Eigen::MatrixXd;
 
 struct Bilinear_interp
 // object for bilinear interpolation on a matrix. Construct with a
@@ -218,18 +216,18 @@ struct Bilinear_interp
 // values.
 {
   int m, n;
-  MatrixXd y;
+  MatrixX y;
   Linear_interp x1terp, x2terp;
 
   Bilinear_interp() { }
   
-  Bilinear_interp(vector<double> &x1v, vector<double> &x2v, MatrixXd &ym)
+  Bilinear_interp(vector<Real> &x1v, vector<Real> &x2v, MatrixX &ym)
     : m(x1v.size()), n(x2v.size()), x1terp(x1v,x1v), x2terp(x2v,x2v) { y = ym; }
     // we need dummy 1 dim interp objects for their locate and hunt functions
 
-  double interp(double x1p, double x2p) {
+  Real interp(Real x1p, Real x2p) {
     int i, j;
-    double yy, t, u;
+    Real yy, t, u;
     //find the grid square:
     i = x1terp.cor ? x1terp.hunt(x1p) : x1terp.locate(x1p);
     j = x2terp.cor ? x2terp.hunt(x2p) : x2terp.locate(x2p);

@@ -13,8 +13,8 @@ using std::vector;
 using std::array;
 
 struct atmo_point {
-  double x, y, z;
-  double r, t, p;
+  Real x, y, z;
+  Real r, t, p;
   int i_voxel;//voxel index to which this point belongs
   bool init;
 
@@ -51,7 +51,7 @@ struct atmo_point {
     return *this;
   }
   CUDA_CALLABLE_MEMBER
-  void rtp(const double rr, const double tt, const double pp) {
+  void rtp(const Real rr, const Real tt, const Real pp) {
     r = rr; t = tt; p = pp;
     x = r*sin(t)*cos(p);
     y = r*sin(t)*sin(p);
@@ -59,7 +59,7 @@ struct atmo_point {
     init=true;
   }
   CUDA_CALLABLE_MEMBER  
-  void xyz(const double xx, const double yy, const double zz) {
+  void xyz(const Real xx, const Real yy, const Real zz) {
     x = xx; y = yy; z = zz;
     r=sqrt(x*x + y*y + z*z);
     t=acos(z/r);
@@ -72,14 +72,40 @@ struct atmo_point {
   void set_voxel_index(const int ii) {
     assert(init && "point must be initialized to assign a voxel index.");
     i_voxel = ii;
-  }  
+  }
+  CUDA_CALLABLE_MEMBER
+  atmo_point operator*(const Real & scale) const {
+    atmo_point pt;
+    pt.x=x*scale;
+    pt.y=y*scale;
+    pt.z=z*scale;
+    pt.r=r*scale;
+    pt.t=t;
+    pt.p=p;
+    pt.i_voxel=i_voxel;
+    return pt;
+  }
+  CUDA_CALLABLE_MEMBER
+  atmo_point operator/(const Real & scale) const {
+    atmo_point pt;
+    pt.x=x/scale;
+    pt.y=y/scale;
+    pt.z=z/scale;
+    pt.r=r/scale;
+    pt.t=t;
+    pt.p=p;
+    pt.i_voxel=i_voxel;
+    return pt;
+  }
+
+  
 };
 
 struct atmo_ray {
-  double t, p; // angles measured from the local vertical of the point in question
-  double cost, sint; //needed for sphere intersections later on, might as well get them now
+  Real t, p; // angles measured from the local vertical of the point in question
+  Real cost, sint; //needed for sphere intersections later on, might as well get them now
   int i_ray; //ray index, if the ray comes from the grid
-  double domega; //solid angle belonging to this ray, if on grid; if not on a grid, 1.0 
+  Real domega; //solid angle belonging to this ray, if on grid; if not on a grid, 1.0 
 
   bool init;
 
@@ -116,7 +142,7 @@ struct atmo_ray {
   }
 
   CUDA_CALLABLE_MEMBER
-  void tp(double tt, double pp) {
+  void tp(Real tt, Real pp) {
     t=tt;
     p=pp;
 
@@ -126,7 +152,7 @@ struct atmo_ray {
   }
 
   CUDA_CALLABLE_MEMBER
-  void set_ray_index(const int ii, double twt, double pwt) {
+  void set_ray_index(const int ii, Real twt, Real pwt) {
     if (init) {
       i_ray = ii;
       domega = sint*twt*pwt/4/M_PI;
@@ -140,7 +166,7 @@ struct atmo_vector {
   atmo_point pt;
   atmo_ray ray;
   
-  double line_x, line_y, line_z;//cartesian vector elements 
+  Real line_x, line_y, line_z;//cartesian vector elements 
   bool init;
 
   CUDA_CALLABLE_MEMBER
@@ -191,10 +217,10 @@ struct atmo_vector {
   }
 
   CUDA_CALLABLE_MEMBER
-  atmo_vector(atmo_point ptt, vector<double> vec) : atmo_vector(ptt,vec[0],vec[1],vec[2]) { }
+  atmo_vector(atmo_point ptt, vector<Real> vec) : atmo_vector(ptt,vec[0],vec[1],vec[2]) { }
   
   CUDA_CALLABLE_MEMBER
-  atmo_vector(atmo_point ptt, double line_xx, double line_yy, double line_zz) :
+  atmo_vector(atmo_point ptt, Real line_xx, Real line_yy, Real line_zz) :
     pt(ptt) 
   {
     //this overload exists to construct rays from points toward the
@@ -203,7 +229,7 @@ struct atmo_vector {
     //domega = 1. We need only set the theta values since these are
     //used in computing intersections.
     
-    double line_mag=sqrt(line_xx*line_xx + line_yy*line_yy + line_zz*line_zz);
+    Real line_mag=sqrt(line_xx*line_xx + line_yy*line_yy + line_zz*line_zz);
     line_x = line_xx/line_mag;
     line_y = line_yy/line_mag;
     line_z = line_zz/line_mag;
@@ -221,7 +247,7 @@ struct atmo_vector {
   }
 
   CUDA_CALLABLE_MEMBER
-  atmo_point extend(double dist) const {
+  atmo_point extend(Real dist) const {
     atmo_point retpt;
 
     retpt.xyz(pt.x+line_x*dist,
@@ -229,8 +255,28 @@ struct atmo_vector {
 	      pt.z+line_z*dist);
 
     return retpt;
-
-      
+  }
+  CUDA_CALLABLE_MEMBER
+  atmo_vector operator*(const Real & scale) const {
+    atmo_vector vec;
+    vec.pt=pt*scale;
+    vec.ray=ray;
+    vec.line_x=line_x;
+    vec.line_y=line_y;
+    vec.line_z=line_z;
+    vec.init=init;
+    return vec;
+  }
+  CUDA_CALLABLE_MEMBER
+  atmo_vector operator/(const Real & scale) const {
+    atmo_vector vec;
+    vec.pt=pt/scale;
+    vec.ray=ray;
+    vec.line_x=line_x;
+    vec.line_y=line_y;
+    vec.line_z=line_z;
+    vec.init=init;
+    return vec;
   }
   
 };

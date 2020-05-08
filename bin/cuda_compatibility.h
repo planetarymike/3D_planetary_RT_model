@@ -7,5 +7,10 @@
 #define CUDA_CALLABLE_MEMBER
 #endif 
 
+#ifdef __CUDACC__
+#define CUDA_CONST __constant__
+#else
+#define CUDA_CONST
+#endif 
 
 #endif
