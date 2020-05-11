@@ -12,7 +12,6 @@ template <int N_EMISSIONS, typename grid_type, typename influence_type>
 __global__
 void brightness_kernel(const atmo_vector *obs_vecs, const int n_obs_vecs,
 		       const RT_grid<N_EMISSIONS,grid_type,influence_type> *RT, 
-		       //const grid_type *grid, const emission *emissions, const influence_type *transmission,
 		       const Real *g, brightness_tracker<N_EMISSIONS> *los,
 		       const int n_subsamples = 5)
 {
