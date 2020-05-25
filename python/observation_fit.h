@@ -1,41 +1,49 @@
+ 
 //fit_observation.h -- routines to fit an atmosphere observation
 
 #ifndef __FIT_OBSERVATION_H
 #define __FIT_OBSERVATION_H
 
-
+#include "Real_is_double.h"
 #include "observation.h"
 #include "atmosphere.h"
 #include "RT_grid.h"
-#include "RT_gpu.h"
 #include "grid_spherical_azimuthally_symmetric.h"
 
 struct observation_fit {
 private:
-  inline static const vector<string> emission_names = {"H Lyman alpha"};
+  static const int n_emissions = 1;
+  inline static const string emission_names[n_emissions] = {"H Lyman alpha"};
     
-  observation obs;
+  observation<n_emissions> obs;
 
   krasnopolsky_temperature temp;
   const Real CO2_exobase_density = 2e8;//cm-3
   chamb_diff_1d atm;
-  holstein_approx hol;
 
+  typedef holstein_approx influence_type;
+  
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_phi = 6;
   static const int n_rays_theta = 12;
-  spherical_azimuthally_symmetric_grid<n_radial_boundaries,n_sza_boundaries,n_rays_phi,n_rays_theta> grid;
-  RT_grid<2,typeof(grid),holstein_approx> RT(emission_names, grid, hol);
+  typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
+					       n_sza_boundaries,
+					       n_rays_phi,
+					       n_rays_theta> grid_type;
+  
+  RT_grid<n_emissions,
+	  grid_type,
+	  influence_type> RT;
 
 public:
   observation_fit()
     : obs(emission_names),
       atm(/*nHexo = */5e5, /*nCO2exo = */1e9, temp), //these dummy values can be overwritten later
-      grid(emission_names, hol)
+      RT(emission_names)
   {
-    grid.rmethod = grid.rmethod_lognH;
-    grid.szamethod = grid.szamethod_uniform_cos;
+    RT.grid.rmethod = RT.grid.rmethod_lognH;
+    RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
   }
 
   void add_observation(vector<vector<Real>> MSO_locations, vector<vector<Real>> MSO_directions) {
@@ -70,7 +78,7 @@ public:
   vector<Real> brightness() {
     obs.reset_output();
     
-    RT.brightness_gpu(obs);
+    RT.brightness(obs);
 
     vector<Real> brightness;
     brightness.resize(obs.size());

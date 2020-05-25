@@ -25,19 +25,24 @@ int main(int argc, char* argv[]) {
   holstein_approx hol; //this is the most time consuming part of startup ~0.4s
 
   //define the RT grid
-  static const int n_emissions=2;
-  vector<string> emission_names = {"H Lyman alpha", "H Lyman beta"};
-
+  static const int n_emissions = 2;
+  string emission_names[n_emissions] = {"H Lyman alpha", "H Lyman beta"};
+  
   // static const int n_radial_boundaries = 40;
   // static const int n_rays_phi = 6;
   // static const int n_rays_theta = 12;
-  // plane_parallel_grid<n_radial_boundaries,n_rays_phi,n_rays_theta> grid;
+  // plane_parallel_grid<n_radial_boundaries,
+  // 		      n_rays_phi,
+  // 		      n_rays_theta> grid;
 
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_phi = 6;
   static const int n_rays_theta = 12;
-  spherical_azimuthally_symmetric_grid<n_radial_boundaries,n_sza_boundaries,n_rays_phi,n_rays_theta> grid;
+  spherical_azimuthally_symmetric_grid<n_radial_boundaries,
+				       n_sza_boundaries,
+				       n_rays_phi,
+				       n_rays_theta> grid;
   //grid.save_intersections = true;
   //grid.rmethod = grid.rmethod_altitude;
   grid.rmethod = grid.rmethod_lognH;
@@ -49,9 +54,7 @@ int main(int argc, char* argv[]) {
   
 
 
-  RT_grid<n_emissions,
-	  typeof(grid),
-	  holstein_approx> RT(emission_names, grid, hol);
+  RT_grid<n_emissions,typeof(grid),holstein_approx> RT(emission_names, grid, hol);
 
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",
@@ -61,23 +64,23 @@ int main(int argc, char* argv[]) {
 		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
   //solve for H lyman beta
   RT.define_emission("H Lyman beta",
-  		       lyman_beta_branching_ratio,
-  		       atm,
-  		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
-  		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+		       lyman_beta_branching_ratio,
+		       atm,
+		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
+		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
 
   //solve for the source function
   //  RT.save_influence = true;
   RT.generate_S();
   
   //now print out the output
-  //RT.save_S("test/test_source_function.dat");
+  RT.save_S("test/test_source_function.dat");
 
   //simulate a fake observation
-  observation obs(emission_names);
+  observation<n_emissions> obs(emission_names);
 
-  vector<Real> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
-  obs.emission_g_factors = g;
+  Real g[n_emissions] = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
+  obs.set_emission_g_factors(g);
   
   // std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
   // std::cout << "lyman alpha tau=1 brightness at " << exobase_temp << " K : "
@@ -93,6 +96,9 @@ int main(int argc, char* argv[]) {
   // 		  /1e6)
   // 	    << " R" << std::endl;
 
+
+  Real dist = 30*rMars;
+  obs.fake(dist,30,600);
   
   vector<int> sizes = {10,100,300,600,1200,2400};
   //vector<int> sizes = {600};
@@ -101,7 +107,7 @@ int main(int argc, char* argv[]) {
     std::cout << "simulating image size "<< size << "x" << size << ":" << std::endl;
     Real dist = 30*rMars;
     obs.fake(dist,30,size);
-    observation obs_nointerp = obs;
+    observation<n_emissions> obs_nointerp = obs;
     RT.brightness_gpu(obs);
 
     // my_clock save_clk;

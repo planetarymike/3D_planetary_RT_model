@@ -30,7 +30,7 @@ void brightness_kernel(const atmo_vector *obs_vecs, const int n_obs_vecs,
 }
 
 template<int N_EMISSIONS, typename grid_type, typename influence_type>
-void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation &obs, const int n_subsamples/*=10*/) {
+void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n_emissions> &obs, const int n_subsamples/*=10*/) {
   cudaSetDevice(0);
   cudaFree(0);
 
@@ -64,7 +64,7 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation &
 		  cudaMalloc(&d_g, n_emissions*sizeof(Real))
 		  );
   checkCudaErrors(
-		  cudaMemcpy(d_g, obs.emission_g_factors.data(), n_emissions*sizeof(Real), cudaMemcpyHostToDevice)
+		  cudaMemcpy(d_g, obs.emission_g_factors, n_emissions*sizeof(Real), cudaMemcpyHostToDevice)
 		  );
 
   //prepare brightness objects

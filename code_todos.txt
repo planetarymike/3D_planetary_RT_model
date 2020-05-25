@@ -1,7 +1,8 @@
 // things to improve/change in code
 
 Near term:
---python fitting routine
+--python fitting routine  (switch to NVCC)
+--move finite-difference derivative calculation inside observation_fit
 --deuterium and hot H physical densities
 --O I 102.6 nm radiance calculation (probably requires frequency redistribution)
 --include single-scattering anisotropy
@@ -10,14 +11,14 @@ Needed next 6 months:
 --IPH background (for IUVS apoapse images)
 
 Small code improvements
-	--incoroporate CO2 absorption in holstein function instead of midpoint approximation 
-          (needs 2d holstein interps with absorption)
-	--use monotone cubic interpolation in brightness calculation
-	--fix illumination of zones that straddle the planetary shadow (following Bishop)
-	--switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
-	  (smells like frequency redistribution;
-	   should be relatively easy, add line profile to tau_tracker)
+  --incoroporate CO2 absorption in holstein function instead of midpoint approximation 
+    (needs 2d holstein interps with absorption)
+  --use monotone cubic interpolation in brightness calculation
+  --fix illumination of zones that straddle the planetary shadow (following Bishop)
+  --switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
+    (smells like frequency redistribution;
+     should be relatively easy, add line profile to tau_tracker)
 
 long-term:
---frequency redistribution
+--frequency redistribution (needs some refactoring of emission object)
 --anisotropy??

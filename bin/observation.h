@@ -14,10 +14,13 @@ typedef Eigen::Matrix<Real, 3, 1> Vector3;
 typedef Eigen::Matrix<Real,3,3> Matrix3;
 typedef Eigen::AngleAxis<Real> AngleAxis;
 
+template<int N_EMISS>
 struct observation {
 protected:
-  const int n_emissions;
-  const vector<string> emission_names;
+  static const int n_emissions = N_EMISS;
+  const string emission_names[n_emissions];
+
+
   int n_obs;
 
   // there are two coordinate systems,
@@ -66,19 +69,20 @@ protected:
   }
 
 public:
-  vector<Real> emission_g_factors;
-  
   vector<vector<Real>> brightness;
   vector<vector<Real>> tau_species;
   vector<vector<Real>> tau_absorber;
 
-  observation(const vector<string> &emission_namess)
-    : n_emissions(emission_namess.size()),
-      emission_names(emission_namess),
-      n_obs(0),
-      emission_g_factors(vector<Real>(n_emissions,0.))
-  { }
-
+  Real emission_g_factors[n_emissions];
+  
+  observation(const string (&emission_namess)[n_emissions])
+  : emission_names(emission_namess),
+    n_obs(0)
+  {
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      emission_g_factors[i_emission] = 0;
+  }
+  
   observation& operator+=(const observation &O) {
     assert(O.emission_names == emission_names &&
 	   O.location_MSO == location_MSO &&
@@ -95,6 +99,15 @@ public:
     }
     
     return *this;
+  }
+
+  void set_emission_g_factors(Real (&g)[n_emissions]) {
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      emission_g_factors[i_emission] = g[i_emission];
+  }
+  void get_emission_g_factors(Real (&g)[n_emissions]) const {
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      g[i_emission] = emission_g_factors[i_emission];
   }
   
   void reset_output() {

@@ -13,9 +13,8 @@ OFLAGS=-O3 -march=native -DNDEBUG
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings
 NLIBS=-lm
-NOFLAGS= -O3 -DNDEBUG -lineinfo
+NOFLAGS= -O3 -DNDEBUG #-lineinfo
 CUDA_HELP_IDIR=-I/home/mike/Documents/Utilities/cuda-samples/Common/
-
 
 # # intel compiler
 # you may need to run this

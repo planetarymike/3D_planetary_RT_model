@@ -10,13 +10,6 @@ from libcpp.vector cimport vector
 import numpy as np
 cimport numpy as np
 
-# Import the C-level symbols of numpy
-#cimport numpy as np
-
-# Numpy must be initialized. When using numpy from C or Cython you must
-# _always_ do that, or you will have segfaults
-#np.import_array()
-
 cdef extern from "observation_fit.h":
     cdef cppclass observation_fit:
         observation_fit() except +

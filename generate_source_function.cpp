@@ -21,38 +21,44 @@ int main(int argc, char* argv[]) {
 		    temp);
 
   //use holstein functions to compute influence integrals
-  holstein_approx hol; //this is the most time consuming part of startup ~0.4s
+  typedef holstein_approx influence_function; //setting up holstein_approx isthe most time consuming part of startup, ~0.4s
 
   //define the RT grid
-  vector<string> emission_names = {"H Lyman alpha", "H Lyman beta"};
-
+  static const int n_emissions = 2;
+  string emission_names[n_emissions] = {"H Lyman alpha", "H Lyman beta"};
+  
   // static const int n_radial_boundaries = 40;
   // static const int n_rays_phi = 6;
   // static const int n_rays_theta = 12;
-  // plane_parallel_grid<n_radial_boundaries,
-  // 		      n_rays_phi,
-  // 		      n_rays_theta> grid;
+  // typedef plane_parallel_grid<n_radial_boundaries,
+  // 		                 n_rays_phi,
+  // 		                 n_rays_theta> grid_type;
 
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_phi = 6;
   static const int n_rays_theta = 12;
-  spherical_azimuthally_symmetric_grid<n_radial_boundaries,
-				       n_sza_boundaries,
-				       n_rays_phi,
-				       n_rays_theta> grid;
-  //grid.save_intersections = true;
-  //grid.rmethod = grid.rmethod_altitude;
-  grid.rmethod = grid.rmethod_lognH;
-  //grid.szamethod = grid.szamethod_uniform;
-  grid.szamethod = grid.szamethod_uniform_cos;
+  typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
+					       n_sza_boundaries,
+					       n_rays_phi,
+					       n_rays_theta> grid_type;
+  RT_grid<n_emissions,
+	  grid_type,
+	  influence_function> RT(emission_names);
+
+  //RT.grid.save_intersections = true;
+  //RT.grid.rmethod = RT.grid.rmethod_altitude;
+  RT.grid.rmethod = RT.grid.rmethod_lognH;
+  //RT.grid.szamethod = RT.grid.szamethod_uniform;
+  RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
   
-  grid.setup_voxels(atm);
-  grid.setup_rays();
+  RT.grid.setup_voxels(atm);
+  RT.grid.setup_rays();
   
 
 
-  RT_grid<2,typeof(grid),holstein_approx> RT(emission_names, grid, hol);
+
+
 
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",
@@ -75,10 +81,10 @@ int main(int argc, char* argv[]) {
   RT.save_S("test/test_source_function.dat");
 
   //simulate a fake observation
-  observation obs(emission_names);
+  observation<n_emissions> obs(emission_names);
 
-  vector<Real> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
-  obs.emission_g_factors = g;
+  Real g[n_emissions] = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
+  obs.set_emission_g_factors(g);
   
   // std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
   // std::cout << "lyman alpha tau=1 brightness at " << exobase_temp << " K : "
@@ -97,7 +103,7 @@ int main(int argc, char* argv[]) {
 
   Real dist = 30*rMars;
   obs.fake(dist,30,600);
-  observation obs_nointerp = obs;
+  observation<n_emissions> obs_nointerp = obs;
   
   RT.brightness(obs);
   obs.save_brightness("test/test_brightness.dat");

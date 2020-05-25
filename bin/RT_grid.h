@@ -34,10 +34,7 @@ struct RT_grid {
   //initialization parameters
   bool all_emissions_init;
   
-  RT_grid(const vector<string> &emission_names,
-	  const grid_type &gridd,
-	  const influence_type &transmissionn) :
-    grid(gridd), transmission(transmissionn)
+  RT_grid(const string (&emission_names)[n_emissions])
   {
     all_emissions_init = false;
     
@@ -396,33 +393,32 @@ struct RT_grid {
   }
 
   vector<brightness_tracker<n_emissions>> brightness(const vector<atmo_vector> &vecs,
-					const vector<Real> &g,
-					const int n_subsamples=5) const {
+						     const Real (&g)[n_emissions],
+						     const int n_subsamples=5) const {
     vector<brightness_tracker<n_emissions>> retval;
     
     retval.resize(vecs.size(),brightness_tracker<n_emissions>());
 
-    Real g_arr[n_emissions];
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
-      g_arr[i_emission] = g[i_emission];
-
-#pragma omp parallel for shared(retval) firstprivate(vecs,g_arr,n_subsamples) default(none)
+#pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
     for(unsigned int i=0; i<vecs.size(); i++)
-      brightness(vecs[i],g_arr,
+      brightness(vecs[i],g,
 		 retval[i],
 		 n_subsamples);
     
     return retval;
   }
 
-  void brightness(observation &obs, const int n_subsamples=5) const {
+  void brightness(observation<n_emissions> &obs, const int n_subsamples=5) const {
     assert(obs.size()>0 && "there must be at least one observation to simulate!");
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");
-    
+
+    Real g[n_emissions];
+    obs.get_emission_g_factors(g);
+
     my_clock clk;
     clk.start();
-    vector<brightness_tracker<n_emissions>> los = brightness(obs.get_vecs(), obs.emission_g_factors, n_subsamples);
+    vector<brightness_tracker<n_emissions>> los = brightness(obs.get_vecs(), g, n_subsamples);
     for (int i_obs=0;i_obs<obs.size();i_obs++) {
       for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 	obs.brightness[i_obs][i_emission]   = los[i_obs].brightness[i_emission];
@@ -434,12 +430,12 @@ struct RT_grid {
     clk.print_elapsed("brightness calculation takes ");
   }
 
-  void brightness_nointerp(observation &obs) const {
+  void brightness_nointerp(observation<n_emissions> &obs) const {
     brightness(obs,0);
   }
 
   //hooks for porting to gpu
-  void brightness_gpu(observation &obs, const int n_subsamples=5);
+  void brightness_gpu(observation<n_emissions> &obs, const int n_subsamples=5);
   
 };
 
