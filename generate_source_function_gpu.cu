@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 		    temp);
 
   //use holstein functions to compute influence integrals
-  holstein_approx hol; //this is the most time consuming part of startup ~0.4s
+  typedef holstein_approx influence_type; //this is the most time consuming part of startup ~0.4s
 
   //define the RT grid
   static const int n_emissions = 2;
@@ -31,31 +31,29 @@ int main(int argc, char* argv[]) {
   // static const int n_radial_boundaries = 40;
   // static const int n_rays_phi = 6;
   // static const int n_rays_theta = 12;
-  // plane_parallel_grid<n_radial_boundaries,
-  // 		      n_rays_phi,
-  // 		      n_rays_theta> grid;
+  // typedef plane_parallel_grid<n_radial_boundaries,
+  // 			      n_rays_phi,
+  // 			      n_rays_theta> grid_type;
 
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_phi = 6;
   static const int n_rays_theta = 12;
-  spherical_azimuthally_symmetric_grid<n_radial_boundaries,
-				       n_sza_boundaries,
-				       n_rays_phi,
-				       n_rays_theta> grid;
-  //grid.save_intersections = true;
-  //grid.rmethod = grid.rmethod_altitude;
-  grid.rmethod = grid.rmethod_lognH;
-  //grid.szamethod = grid.szamethod_uniform;
-  grid.szamethod = grid.szamethod_uniform_cos;
+  typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
+					       n_sza_boundaries,
+					       n_rays_phi,
+					       n_rays_theta> grid_type;
+  RT_grid<n_emissions,grid_type,influence_type> RT(emission_names);
+
+  //RT.grid.save_intersections = true;
+  //RT.grid.rmethod = RT.grid.rmethod_altitude;
+  RT.grid.rmethod = RT.grid.rmethod_lognH;
+  //RT.grid.szamethod = RT.grid.szamethod_uniform;
+  RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
   
-  grid.setup_voxels(atm);
-  grid.setup_rays();
+  RT.grid.setup_voxels(atm);
+  RT.grid.setup_rays();
   
-
-
-  RT_grid<n_emissions,typeof(grid),holstein_approx> RT(emission_names, grid, hol);
-
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",
 		       1.0,
