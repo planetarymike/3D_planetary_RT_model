@@ -1,12 +1,13 @@
 //generate_source_function.cpp -- program to generate a source
 //function for comparison with analytic solutions and other models
 
-#include "Real_is_double.h"
-#include "cuda_compatibility.h"
-#include "atmosphere.h"
-#include "RT_grid.h"
-#include "grid_plane_parallel.h"
-#include "grid_spherical_azimuthally_symmetric.h"
+#include "Real.hpp"
+#include "cuda_compatibility.hpp"
+#include "atm/temperature.hpp"
+#include "atm/chamb_diff_1d.hpp"
+#include "RT_grid.hpp"
+#include "grid_plane_parallel.hpp"
+#include "grid_spherical_azimuthally_symmetric.hpp"
 
 int main(int argc, char* argv[]) {
 
