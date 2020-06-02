@@ -5,12 +5,15 @@
 
 #include "Real.hpp"
 #include "atmo_vec.hpp"
-#include <Eigen/Dense>
 #include <string>
 #include <fstream>
 #include <iostream>
-
+#include <vector>
+using std::vector;
+#include <string>
 using std::string;
+
+#include <Eigen/Dense>
 typedef Eigen::Matrix<Real, 3, 1> Vector3;
 typedef Eigen::Matrix<Real,3,3> Matrix3;
 typedef Eigen::AngleAxis<Real> AngleAxis;
@@ -19,7 +22,7 @@ template<int N_EMISS>
 struct observation {
 protected:
   static const int n_emissions = N_EMISS;
-  const string emission_names[n_emissions];
+  const std::string emission_names[n_emissions];
 
 
   int n_obs;
@@ -76,7 +79,7 @@ public:
 
   Real emission_g_factors[n_emissions];
   
-  observation(const string (&emission_namess)[n_emissions])
+  observation(const std::string (&emission_namess)[n_emissions])
   : emission_names(emission_namess),
     n_obs(0)
   {

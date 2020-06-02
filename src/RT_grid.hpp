@@ -441,7 +441,7 @@ struct RT_grid {
 
 //import the CUDA code if NVCC is the compiler
 #ifdef __CUDACC__
-#include "RT_gpu.hpp"
+#include "RT_gpu.cu"
 #endif
 
 #endif

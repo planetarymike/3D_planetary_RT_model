@@ -1,7 +1,14 @@
-BINDIR=-I../bin/
-BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_72_0/
+#files that need compilin'
+SRCDIR = ../src
+SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
+OBJDIR = ../bin/src
+OBJFILES  = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRCFILES))
+NOBJFILES = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.cuda.o,$(SRCFILES))
+
+#include directories
+BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/
 EIGENDIR=-I/home/mike/Documents/Utilities/eigen-3.3.7/
-IDIR=$(BINDIR) $(BOOSTDIR) $(EIGENDIR)
+IDIR=-I$(SRCDIR) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
 CC=g++
@@ -12,20 +19,63 @@ OFLAGS=-O3 -march=native -DNDEBUG
 
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings
-NLIBS=-lm
+NIDIR=$(IDIR) -L/usr/local/cuda-10.2/lib64/ -I/home/mike/Documents/Utilities/cuda-samples/Common/
+NLIBS=-lm -lcudart 
 NOFLAGS= -O3 -DNDEBUG #-lineinfo
-CUDA_HELP_IDIR=-I/home/mike/Documents/Utilities/cuda-samples/Common/
 
-py_corona_sim_cpu:
-	python setup_corona_sim.py build_ext --inplace
+py_corona_sim_cpu: $(OBJFILES)
+	@echo $(SRCFILES)
+	mkdir -p build
 
-py_corona_sim_gpu:
-	$(NCC) -x cu -Xcompiler -fPIC \
-	$(COMPILER_OPT) $(IDIR) $(CUDA_HELP_IDIR) $(NLIBS) $(NOFLAGS) \
-	-dc observation_fit_gpu.h -o build/observation_fit_gpu_host.o
+# shared library --- python can't find this at runtime
+#	$(CC) -Wall -shared -std=c++17 -fPIC \
+	-Wl,-soname,libobservationfit.so \
+	$(SRCFILES) \
+	wrapper.cpp \
+	$(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) \
+	 -o build/libobservation_fit.so
+
+	rm -f build/libobservation_fit.a
+
+	ar rs build/libobservation_fit.a $(OBJFILES)
+	ranlib build/libobservation_fit.a
+
+	python setup_corona_sim_cpu.py build_ext --inplace
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+	@echo "compiling $<..."
+	@mkdir -p '$(@D)'
+	@$(CC) -c $< -std=c++17 -fPIC $(IDIR) $(LIBS) $(OFLAGS) -o $@
+
+py_corona_sim_gpu: $(NOBJFILES)
+	mkdir -p build
+
 	$(NCC) -Xcompiler -fPIC \
-	$(COMPILER_OPT) $(IDIR) $(CUDA_HELP_IDIR) $(NLIBS) $(NOFLAGS) \
-	-dlink observation_fit_gpu_host.o -o build/observation_fit_gpu_device.o
-	python setup_corona_sim.py build_ext --inplace
+	-D RT_FLOAT \
+	$(IDIR) $(NIDIR) $(NLIBS) $(NOFLAGS) \
+	-dlink $(NOBJFILES) \
+	-o build/observation_fit_wrapper_gpu_device.o
+
+# shared library --- python can't find this at runtime
+#	$(CC) -shared -Wl,-soname,libobservationfit.so \
+	-o build/libobservation_fit.so \
+	build/observation_fit_gpu_host.o \
+	build/observation_fit_gpu_device.o -lc
+
+	rm -f build/libobservation_fit.a
+
+	ar rs build/libobservation_fit.a \
+	build/observation_fit_wrapper_gpu_device.o \
+	$(NOBJFILES)
+
+	ranlib build/libobservation_fit.a
+
+	python setup_corona_sim_gpu.py build_ext --inplace
+
+$(OBJDIR)/%.cuda.o: $(SRCDIR)/%.cpp
+	@echo "compiling $<..."
+	@mkdir -p '$(@D)'
+	@$(NCC) -x cu -D RT_FLOAT -Xcompiler -fPIC $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+
 clean:
-	rm -rf build* *.cpp *.so *.o
+	rm -rf build* *.so ../bin/*

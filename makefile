@@ -1,15 +1,16 @@
 #files that need compilin'
 OBJDIR = ./bin
-SRCFILES = $(wildcard src/atm/*.cpp) src/interp.cpp src/atmo_vec.cpp src/gauss_legendre_quadrature.cpp src/influence.cpp src/intersections.cpp src/my_clock.cpp
+SRCDIR = src
+SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
 
 NSRCFILES = $(SRCFILES) generate_source_function_gpu.cu
-NOBJFILES    := $(filter %.o,$(SRCFILES:%.cpp=$(OBJDIR)/%.cuda.o)       $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.o      ))
-NOBJFILESDBG := $(filter %.o,$(SRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o) $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.debug.o))
+NOBJFILES    := $(filter %.o, $(SRCFILES:%.cpp=$(OBJDIR)/%.cuda.o)       $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.o      ))
+NOBJFILESDBG := $(filter %.o, $(SRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o) $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.debug.o))
 
 #include directories
 BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/
 EIGENDIR=-I/home/mike/Documents/Utilities/eigen-3.3.7/
-IDIR=-Isrc/ $(BOOSTDIR) $(EIGENDIR)
+IDIR=-I$(SRCDIR) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
 CC=g++
@@ -44,8 +45,6 @@ generate_source_function_profile:
 
 generate_source_function_debug_warn:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -o generate_source_function.x
-
-
 
 
 generate_source_function_gpu: $(NOBJFILES) 

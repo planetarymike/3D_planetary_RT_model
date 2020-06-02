@@ -108,12 +108,12 @@ int main(int argc, char* argv[]) {
     observation<n_emissions> obs_nointerp = obs;
     RT.brightness_gpu(obs);
 
-    my_clock save_clk;
-    save_clk.start();
-    string fname = "test/test_brightness_gpu" + std::to_string(size) + "x" + std::to_string(size) + ".dat";
-    obs.save_brightness(fname);  
-    save_clk.stop();
-    save_clk.print_elapsed("saving file takes ");
+    // my_clock save_clk;
+    // save_clk.start();
+    // string fname = "test/test_brightness_gpu" + std::to_string(size) + "x" + std::to_string(size) + ".dat";
+    // obs.save_brightness(fname);  
+    // save_clk.stop();
+    // save_clk.print_elapsed("saving file takes ");
     
     std::cout << std::endl;
 }

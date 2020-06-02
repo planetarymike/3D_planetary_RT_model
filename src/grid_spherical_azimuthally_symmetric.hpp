@@ -19,9 +19,9 @@
 //convert all vectors to arrays via templates
 template <int N_RADIAL_BOUNDARIES, int N_SZA_BOUNDARIES, int N_RAY_THETA, int N_RAY_PHI>
 struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid 
-						   (N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),
-						   N_RAY_THETA*N_RAY_PHI,
-						   2*N_RADIAL_BOUNDARIES+N_SZA_BOUNDARIES>
+						   (N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),//nvoxels
+						   N_RAY_THETA*N_RAY_PHI,//nrays
+						   2*N_RADIAL_BOUNDARIES+N_SZA_BOUNDARIES>//max_boundary_crossings
 {
 
   typedef grid<2,(N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),
@@ -54,8 +54,6 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 					      //planet-sun line
 
   int n_pts[parent_grid::n_dimensions] = {n_radial_boundaries-1,n_sza_boundaries-1};
-  // intersection_writer saver;
-  // bool save_intersections;
 
   static const int n_theta = N_RAY_THETA;
   Real ray_theta[n_theta];
@@ -67,9 +65,6 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   {
     rmethod = rmethod_altitude;
     szamethod = szamethod_uniform;
-
-    // save_intersections = false;
-    // saver.fname = "intersections.dat";
   }
 
   void setup_voxels(atmosphere &atm) {
@@ -146,8 +141,6 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       }
     }
 
-    // if (save_intersections)
-    //   saver.save_coordinates(radial_boundaries,sza_boundaries);
   }
 
   void setup_rays()
@@ -226,7 +219,8 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
   CUDA_CALLABLE_MEMBER
   void ray_voxel_intersections(const atmo_vector &vec,
-			       boundary_intersection_stepper<parent_grid::n_dimensions,parent_grid::n_max_intersections> &stepper) const {
+			       boundary_intersection_stepper<parent_grid::n_dimensions,
+			                                     parent_grid::n_max_intersections> &stepper) const {
     
     stepper.vec = vec;
     stepper.boundaries.reset();
@@ -297,10 +291,6 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 	   pt.r <= radial_boundaries[r_idx+1]
 	   && "pt must be in identified voxel.");
 
-    // if (pts_sza[0]-pt.t<eps)
-    //   pt.t=pts_sza[0]+eps;
-    // if (pt.t-pts_sza[n_sza_boundaries-2]<eps)
-    //   pt.t=pts_sza[n_sza_boundaries-2]-eps;
     if (pt.t<sza_boundaries[sza_idx] && sza_boundaries[sza_idx]/pt.t>(1-eps))
       pt.t = sza_boundaries[sza_idx]+eps;
     if (sza_boundaries[sza_idx+1]<pt.t && pt.t/sza_boundaries[sza_idx+1]<(1+eps))
