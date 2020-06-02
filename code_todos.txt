@@ -19,6 +19,7 @@ Small code improvements
     (smells like frequency redistribution;
      should be relatively easy, add line profile to tau_tracker)
 
-long-term:
+longer-term:
+--more realistic exosphere
 --frequency redistribution (needs some refactoring of emission object)
---anisotropy??
+--RT anisotropy??
