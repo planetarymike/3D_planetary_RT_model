@@ -17,3 +17,4 @@ python/model_fit
 python/model_fit/*
 python/__pycache__
 *nvvp*
+bin/
