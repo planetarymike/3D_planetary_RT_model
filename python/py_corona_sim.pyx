@@ -11,7 +11,13 @@ from libcpp.vector cimport vector
 import numpy as np
 cimport numpy as np
 
-ctypedef float Real #GPU (for high throughput)
+#look for command-line macro to 
+IF RT_FLOAT:
+    ctypedef float Real
+    realconvert = np.float32
+ELSE:
+    ctypedef double Real
+    realconvert = np.float64
 
 cdef extern from "observation_fit.hpp":
     cpdef cppclass observation_fit:
@@ -35,8 +41,8 @@ cdef class Pyobservation_fit:
             loc_vec[i].resize(3)
             dir_vec[i].resize(3)
             for j in range(3):
-                loc_vec[i][j] = np.float32(loc_arr[i,j])
-                dir_vec[i][j] = np.float32(dir_arr[i,j])
+                loc_vec[i][j] = realconvert(loc_arr[i,j])
+                dir_vec[i][j] = realconvert(dir_arr[i,j])
         self.thisptr.add_observation(loc_vec,dir_vec)
     def set_g_factor(self, Real g):
         self.thisptr.set_g_factor(g)

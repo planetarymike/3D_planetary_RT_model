@@ -96,5 +96,4 @@ class custom_build_ext(build_ext):
         build_ext.build_extensions(self)
 
 
-CUDA = locate_cuda()
 

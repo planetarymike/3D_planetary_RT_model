@@ -24,8 +24,7 @@ NLIBS=-lm -lcudart
 NOFLAGS= -O3 -DNDEBUG #-lineinfo
 
 py_corona_sim_cpu: $(OBJFILES)
-	@echo $(SRCFILES)
-	mkdir -p build
+	@mkdir -p build
 
 # shared library --- python can't find this at runtime
 #	$(CC) -Wall -shared -std=c++17 -fPIC \
@@ -40,7 +39,7 @@ py_corona_sim_cpu: $(OBJFILES)
 	ar rs build/libobservation_fit.a $(OBJFILES)
 	ranlib build/libobservation_fit.a
 
-	python setup_corona_sim_cpu.py build_ext --inplace
+	python setup_corona_sim.py build_ext --inplace
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo "compiling $<..."
@@ -48,7 +47,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@$(CC) -c $< -std=c++17 -fPIC $(IDIR) $(LIBS) $(OFLAGS) -o $@
 
 py_corona_sim_gpu: $(NOBJFILES)
-	mkdir -p build
+	@mkdir -p build
 
 	$(NCC) -Xcompiler -fPIC \
 	-D RT_FLOAT \
@@ -70,12 +69,15 @@ py_corona_sim_gpu: $(NOBJFILES)
 
 	ranlib build/libobservation_fit.a
 
-	python setup_corona_sim_gpu.py build_ext --inplace
+	python setup_corona_sim.py build_ext --inplace -RT_FLOAT
 
 $(OBJDIR)/%.cuda.o: $(SRCDIR)/%.cpp
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(NCC) -x cu -D RT_FLOAT -Xcompiler -fPIC $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
-clean:
-	rm -rf build* *.so ../bin/*
+clean_all:
+	rm -rf *.cpp build* *.so ../bin/*
+
+clean_python:
+	rm -rf build* *.so *.cpp
