@@ -3,9 +3,9 @@ OBJDIR = ./bin
 SRCDIR = src
 SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
 
-NSRCFILES = $(SRCFILES) generate_source_function_gpu.cu
-NOBJFILES    := $(filter %.o, $(SRCFILES:%.cpp=$(OBJDIR)/%.cuda.o)       $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.o      ))
-NOBJFILESDBG := $(filter %.o, $(SRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o) $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.debug.o))
+NSRCFILES = $(SRCFILES) generate_source_function.cpp
+NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o)       $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.o      ))
+NOBJFILESDBG := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o) $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.debug.o))
 
 #include directories
 BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/
@@ -47,7 +47,10 @@ generate_source_function_debug_warn:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -o generate_source_function.x
 
 
+
+
 generate_source_function_gpu: $(NOBJFILES) 
+	@echo $(NOBJFILES)
 	@echo "linking..."
 	@$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
 
@@ -60,6 +63,8 @@ $(OBJDIR)/%.cuda.o: %.cu
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(NCC) -x cu -D RT_FLOAT $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+
+
 
 
 generate_source_function_gpu_debug: $(NOBJFILESDBG) 
@@ -77,14 +82,3 @@ $(OBJDIR)/%.cuda.debug.o: %.cu
 	@$(NCC) -x cu -D RT_FLOAT $(NIDIR) $(NLIBS) -O0 -g -G -dc $< -o $@
 
 
-
-
-
-build_lib: $(OBJFILES)
-#	g++ -Wall -shared -o libRT.so $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -x c++-header $(SRCFILES) -x c++ $(SRCFILES)
-
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
-	$(CC) -Wall $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -c -o $@ $<
-
-clean:
-	rm -rf bin *.o *.so *.x

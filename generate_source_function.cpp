@@ -101,8 +101,10 @@ int main(int argc, char* argv[]) {
   // 		  /1e6)
   // 	    << " R" << std::endl;
 
-
   Real dist = 30*rMars;
+
+#ifndef __CUDACC__
+  //CPU-only code
   obs.fake(dist,30,600);
   observation<n_emissions> obs_nointerp = obs;
   
@@ -110,7 +112,26 @@ int main(int argc, char* argv[]) {
   obs.save_brightness("test/test_brightness.dat");
   RT.brightness_nointerp(obs_nointerp);
   obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
-   
+#else
+  //GPU code
+  vector<int> sizes = {10,100,300,600,1200,2400};
+
+  for (auto&& size: sizes) {
+    std::cout << "simulating image size "<< size << "x" << size << ":" << std::endl;
+    obs.fake(dist,30,size);
+    RT.brightness_gpu(obs);
+
+    // my_clock save_clk;
+    // save_clk.start();
+    // string fname = "test/test_brightness_gpu" + std::to_string(size) + "x" + std::to_string(size) + ".dat";
+    // obs.save_brightness(fname);  
+    // save_clk.stop();
+    // save_clk.print_elapsed("saving file takes ");
+    
+    std::cout << std::endl;
+  }
+#endif
+
   return 0; 
 }
 
