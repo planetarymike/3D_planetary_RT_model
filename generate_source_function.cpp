@@ -76,8 +76,12 @@ int main(int argc, char* argv[]) {
 
   //solve for the source function
   //  RT.save_influence = true;
+#ifndef __CUDACC__
   RT.generate_S();
-  
+#else
+  RT.generate_S();
+  //  RT.generate_S_gpu(); ---not working, needs efficient & safe parallel reduction in kernel
+#endif
   //now print out the output
   RT.save_S("test/test_source_function.dat");
 
@@ -121,12 +125,12 @@ int main(int argc, char* argv[]) {
     obs.fake(dist,30,size);
     RT.brightness_gpu(obs);
 
-    // my_clock save_clk;
-    // save_clk.start();
-    // string fname = "test/test_brightness_gpu" + std::to_string(size) + "x" + std::to_string(size) + ".dat";
-    // obs.save_brightness(fname);  
-    // save_clk.stop();
-    // save_clk.print_elapsed("saving file takes ");
+    my_clock save_clk;
+    save_clk.start();
+    string fname = "test/test_brightness_gpu" + std::to_string(size) + "x" + std::to_string(size) + ".dat";
+    obs.save_brightness(fname);  
+    save_clk.stop();
+    save_clk.print_elapsed("saving file takes ");
     
     std::cout << std::endl;
   }

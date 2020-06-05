@@ -78,7 +78,7 @@ public:
   static const unsigned int n_dimensions = NDIM;
 
   CUDA_CALLABLE_MEMBER
-  boundary_set(const int max_size = 0)
+  boundary_set()
   { 
     internal_size=0;begin=0;
   }

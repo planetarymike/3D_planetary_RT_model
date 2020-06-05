@@ -381,22 +381,22 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       {
 
 	VectorX r_boundaries_write_out = Eigen::Map<const VectorX>(radial_boundaries,
-								     n_radial_boundaries);
-
+								   n_radial_boundaries);
+	
 	file << "radial boundaries [cm]: " << r_boundaries_write_out.transpose() << "\n\n";
-
+	
 	VectorX r_pts_write_out = Eigen::Map<const VectorX>(pts_radii,
-							      n_radial_boundaries-1);
-
+							    n_radial_boundaries-1);
+	
 	file << "pts radii [cm]: " << r_pts_write_out.transpose() << "\n\n";
        	
 	VectorX sza_boundaries_write_out = Eigen::Map<const VectorX>(sza_boundaries,
-								       n_sza_boundaries);
+								     n_sza_boundaries);
 
 	file << "sza boundaries [rad]: " << sza_boundaries_write_out.transpose() << "\n\n";
 	
 	VectorX sza_pts_write_out = Eigen::Map<const VectorX>(pts_sza,
-								n_sza_boundaries-1);
+							      n_sza_boundaries-1);
 
 	file << "pts sza [rad]: " << sza_pts_write_out.transpose() << "\n\n";
        	

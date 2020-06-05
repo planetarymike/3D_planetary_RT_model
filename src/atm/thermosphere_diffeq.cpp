@@ -9,7 +9,7 @@ thermosphere_diffeq::thermosphere_diffeq(temperature &tempp, Real &H_escape_flux
   //returns the diffeq derivatives
 void thermosphere_diffeq::operator()( const vector<Real> &x , vector<Real> &dxdr , const Real &r ) {
   temp->get(r);
-  diff.get(r, temp->T, temp->T_exo, exp(x[0]) );
+  diff.get(temp->T, temp->T_exo, exp(x[0]) );
   
   Real Hninv = G*mMars*mCO2/(kB*(temp->T)*r*r)+(temp->Tprime)/(temp->T);
   Real alpha = -0.25;

@@ -93,6 +93,73 @@ struct tau_tracker {
   }
 };
 
+template <int N_EMISS, int N_VOXELS>
+struct influence_tracker : tau_tracker<N_EMISS> {
+  Real influence[N_EMISS][N_VOXELS];
+
+  CUDA_CALLABLE_MEMBER
+  influence_tracker() : tau_tracker<N_EMISS>() {
+    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+	influence[i_emission][j_pt] = 0.0;
+  }
+  CUDA_CALLABLE_MEMBER
+  ~influence_tracker() { }
+  CUDA_CALLABLE_MEMBER
+  influence_tracker(const influence_tracker<N_EMISS,N_VOXELS> &copy)
+    : tau_tracker<N_EMISS>(copy) 
+  {
+    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+	influence[i_emission][j_pt]=copy.influence[i_emission][j_pt];
+  }
+  CUDA_CALLABLE_MEMBER
+  influence_tracker& operator=(const influence_tracker<N_EMISS,N_VOXELS> &rhs) {
+    if(this == &rhs) return *this;
+    tau_tracker<N_EMISS>::operator=(rhs);
+    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+	influence[i_emission][j_pt]=rhs.influence[i_emission][j_pt];
+    return *this;
+  }
+
+  CUDA_CALLABLE_MEMBER
+  void reset() {
+    tau_tracker<N_EMISS>::reset();
+    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+	influence[i_emission][j_pt] = 0.0;
+  }
+
+  CUDA_CALLABLE_MEMBER
+  influence_tracker<N_EMISS,N_VOXELS> operator+(const influence_tracker<N_EMISS,N_VOXELS> &other) const {
+    influence_tracker<N_EMISS,N_VOXELS> ret;
+    if (tau_tracker<N_EMISS>::max_tau_species > other.max_tau_species) {
+      ret.max_tau_species = tau_tracker<N_EMISS>::max_tau_species;
+    } else {
+      ret.max_tau_species = other.max_tau_species;
+    }
+    
+    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+	ret.influence[i_emission][j_pt]=influence[i_emission][j_pt]+other.influence[i_emission][j_pt];
+  
+    return ret;
+  }
+
+  CUDA_CALLABLE_MEMBER
+  influence_tracker<N_EMISS,N_VOXELS> & operator+=(const influence_tracker<N_EMISS,N_VOXELS> &other) {
+    if (tau_tracker<N_EMISS>::max_tau_species < other.max_tau_species)
+      tau_tracker<N_EMISS>::max_tau_species = other.max_tau_species;
+    
+    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+	influence[i_emission][j_pt]+=other.influence[i_emission][j_pt];
+  
+    return *this;
+  }
+};
+
 template <int N_EMISS>
 struct brightness_tracker : tau_tracker<N_EMISS> {
   Real brightness[N_EMISS];

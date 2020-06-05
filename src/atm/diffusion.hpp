@@ -10,7 +10,7 @@ struct diffusion_coefs {
   Real KK; // eddy diffusion coefficient
   
   //sets the above using formulas
-  void get(const Real &r, const Real &T, const Real &Texo, const Real &nCO2);  
+  void get(const Real &T, const Real &Texo, const Real &nCO2);  
 };
 
 #endif

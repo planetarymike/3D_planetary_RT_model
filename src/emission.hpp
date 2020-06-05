@@ -7,6 +7,8 @@
 #include <string>
 #include <Eigen/Dense>
 #include "atmo_vec.hpp"
+#include "cuda_compatibility.hpp"
+#include "voxel_vector.hpp"
 
 using std::string;
 
@@ -20,62 +22,57 @@ struct emission {
   Real branching_ratio;
   
   //these store physical atmospheric parameters on the grid (dimension n_voxels)
-  //even though n_voxels is known at compile time, Eigen docs
-  //recommend using dynamic matrices for arrays larger than 16x16
-  //don't make these fixed-size
-  VectorX species_density; //densities of scatterers and absorbers on the tabulated grid
-  VectorX absorber_density; 
-  VectorX species_sigma;//scatterer and absorber cross section on the tabulated grid
-  VectorX absorber_sigma;
+  //dynamic arrays are required for dim>~32 for Eigen
+  //the vectors point to the Eigen objects so that these can be used interchangably
+  voxel_vector species_density; //densities of scatterers and absorbers on the tabulated grid
+  voxel_vector absorber_density; 
+  voxel_vector species_sigma;//scatterer and absorber cross section on the tabulated grid
+  voxel_vector absorber_sigma;
 
-  VectorX dtau_species;
-  VectorX log_dtau_species; //quantities that need to be interpolated are also stored as log
-  VectorX dtau_absorber;
-  VectorX log_dtau_absorber;
-  VectorX abs; //ratio of dtau_abs to dtau_species
-  VectorX log_abs; 
+  voxel_vector dtau_species;
+  voxel_vector log_dtau_species; //quantities that need to be interpolated are also stored as log
+  voxel_vector dtau_absorber;
+  voxel_vector log_dtau_absorber;
+  voxel_vector abs; //ratio of dtau_abs to dtau_species
+  voxel_vector log_abs; 
 
   //Radiative transfer parameters
-  MatrixX influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
-
-  VectorX singlescat; //have dimensions (n_voxels)  
-  VectorX sourcefn; 
-  VectorX log_sourcefn; 
+  voxel_matrix influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
 
   //vectors to compute the single scattering have dimensions (n_voxels)  
-  VectorX tau_species_single_scattering;
-  VectorX tau_absorber_single_scattering;
+  voxel_vector tau_species_single_scattering;
+  voxel_vector tau_absorber_single_scattering;
+  voxel_vector singlescat; 
 
-  //cuda vectors
-  Real dtau_species_vec[n_voxels];
-  Real log_dtau_species_vec[n_voxels];
-  Real dtau_absorber_vec[n_voxels];
-  Real log_dtau_absorber_vec[n_voxels];
-  Real sourcefn_vec[n_voxels];
-  Real log_sourcefn_vec[n_voxels];
-  
-  
-  emission() {
-    init=false;
-  }
-  
-  void resize() {//int n_voxelss) {
-    //n_voxels = n_voxelss;
-    
+  voxel_vector sourcefn; //have dimensions (n_voxels)  
+  voxel_vector log_sourcefn; 
+
+  CUDA_CALLABLE_MEMBER
+  emission() :
+    init(false)
+  { }
+  CUDA_CALLABLE_MEMBER
+  ~emission() { };
+
+  void resize() {
     species_density.resize(n_voxels);
     absorber_density.resize(n_voxels);
     species_sigma.resize(n_voxels);
     absorber_sigma.resize(n_voxels);
+
     dtau_species.resize(n_voxels);
     log_dtau_species.resize(n_voxels);
     dtau_absorber.resize(n_voxels);
     log_dtau_absorber.resize(n_voxels);
     abs.resize(n_voxels);
     log_abs.resize(n_voxels);
-    influence_matrix.resize(n_voxels,n_voxels);
+
+    influence_matrix.resize(n_voxels);
+
     singlescat.resize(n_voxels);
     sourcefn.resize(n_voxels);
     log_sourcefn.resize(n_voxels);
+
     tau_species_single_scattering.resize(n_voxels);
     tau_absorber_single_scattering.resize(n_voxels);
   }
@@ -112,19 +109,19 @@ struct emission {
     init=true;
   }
 
-  void eigen_to_vec() {
-    for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
-      dtau_species_vec[i_voxel] = dtau_species(i_voxel);
-      log_dtau_species_vec[i_voxel] = log_dtau_species(i_voxel);
-      dtau_absorber_vec[i_voxel] = dtau_absorber(i_voxel);
-      log_dtau_absorber_vec[i_voxel] = log_dtau_absorber(i_voxel);
-      sourcefn_vec[i_voxel] = sourcefn(i_voxel);
-      log_sourcefn_vec[i_voxel] = log_sourcefn(i_voxel);
-    }
-  }
+  //methods to transfer objects to device
+  void copy_to_device_influence(emission<N_VOXELS> *device_emission);
+  void copy_to_device_brightness(emission<N_VOXELS> *device_emission);
+  void vector_to_device(voxel_vector & device_vec, voxel_vector & host_vec, bool transfer = true);
+  void matrix_to_device(voxel_matrix & device_vec, voxel_matrix & host_vec, bool transfer = true);
 
-
+  void copy_influence_to_host();
+  void vector_to_host(voxel_vector & host_vec);
+  void matrix_to_host(voxel_matrix & host_vec);
 };
 
+#ifdef __CUDACC__
+#include "emission_gpu.cu"
+#endif
 
 #endif

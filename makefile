@@ -1,3 +1,5 @@
+MAKEFLAGS += -j20 #parallel compilation
+
 #files that need compilin'
 OBJDIR = ./bin
 SRCDIR = src
@@ -21,9 +23,14 @@ OFLAGS=-O3 -march=native -DNDEBUG
 
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings
-NIDIR=$(IDIR) -L/usr/local/cuda-10.2/lib64/ -I/home/mike/Documents/Utilities/cuda-samples/Common/
-NLIBS=-lm -lcudart 
+NFLAGS=-x cu -D RT_FLOAT
+NIDIR=$(IDIR) \
+      -L/usr/local/cuda-10.2/lib64/ \
+      -I/home/mike/Documents/Utilities/cuda-samples/Common/ \
+      -I/home/mike/Documents/Utilities/cub-1.8.0/cub/block/
+NLIBS=-lm -lcudart
 NOFLAGS= -O3 -DNDEBUG #-lineinfo
+NDBGFLAGS=-O0 -g -G
 
 # # intel compiler
 # you may need to run this
@@ -44,7 +51,7 @@ generate_source_function_profile:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
 
 generate_source_function_debug_warn:
-	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -o generate_source_function.x
+	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -o generate_source_function.x
 
 
 
@@ -57,12 +64,12 @@ generate_source_function_gpu: $(NOBJFILES)
 $(OBJDIR)/%.cuda.o: %.cpp
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	@$(NCC) -x cu -D RT_FLOAT $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+	@$(NCC) -Xcompiler -pipe $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
 $(OBJDIR)/%.cuda.o: %.cu
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	@$(NCC) -x cu -D RT_FLOAT $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
 
 
@@ -74,11 +81,18 @@ generate_source_function_gpu_debug: $(NOBJFILESDBG)
 $(OBJDIR)/%.cuda.debug.o: %.cpp
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	@$(NCC) -x cu -D RT_FLOAT $(NIDIR) $(NLIBS) -O0 -g -G -dc $< -o $@
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc $< -o $@
 
 $(OBJDIR)/%.cuda.debug.o: %.cu
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	@$(NCC) -x cu -D RT_FLOAT $(NIDIR) $(NLIBS) -O0 -g -G -dc $< -o $@
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc $< -o $@
 
 
+clean_gpu:
+	rm -f generate_source_function_gpu.x
+	find ./bin/ -type f -name '*cuda*' -delete
+
+clean_all:
+	rm -f generate_source_function_gpu.x
+	rm -r bin

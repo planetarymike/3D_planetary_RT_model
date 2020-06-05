@@ -21,9 +21,9 @@
 #include <cassert>
 
 //structure to hold the atmosphere grid
-template<int N_EMISS, typename grid_type, typename influence_type>
+template<int N_EMISSIONS, typename grid_type, typename influence_type>
 struct RT_grid {
-  static const int n_emissions = N_EMISS;//number of emissions to evaluate at each point in the grid
+  static const int n_emissions = N_EMISSIONS;//number of emissions to evaluate at each point in the grid
   emission<grid_type::n_voxels> emissions[n_emissions];
 
   grid_type grid;//this stores all of the geometrical info
@@ -34,6 +34,14 @@ struct RT_grid {
 
   //initialization parameters
   bool all_emissions_init;
+
+  //GPU interface
+  typedef RT_grid<N_EMISSIONS,grid_type,influence_type> RT_grid_type;
+  RT_grid_type *d_RT=NULL; //pointer to the GPU partner of this object
+  void RT_to_device();
+  void emissions_to_device_influence();
+  void emissions_to_device_brightness();
+  void emissions_influence_to_host();
   
   RT_grid(const string (&emission_names)[n_emissions])
   {
@@ -41,8 +49,14 @@ struct RT_grid {
     
     for (int i_emission=0; i_emission < n_emissions; i_emission++) {
       emissions[i_emission].name = emission_names[i_emission];
-      emissions[i_emission].resize();//grid.n_voxels);
+      emissions[i_emission].resize();
     }
+  }
+  ~RT_grid() {
+#ifdef __CUDACC__
+    if(d_RT!=NULL)
+      checkCudaErrors(cudaFree(d_RT));
+#endif
   }
   
   template<typename C>
@@ -82,6 +96,7 @@ struct RT_grid {
 
   
   template <typename R>
+  CUDA_CALLABLE_MEMBER
   void voxel_traverse(const atmo_vector &v,
 		      void (RT_grid::*function)(boundary_intersection_stepper<grid_type::n_dimensions,
 						                              grid_type::n_max_intersections>& ,R& ),
@@ -107,67 +122,65 @@ struct RT_grid {
     }
   }
 
-
+  CUDA_CALLABLE_MEMBER
   void influence_update(boundary_intersection_stepper<grid_type::n_dimensions,
 			                              grid_type::n_max_intersections>& stepper,
-			tau_tracker<n_emissions>& los) {
+			influence_tracker<n_emissions,grid_type::n_voxels>& temp_influence) {
     //update the influence matrix for each emission
 
-    los.update_start(stepper,emissions);
+    temp_influence.update_start(stepper,emissions);
       
     for (int i_emission=0; i_emission < n_emissions; i_emission++) {
       
       //see Bishop1999 for derivation of this formula
       Real coef = stepper.vec.ray.domega;
 
-      //bishop formulation
-      coef *= ((transmission.T_lerp(los.tau_species_initial[i_emission])
-		- transmission.T_lerp(los.tau_species_final[i_emission]))
+      coef *= ((transmission.T_lerp(temp_influence.tau_species_initial[i_emission])
+		- transmission.T_lerp(temp_influence.tau_species_final[i_emission]))
 	       
-      	       *exp(-0.5*(los.tau_absorber_initial[i_emission]
-      			  +los.tau_absorber_final[i_emission])));
+      	       *exp(-0.5*(temp_influence.tau_absorber_initial[i_emission]
+      			  +temp_influence.tau_absorber_final[i_emission])));
       
-      emissions[i_emission].influence_matrix(stepper.start_voxel,
-					     stepper.current_voxel) += coef;
+      temp_influence.influence[i_emission][stepper.current_voxel] += coef;
     
     }
 
-    los.update_end();
+    temp_influence.update_end();
 
   }
 
+  CUDA_CALLABLE_MEMBER
   void get_single_scattering_optical_depths(boundary_intersection_stepper<grid_type::n_dimensions,
 					                                  grid_type::n_max_intersections>& stepper,
-					    Real& max_tau_species)
+					    influence_tracker<n_emissions,grid_type::n_voxels>& temp_influence)
   {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      emissions[i_emission].tau_species_single_scattering(stepper.start_voxel) += (emissions[i_emission].dtau_species(stepper.current_voxel)
-										   * stepper.pathlength);
-      emissions[i_emission].tau_absorber_single_scattering(stepper.start_voxel) += (emissions[i_emission].dtau_absorber(stepper.current_voxel)
-										    * stepper.pathlength);
-      
-      Real tscomp = emissions[i_emission].tau_species_single_scattering(stepper.start_voxel);
-      max_tau_species = tscomp > max_tau_species ? tscomp : max_tau_species;    
-    }
+    temp_influence.update_start(stepper,emissions);
+    temp_influence.update_end();
   }
   
-
-  void get_single_scattering(const atmo_point &pt, Real &max_tau_species) {
+  CUDA_CALLABLE_MEMBER
+  void get_single_scattering(const atmo_point &pt, influence_tracker<n_emissions,grid_type::n_voxels>& temp_influence) {
 
     if (pt.z<0&&pt.x*pt.x+pt.y*pt.y<grid.rmin*grid.rmin) {
       //if the point is behind the planet, no single scattering
-      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	emissions[i_emission].tau_species_single_scattering(pt.i_voxel) = -1;
+	emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel) = -1;
 	emissions[i_emission].singlescat(pt.i_voxel)=0.0;
+      }
     } else {
       atmo_vector vec = atmo_vector(pt, grid.sun_direction);
       voxel_traverse(vec,
 		     &RT_grid::get_single_scattering_optical_depths,
-		     max_tau_species);
+		     temp_influence);
       
-      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	emissions[i_emission].tau_species_single_scattering(pt.i_voxel) = temp_influence.tau_species_final[i_emission];
+	emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel) = temp_influence.tau_absorber_final[i_emission];
 	emissions[i_emission].singlescat(pt.i_voxel) = ( (transmission.T_lerp(emissions[i_emission].tau_species_single_scattering(pt.i_voxel))
 							  * exp(-emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel)) )
 							 / emissions[i_emission].species_sigma(pt.i_voxel));
+      }
     }
   }
 
@@ -199,8 +212,6 @@ struct RT_grid {
       for (int i=0;i<grid.n_voxels;i++)
 	emissions[i_emission].log_sourcefn(i) = emissions[i_emission].sourcefn(i) == 0 ? -1e5 : log(emissions[i_emission].sourcefn(i));
       emissions[i_emission].solved=true;
-
-      emissions[i_emission].eigen_to_vec();
     }
   }
 
@@ -211,16 +222,14 @@ struct RT_grid {
     my_clock clk;
     clk.start();
 
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
       emissions[i_emission].influence_matrix.setZero();
-      emissions[i_emission].tau_species_single_scattering.setZero();
-      emissions[i_emission].tau_absorber_single_scattering.setZero();
-    }
     
     atmo_vector vec;
+    influence_tracker<n_emissions,grid_type::n_voxels> temp_influence;
     Real max_tau_species = 0;
   
-#pragma omp parallel for firstprivate(vec) shared(max_tau_species,std::cout) default(none)
+#pragma omp parallel for firstprivate(vec,temp_influence) shared(max_tau_species,std::cout) default(none)
     for (int i_pt = 0; i_pt < grid.n_voxels; i_pt++) {
       Real omega = 0.0; // make sure sum(domega) = 4*pi
     
@@ -229,12 +238,14 @@ struct RT_grid {
 	vec = atmo_vector(grid.pts[i_pt], grid.rays[i_ray]);
 	omega += vec.ray.domega;
 
-	tau_tracker<n_emissions> los;
-      
-	voxel_traverse(vec, &RT_grid::influence_update, los);
-
-	if (los.max_tau_species > max_tau_species)
-	  max_tau_species = los.max_tau_species;
+	temp_influence.reset();
+	voxel_traverse(vec, &RT_grid::influence_update, temp_influence);
+	for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	  for (int j_pt = 0; j_pt < grid.n_voxels; j_pt++)
+	    emissions[i_emission].influence_matrix(i_pt,j_pt) += temp_influence.influence[i_emission][j_pt];
+	
+	if (temp_influence.max_tau_species > max_tau_species)
+	  max_tau_species = temp_influence.max_tau_species;
       }
 
       if ((omega - 1.0 > ABS) || (omega - 1.0 < -ABS)) {
@@ -243,8 +254,10 @@ struct RT_grid {
       }
     
       //now compute the single scattering function:
-      get_single_scattering(grid.pts[i_pt], max_tau_species);
-    
+      temp_influence.reset();
+      get_single_scattering(grid.pts[i_pt], temp_influence);
+      if (temp_influence.max_tau_species > max_tau_species)
+	max_tau_species = temp_influence.max_tau_species;
     }
   
     //solve for the source function
@@ -259,7 +272,8 @@ struct RT_grid {
     
     return;
   }
-
+  void generate_S_gpu();
+  
   void save_influence(const string fname = "test/influence_matrix.dat") {
     std::ofstream file(fname);
     if (file.is_open())
@@ -273,9 +287,9 @@ struct RT_grid {
   }
 
 
-
+  template <typename V>
   CUDA_CALLABLE_MEMBER
-  Real interp_array(const int *indices, const Real *weights, const Real *arr) const {
+  Real interp_array(const int *indices, const Real *weights, const V &arr) const {
     Real retval=0;
     for (int i=0;i<grid.n_interp_points;i++)
       retval+=weights[i]*arr[indices[i]];
@@ -291,11 +305,11 @@ struct RT_grid {
     
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       retval.dtau_species_interp[i_emission]  = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_dtau_species_vec));
+								 emissions[i_emission].log_dtau_species));
       retval.dtau_absorber_interp[i_emission] = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_dtau_absorber_vec));
+								 emissions[i_emission].log_dtau_absorber));
       retval.sourcefn_interp[i_emission]      = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_sourcefn_vec));
+								 emissions[i_emission].log_sourcefn));
     }
   }
   
@@ -347,9 +361,9 @@ struct RT_grid {
 	  Real dtau_species_temp, dtau_absorber_temp, sourcefn_temp;
 	  
 	  if (n_subsamples == 0) {
-	    dtau_species_temp  = emissions[i_emission].dtau_species_vec[current_voxel];
-	    dtau_absorber_temp = emissions[i_emission].dtau_absorber_vec[current_voxel];
-	    sourcefn_temp      = emissions[i_emission].sourcefn_vec[current_voxel];
+	    dtau_species_temp  = emissions[i_emission].dtau_species[current_voxel];
+	    dtau_absorber_temp = emissions[i_emission].dtau_absorber[current_voxel];
+	    sourcefn_temp      = emissions[i_emission].sourcefn[current_voxel];
 	  } else {
 	    dtau_species_temp  = interp_vals.dtau_species_interp[i_emission];
 	    dtau_absorber_temp = interp_vals.dtau_absorber_interp[i_emission];
