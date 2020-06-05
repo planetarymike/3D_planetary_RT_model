@@ -5,15 +5,15 @@
 
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device() {
-
-  //move grid to GPU
-  checkCudaErrors(
-		  cudaMalloc((void **)&d_RT, sizeof(RT_grid_type))
-		  );
-  checkCudaErrors(
-		  cudaMemcpy(d_RT, this, sizeof(RT_grid_type), cudaMemcpyHostToDevice)
-		  );
-
+  if (d_RT == NULL) {
+    //move grid to GPU
+    checkCudaErrors(
+		    cudaMalloc((void **)&d_RT, sizeof(RT_grid_type))
+		    );
+    checkCudaErrors(
+		    cudaMemcpy(d_RT, this, sizeof(RT_grid_type), cudaMemcpyHostToDevice)
+		    );
+  }
 }
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_to_device_brightness() {

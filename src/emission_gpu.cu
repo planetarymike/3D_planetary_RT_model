@@ -8,11 +8,12 @@ template <int N_VOXELS>
 void emission<N_VOXELS>::vector_to_device(voxel_vector & device_vec, voxel_vector & host_vec, bool transfer/*=true*/) {
   //if transfer = false vector is allocated on device but not copied
   
-  //allocate the host's d_vec to point at device memory
-  checkCudaErrors(
-		  cudaMalloc((void **) &host_vec.d_vec,
-			     n_voxels*sizeof(Real))
-		  );
+  if (host_vec.d_vec == NULL)
+    //allocate the host's d_vec to point at device memory
+    checkCudaErrors(
+		    cudaMalloc((void **) &host_vec.d_vec,
+			       n_voxels*sizeof(Real))
+		    );
   if (transfer)
     //copy from host to host's device pointer
     checkCudaErrors(
@@ -34,11 +35,12 @@ template <int N_VOXELS>
 void emission<N_VOXELS>::matrix_to_device(voxel_matrix & device_mat, voxel_matrix & host_mat, bool transfer/*=true*/) {
   //if transfer = false vector is allocated on device but not copied
 
-  //allocate the host's d_vec to point at device memory
-  checkCudaErrors(
-		  cudaMalloc((void **) &host_mat.d_mat,
-			     n_voxels*n_voxels*sizeof(Real))
-		  );
+  if (host_mat.d_mat == NULL)
+    //allocate the host's d_vec to point at device memory
+    checkCudaErrors(
+		    cudaMalloc((void **) &host_mat.d_mat,
+			       n_voxels*n_voxels*sizeof(Real))
+		    );
   if (transfer)
     //copy from host to host's device pointer
     checkCudaErrors(

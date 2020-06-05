@@ -15,7 +15,7 @@ class voxel_vector : public VectorX {
 public:
   int n_voxels;
   Real* vec;
-  Real* d_vec;//pointer to device memory for CUDA
+  Real* d_vec = NULL;//pointer to device memory for CUDA
 
   voxel_vector() : VectorX() { }
   
@@ -60,7 +60,7 @@ class voxel_matrix : public MatrixX {
 public:
   int n_voxels;
   Real* mat;
-  Real* d_mat;//pointer to device memory for CUDA
+  Real* d_mat = NULL;//pointer to device memory for CUDA
 
   voxel_matrix() : MatrixX() { }
   
