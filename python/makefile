@@ -1,3 +1,5 @@
+MAKEFLAGS += -j20 #parallel compilation
+
 #files that need compilin'
 SRCDIR = ../src
 SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 

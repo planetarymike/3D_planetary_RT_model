@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include "RT_grid.hpp"
 #include "helper_cuda.h"
-#include "block_reduce.cuh"
 
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device() {
@@ -151,6 +150,13 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   int i_pt = blockIdx.x;
   int i_ray = threadIdx.x;
 
+  //initialize matrix to zero
+  for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
+    for (int j_pt_index = threadIdx.x; j_pt_index < grid_type::n_voxels; j_pt_index+=blockDim.x) {
+      int j_pt = j_pt_index;
+      RT->emissions[i_emission].influence_matrix(i_pt,j_pt) = 0;
+    }
+
   //initialize objects
   atmo_vector vec;
   influence_tracker<N_EMISSIONS,grid_type::n_voxels> temp_influence;
@@ -165,13 +171,12 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   __syncthreads();
   
   // reduce temp_influence across the thread block
-  // not sure how to do this in a thread-safe and fast way
-  //  for (int i_thread=0;i_thread<blockDim.x;i_thread++) 
-  //    if (threadIdx.x==i_thread)
-  // TODO: fix this
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
-    for (int j_pt = 0; j_pt < grid_type::n_voxels; j_pt++)
-      RT->emissions[i_emission].influence_matrix(i_pt,j_pt) = temp_influence.influence[i_emission][j_pt];
+    for (int j_pt_index = threadIdx.x; j_pt_index < grid_type::n_voxels+threadIdx.x; j_pt_index++) {
+      int j_pt = j_pt_index % grid_type::n_voxels;
+      RT->emissions[i_emission].influence_matrix(i_pt,j_pt) += temp_influence.influence[i_emission][j_pt];
+      __syncthreads();
+    }
 
   //now compute the single scattering function:
   //only one thread needs to do this
@@ -215,7 +220,7 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::generate_S_gpu() {
   emissions_influence_to_host();
 
   //solve for the source function
-  solve();//possible to move this to GPU also?
+  solve();//shoule likely move this to GPU also
 
   // print time elapsed
   clk.stop();

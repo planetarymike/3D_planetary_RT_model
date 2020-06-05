@@ -26,8 +26,7 @@ NCC=nvcc --disable-warnings
 NFLAGS=-x cu -D RT_FLOAT
 NIDIR=$(IDIR) \
       -L/usr/local/cuda-10.2/lib64/ \
-      -I/home/mike/Documents/Utilities/cuda-samples/Common/ \
-      -I/home/mike/Documents/Utilities/cub-1.8.0/cub/block/
+      -I/home/mike/Documents/Utilities/cuda-samples/Common/
 NLIBS=-lm -lcudart
 NOFLAGS= -O3 -DNDEBUG #-lineinfo
 NDBGFLAGS=-O0 -g -G
@@ -57,7 +56,6 @@ generate_source_function_debug_warn:
 
 
 generate_source_function_gpu: $(NOBJFILES) 
-	@echo $(NOBJFILES)
 	@echo "linking..."
 	@$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
 

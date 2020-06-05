@@ -40,7 +40,12 @@ void observation_fit::generate_source_function(Real nHexo, Real Texo) {
 		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
 		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
     
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  RT.generate_S_gpu();
+#else
   RT.generate_S();
+#endif
 }
   
 vector<Real> observation_fit::brightness() {

@@ -79,8 +79,8 @@ int main(int argc, char* argv[]) {
 #ifndef __CUDACC__
   RT.generate_S();
 #else
-  RT.generate_S();
-  //  RT.generate_S_gpu(); ---not working, needs efficient & safe parallel reduction in kernel
+  //RT.generate_S();
+  RT.generate_S_gpu();
 #endif
   //now print out the output
   RT.save_S("test/test_source_function.dat");

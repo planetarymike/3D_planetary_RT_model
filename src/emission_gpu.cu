@@ -109,5 +109,8 @@ void emission<N_VOXELS>::matrix_to_host(voxel_matrix & host_mat) {
 template <int N_VOXELS>
 void emission<N_VOXELS>::copy_influence_to_host() {
   matrix_to_host(influence_matrix);
+
+  vector_to_host(tau_species_single_scattering);
+  vector_to_host(tau_absorber_single_scattering);
   vector_to_host(singlescat);
 }
