@@ -24,28 +24,30 @@ struct emission {
   //these store physical atmospheric parameters on the grid (dimension n_voxels)
   //dynamic arrays are required for dim>~32 for Eigen
   //the vectors point to the Eigen objects so that these can be used interchangably
-  voxel_vector species_density; //densities of scatterers and absorbers on the tabulated grid
-  voxel_vector absorber_density; 
-  voxel_vector species_sigma;//scatterer and absorber cross section on the tabulated grid
-  voxel_vector absorber_sigma;
+  typedef voxel_vector<N_VOXELS> vv;
+  typedef voxel_matrix<N_VOXELS> vm;
+  vv species_density; //densities of scatterers and absorbers on the tabulated grid
+  vv absorber_density; 
+  vv species_sigma;//scatterer and absorber cross section on the tabulated grid
+  vv absorber_sigma;
 
-  voxel_vector dtau_species;
-  voxel_vector log_dtau_species; //quantities that need to be interpolated are also stored as log
-  voxel_vector dtau_absorber;
-  voxel_vector log_dtau_absorber;
-  voxel_vector abs; //ratio of dtau_abs to dtau_species
-  voxel_vector log_abs; 
+  vv dtau_species;
+  vv log_dtau_species; //quantities that need to be interpolated are also stored as log
+  vv dtau_absorber;
+  vv log_dtau_absorber;
+  vv abs; //ratio of dtau_abs to dtau_species
+  vv log_abs; 
 
   //Radiative transfer parameters
-  voxel_matrix influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
+  vm influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
 
   //vectors to compute the single scattering have dimensions (n_voxels)  
-  voxel_vector tau_species_single_scattering;
-  voxel_vector tau_absorber_single_scattering;
-  voxel_vector singlescat; 
+  vv tau_species_single_scattering;
+  vv tau_absorber_single_scattering;
+  vv singlescat; 
 
-  voxel_vector sourcefn; //have dimensions (n_voxels)  
-  voxel_vector log_sourcefn; 
+  vv sourcefn; //have dimensions (n_voxels)  
+  vv log_sourcefn; 
 
   CUDA_CALLABLE_MEMBER
   emission() :
@@ -55,26 +57,26 @@ struct emission {
   ~emission() { };
 
   void resize() {
-    species_density.resize(n_voxels);
-    absorber_density.resize(n_voxels);
-    species_sigma.resize(n_voxels);
-    absorber_sigma.resize(n_voxels);
+    species_density.resize();
+    absorber_density.resize();
+    species_sigma.resize();
+    absorber_sigma.resize();
 
-    dtau_species.resize(n_voxels);
-    log_dtau_species.resize(n_voxels);
-    dtau_absorber.resize(n_voxels);
-    log_dtau_absorber.resize(n_voxels);
-    abs.resize(n_voxels);
-    log_abs.resize(n_voxels);
+    dtau_species.resize();
+    log_dtau_species.resize();
+    dtau_absorber.resize();
+    log_dtau_absorber.resize();
+    abs.resize();
+    log_abs.resize();
 
-    influence_matrix.resize(n_voxels);
+    influence_matrix.resize();
 
-    singlescat.resize(n_voxels);
-    sourcefn.resize(n_voxels);
-    log_sourcefn.resize(n_voxels);
+    singlescat.resize();
+    sourcefn.resize();
+    log_sourcefn.resize();
 
-    tau_species_single_scattering.resize(n_voxels);
-    tau_absorber_single_scattering.resize(n_voxels);
+    tau_species_single_scattering.resize();
+    tau_absorber_single_scattering.resize();
   }
   
   template<typename C, typename V>
@@ -112,12 +114,12 @@ struct emission {
   //methods to transfer objects to device
   void copy_to_device_influence(emission<N_VOXELS> *device_emission);
   void copy_to_device_brightness(emission<N_VOXELS> *device_emission);
-  void vector_to_device(voxel_vector & device_vec, voxel_vector & host_vec, bool transfer = true);
-  void matrix_to_device(voxel_matrix & device_vec, voxel_matrix & host_vec, bool transfer = true);
+  void vector_to_device(vv & device_vec, vv & host_vec, bool transfer = true);
+  void matrix_to_device(vm & device_vec, vm & host_vec, bool transfer = true);
 
   void copy_influence_to_host();
-  void vector_to_host(voxel_vector & host_vec);
-  void matrix_to_host(voxel_matrix & host_vec);
+  void vector_to_host(vv & host_vec);
+  void matrix_to_host(vm & host_vec);
 };
 
 #ifdef __CUDACC__

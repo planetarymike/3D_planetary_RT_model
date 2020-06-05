@@ -187,7 +187,6 @@ struct brightness_tracker : tau_tracker<N_EMISS> {
     return *this;
   }
 
-
   CUDA_CALLABLE_MEMBER
   void reset() {
     tau_tracker<N_EMISS>::reset();

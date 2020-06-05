@@ -110,7 +110,8 @@ int main(int argc, char* argv[]) {
 #ifndef __CUDACC__
   //CPU-only code
   obs.fake(dist,30,600);
-  observation<n_emissions> obs_nointerp = obs;
+  observation<n_emissions> obs_nointerp(emission_names);
+  obs_nointerp = obs;
   
   RT.brightness(obs);
   obs.save_brightness("test/test_brightness.dat");
@@ -118,7 +119,7 @@ int main(int argc, char* argv[]) {
   obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
 #else
   //GPU code
-  vector<int> sizes = {10,100,300,600,1200,2400};
+  vector<int> sizes = {10,100,300,600,1200/*,2400*/};
 
   for (auto&& size: sizes) {
     std::cout << "simulating image size "<< size << "x" << size << ":" << std::endl;

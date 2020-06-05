@@ -43,7 +43,8 @@ protected:
 public:
   observation_fit();
 
-  void add_observation(std::vector<std::vector<Real>> MSO_locations, std::vector<std::vector<Real>> MSO_directions);
+  void add_observation(std::vector<Vector3> MSO_locations,
+		       std::vector<Vector3> MSO_directions);
 
   void set_g_factor(Real &g);
 

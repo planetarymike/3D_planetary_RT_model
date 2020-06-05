@@ -14,7 +14,7 @@ observation_fit::observation_fit()
   RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
 }
 
-void observation_fit::add_observation(vector<vector<Real>> MSO_locations, vector<vector<Real>> MSO_directions) {
+void observation_fit::add_observation(vector<Vector3> MSO_locations, vector<Vector3> MSO_directions) {
   obs.add_MSO_observation(MSO_locations,MSO_directions);
 }
 
@@ -62,7 +62,7 @@ vector<Real> observation_fit::brightness() {
   brightness.resize(obs.size());
 
   for (int i=0;i<obs.size();i++)
-    brightness[i] = obs.brightness[i][0];
+    brightness[i] = obs.los[i].brightness[0];
 
   return brightness;
 }

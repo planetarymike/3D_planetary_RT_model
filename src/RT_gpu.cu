@@ -8,26 +8,35 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device() {
   if (d_RT == NULL) {
     //move grid to GPU
     checkCudaErrors(
-		    cudaMalloc((void **)&d_RT, sizeof(RT_grid_type))
-		    );
-    checkCudaErrors(
-		    cudaMemcpy(d_RT, this, sizeof(RT_grid_type), cudaMemcpyHostToDevice)
+		    cudaMalloc((void **)&d_RT,
+			       sizeof(RT_grid_type))
 		    );
   }
+  checkCudaErrors(
+		  cudaMemcpy(d_RT,
+			     this,
+			     sizeof(RT_grid_type),
+			     cudaMemcpyHostToDevice)
+		  );
 }
+
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
-void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_to_device_brightness() {
+void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device_brightness() {
+  RT_to_device();
+  //emissions must be copied seperately as these contain dynamically allocated arrays
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
     emissions[i_emission].copy_to_device_brightness(&(d_RT->emissions[i_emission]));
 }
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
-void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_to_device_influence() {
+void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device_influence() {
+  RT_to_device();
+  //emissions must be copied seperately as these contain dynamically allocated arrays
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
     emissions[i_emission].copy_to_device_influence(&(d_RT->emissions[i_emission]));
 }
+
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_influence_to_host() {
-
   //everything we need to copy back is in emissions
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
     emissions[i_emission].copy_influence_to_host();
@@ -36,21 +45,20 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_influence_to_host(
 
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 __global__
-void brightness_kernel(const atmo_vector *obs_vecs, const int n_obs_vecs,
-		       const RT_grid<N_EMISSIONS,grid_type,influence_type> *RT, 
-		       const Real *g, brightness_tracker<N_EMISSIONS> *los,
+void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *RT, 
+		       observation<N_EMISSIONS> *obs,
 		       const int n_subsamples = 5)
 {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
   
-  for (int i_obs = index; i_obs < n_obs_vecs; i_obs += stride) {
+  for (int i_obs = index; i_obs < obs->size(); i_obs += stride) {
     // if (blockIdx.x==0 && threadIdx.x==0) {
     //   printf("Hello from block %d, thread %d: i_obs = %d, RT->emissions[0].species_density[0] = %d\n",
     // 	     blockIdx.x, threadIdx.x, i_obs, RT->emissions[0].species_density.vec[0]);
     // }
-    RT->brightness(obs_vecs[i_obs],g,
-    		   los[i_obs],
+    RT->brightness(obs->get_vec(i_obs),obs->emission_g_factors,
+    		   obs->los[i_obs],
     		   n_subsamples);
   }
 }
@@ -63,46 +71,23 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n
   my_clock clk;
   clk.start();
 
-  // move grid to GPU, copying only necessary members
-  if (d_RT == NULL)
-    RT_to_device();
-  emissions_to_device_brightness();
+  // move grid to GPU
+  RT_to_device_brightness();
   
   //move observation vectors and g values to gpu
-  int n_obs_vecs = obs.size();
-  atmo_vector *d_obs_vecs;
-  checkCudaErrors(
-		  cudaMalloc(&d_obs_vecs, n_obs_vecs*sizeof(atmo_vector))
-		  );
-  checkCudaErrors(
-		  cudaMemcpy(d_obs_vecs, obs.get_vecs().data(), n_obs_vecs*sizeof(atmo_vector), cudaMemcpyHostToDevice)
-		  );
-  Real *d_g;
-  checkCudaErrors(
-		  cudaMalloc(&d_g, n_emissions*sizeof(Real))
-		  );
-  checkCudaErrors(
-		  cudaMemcpy(d_g, obs.emission_g_factors, n_emissions*sizeof(Real), cudaMemcpyHostToDevice)
-		  );
-
-  //prepare brightness objects
-  brightness_tracker<n_emissions> *d_los;
-  checkCudaErrors(
-		  cudaMalloc(&d_los, n_obs_vecs*sizeof(brightness_tracker<n_emissions>) )
-		  );
+  obs.to_device();
 
   //run kernel on GPU
   int blockSize = 32;
-  int numBlocks = (n_obs_vecs + blockSize - 1) / blockSize;
+  int numBlocks = (obs.size() + blockSize - 1) / blockSize;
   
   my_clock kernel_clk;
   kernel_clk.start();
   
   brightness_kernel<N_EMISSIONS,
   		    grid_type,
-  		    influence_type><<<numBlocks,blockSize>>>(d_obs_vecs, n_obs_vecs,
-  							     d_RT,
-  							     d_g, d_los,
+  		    influence_type><<<numBlocks,blockSize>>>(d_RT,
+							     obs.d_obs,
   							     n_subsamples);
   
   checkCudaErrors( cudaPeekAtLastError() );
@@ -113,29 +98,12 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n
 
 
   //retrieve brightness from GPU
-  brightness_tracker<n_emissions> *los;
-  los = new brightness_tracker<n_emissions>[n_obs_vecs];
-  checkCudaErrors(
-		  cudaMemcpy(los, d_los, n_obs_vecs*sizeof(brightness_tracker<n_emissions>), cudaMemcpyDeviceToHost)
-		  );
-
-  for (int i_obs=0;i_obs<obs.size();i_obs++) {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      obs.brightness[i_obs][i_emission]   = los[i_obs].brightness[i_emission];
-      obs.tau_species[i_obs][i_emission]  = los[i_obs].tau_species_final[i_emission];
-      obs.tau_absorber[i_obs][i_emission] = los[i_obs].tau_absorber_final[i_emission];
-    }
-  }
-
-  delete [] los;
+  obs.to_host();
 
   clk.stop();
   clk.print_elapsed("brightness memory operations take ",
 		    kernel_clk.elapsed());
   
-  checkCudaErrors(cudaFree(d_obs_vecs));
-  checkCudaErrors(cudaFree(d_g));
-  checkCudaErrors(cudaFree(d_los));
 }
 
 
@@ -196,8 +164,7 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::generate_S_gpu() {
   clk.start();
 
   //move grid to GPU
-  RT_to_device();
-  emissions_to_device_influence();
+  RT_to_device_influence();
   
   //run kernel on GPU
   int blockSize = grid.n_rays;

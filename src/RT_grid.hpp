@@ -5,6 +5,7 @@
 #define __RT_grid_H
 
 #include "Real.hpp"
+#include "cuda_compatibility.hpp"
 #include <iostream> // for file output and dialog
 #include <cmath>    // for cos and sin
 #include "constants.hpp" // basic parameter definitions
@@ -39,6 +40,8 @@ struct RT_grid {
   typedef RT_grid<N_EMISSIONS,grid_type,influence_type> RT_grid_type;
   RT_grid_type *d_RT=NULL; //pointer to the GPU partner of this object
   void RT_to_device();
+  void RT_to_device_brightness();
+  void RT_to_device_influence();
   void emissions_to_device_influence();
   void emissions_to_device_brightness();
   void emissions_influence_to_host();
@@ -315,7 +318,7 @@ struct RT_grid {
   
   //interpolated brightness routine
   CUDA_CALLABLE_MEMBER
-  void brightness(const atmo_vector &vec, const Real *g,
+  void brightness(const atmo_vector &vec, const Real (&g)[n_emissions],
 		  brightness_tracker<n_emissions> &los,
 		  const int n_subsamples=5) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
@@ -406,40 +409,22 @@ struct RT_grid {
 
   }
 
-  vector<brightness_tracker<n_emissions>> brightness(const vector<atmo_vector> &vecs,
-						     const Real (&g)[n_emissions],
-						     const int n_subsamples=5) const {
-    vector<brightness_tracker<n_emissions>> retval;
-    
-    retval.resize(vecs.size(),brightness_tracker<n_emissions>());
-
-#pragma omp parallel for shared(retval) firstprivate(vecs,g,n_subsamples) default(none)
-    for(unsigned int i=0; i<vecs.size(); i++)
-      brightness(vecs[i],g,
-		 retval[i],
-		 n_subsamples);
-    
-    return retval;
-  }
-
   void brightness(observation<n_emissions> &obs, const int n_subsamples=5) const {
     assert(obs.size()>0 && "there must be at least one observation to simulate!");
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");
 
-    Real g[n_emissions];
-    obs.get_emission_g_factors(g);
-
     my_clock clk;
     clk.start();
-    vector<brightness_tracker<n_emissions>> los = brightness(obs.get_vecs(), g, n_subsamples);
-    for (int i_obs=0;i_obs<obs.size();i_obs++) {
-      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	obs.brightness[i_obs][i_emission]   = los[i_obs].brightness[i_emission];
-	obs.tau_species[i_obs][i_emission]  = los[i_obs].tau_species_final[i_emission];
-	obs.tau_absorber[i_obs][i_emission] = los[i_obs].tau_absorber_final[i_emission];
-      }
-    }
+
+    obs.reset_output();
+
+#pragma omp parallel for shared(obs) firstprivate(n_subsamples) default(none)
+    for(int i=0; i<obs.size(); i++)
+      brightness(obs.get_vec(i),obs.emission_g_factors,
+		 obs.los[i],
+		 n_subsamples);
+    
     clk.stop();
     clk.print_elapsed("brightness calculation takes ");
   }

@@ -23,6 +23,24 @@ typedef double Real;
 #endif
 
 typedef Eigen::Matrix<Real, Eigen::Dynamic, 1> VectorX;
-typedef Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixX;
+
+//if EIGEN_ROWMAJOR is defined then row-major ordering is used for the
+//influence matrix instead of Eigen's default Column major ordering
+
+//The GPU prefers row-major (by about 20%) for the influence matrix
+//calculation because this is done row-by-row
+#ifdef __CUDACC__
+#define EIGEN_ROWMAJOR
+#endif
+
+#ifdef EIGEN_ROWMAJOR
+typedef Eigen::Matrix<Real,
+		      Eigen::Dynamic, Eigen::Dynamic,
+		      Eigen::RowMajor> MatrixX;
+#else
+typedef Eigen::Matrix<Real,
+		      Eigen::Dynamic, Eigen::Dynamic,
+		      Eigen::ColMajor> MatrixX;
+#endif
 
 #endif

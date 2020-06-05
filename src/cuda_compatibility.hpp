@@ -13,4 +13,8 @@
 #define CUDA_CONST
 #endif 
 
+#ifdef __CUDACC__
+#include "helper_cuda.h"
+#endif
+
 #endif
