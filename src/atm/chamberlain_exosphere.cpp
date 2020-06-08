@@ -1,8 +1,8 @@
 #include "chamberlain_exosphere.hpp"
-#include "constants.hpp"
 
 #include <cmath>
 using std::exp;
+using std::sqrt;
 using std::pow;
 
 #include <boost/math/special_functions/gamma.hpp>
@@ -91,4 +91,53 @@ Real chamberlain_exosphere::r(Real &nHtarget) {
     
 
   return r.first + (r.second - r.first)/2;
+}
+
+
+
+Temp_converter::Temp_converter(Real rexoo)
+  : rexo(rexoo)
+{
+  for (int iT = 0;iT<nT;iT++) {
+    T_list[iT]   = Tmin  + iT*Tstep; 
+    lc_list[iT]  = lc_from_T_exact(T_list[iT]);
+    eff_list[iT] = eff_from_T_exact(T_list[iT]);
+  }
+  eff_spline = cardinal_cubic_b_spline<Real>(eff_list,
+					     nT,
+					     Tmin,
+					     Tstep);
+
+  lc_spline = cardinal_cubic_b_spline<Real>(lc_list,
+					    nT,
+					    Tmin,
+					    Tstep);
+
+  vector<Real> Tvec(T_list,T_list+nT);
+  vector<Real> lcvec(lc_list,lc_list+nT);
+  vector<Real> effvec(eff_list,eff_list+nT);
+  inv_eff = Linear_interp(effvec,Tvec);
+  inv_lc = Linear_interp(lcvec,Tvec);
+}
+
+Real Temp_converter::lc_from_T_exact(Real T) const {
+  return G*mMars*mH/(kB*T*rexo);
+}
+Real Temp_converter::eff_from_T_exact(Real T) const {
+  Real lambdac = lc_from_T_exact(T);
+  return 0.5 * sqrt( 2.0*kB*T / (mH*pi) ) * (1.0 + lambdac) * exp(-lambdac);
+}
+
+Real Temp_converter::eff_from_T(Real T) const {
+  return eff_spline(T);
+}
+Real Temp_converter::T_from_eff(Real eff) {
+  return inv_eff(eff);
+}
+
+Real Temp_converter::lc_from_T(Real T) const {
+  return lc_spline(T);
+}
+Real Temp_converter::T_from_lc(Real lc) {
+  return inv_lc(lc);
 }

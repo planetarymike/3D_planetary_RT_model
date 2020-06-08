@@ -127,17 +127,17 @@ holstein_approx::holstein_approx(Real tauminn, Real taumaxx) :
 						   logtaustep);
 }
 
-CUDA_CALLABLE_MEMBER
-int holstein_approx::get_lerp_loc(Real logtau_target) const {
-  int itau = (int) ((logtau_target-logtaumin)*invlogtaustep);
-  if (logtau_target<logtau[itau])
-    itau--;
-  if (logtau[itau+1]<=logtau_target)
-    itau++;
-  assert(0<=itau && itau<ntau && "itau must be in range");
-  assert(logtau[itau]<=logtau_target && logtau_target < logtau[itau+1] && "target tau must be in this increment");
-  return itau;
-}
+// CUDA_CALLABLE_MEMBER
+// int holstein_approx::get_lerp_loc(Real logtau_target) const {
+//   int itau = (int) ((logtau_target-logtaumin)*invlogtaustep);
+//   if (logtau_target<logtau[itau])
+//     itau--;
+//   if (logtau[itau+1]<=logtau_target)
+//     itau++;
+//   assert(0<=itau && itau<ntau && "itau must be in range");
+//   assert(logtau[itau]<=logtau_target && logtau_target < logtau[itau+1] && "target tau must be in this increment");
+//   return itau;
+// }
   
 
 Real holstein_approx::Tint(const Real tau) const {

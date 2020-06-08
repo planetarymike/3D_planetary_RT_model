@@ -21,8 +21,10 @@ OFLAGS=-O3 -march=native -DNDEBUG
 
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings
-NIDIR=$(IDIR) -L/usr/local/cuda-10.2/lib64/ -I/home/mike/Documents/Utilities/cuda-samples/Common/
-NLIBS=-lm -lcudart 
+NIDIR=$(IDIR) \
+      -L$(CUDA_HOME)/lib64/ \
+      -I$(CUDA_HOME)/samples/common/inc/
+NLIBS=-lm -lcudart -lcusolver -lcublas
 NOFLAGS= -O3 -DNDEBUG #-lineinfo
 
 py_corona_sim_cpu: $(OBJFILES)

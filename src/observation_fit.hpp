@@ -6,6 +6,7 @@
 #include "Real.hpp"
 #include "observation.hpp"
 #include "atm/temperature.hpp"
+#include "atm/chamberlain_exosphere.hpp"
 #include "atm/chamb_diff_1d.hpp"
 #include "RT_grid.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
@@ -18,12 +19,20 @@ protected:
 					   // inline definition, this
 					   // needs to go in
 					   // constructor
-    
-  observation<n_emissions> obs;
 
+  static const int n_parameters = 2; // nH_exo and some T_exo type
+  static const int n_pts_per_derivative = 2; // central difference
+
+  static const int n_simulate_per_emission = n_parameters*n_pts_per_derivative + 1;
+  static const int n_simulate = n_emissions*n_simulate_per_emission;
+  std::string simulate_names[n_simulate];
+  
+  observation<n_emissions> obs;
+  observation<n_simulate> obs_deriv;
+  
   krasnopolsky_temperature temp;
   const Real CO2_exobase_density = 2e8;//cm-3
-  chamb_diff_1d atm;
+  chamb_diff_1d atm;//make sure to use the same exobase alt as in Tconv
 
   typedef holstein_approx influence_type;
   
@@ -40,17 +49,30 @@ protected:
 	  grid_type,
 	  influence_type> RT;
 
+  RT_grid<n_simulate,
+	  grid_type,
+	  influence_type> RT_deriv;
+
 public:
   observation_fit();
 
-  void add_observation(std::vector<Vector3> MSO_locations,
-		       std::vector<Vector3> MSO_directions);
+  Temp_converter Tconv;//also takes exobase alt argument
 
+  void add_observation(const std::vector<vector<Real>> &MSO_locations,
+		       const std::vector<vector<Real>> &MSO_directions);
+
+  void add_observed_brightness(const std::vector<vector<Real>> &brightness,
+			       const std::vector<vector<Real>> &sigma);
+  
   void set_g_factor(Real &g);
 
   void generate_source_function(Real nHexo, Real Texo);
+  void generate_source_function_effv(Real nHexo, Real effv_exo);
+  void generate_source_function_lc(Real nHexo, Real lc_exo);
   
   std::vector<Real> brightness();  
+
+  std::vector<Real> likelihood_and_derivatives(Real nHexo, Real Texo);
 };
 
 //might be needed to instantiate template members

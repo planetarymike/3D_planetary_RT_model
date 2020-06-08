@@ -30,7 +30,7 @@ protected:
 
   atmo_vector *obs_vecs = NULL;
   
-  void add_MSO_observation(const Vector3 &loc, const Vector3 &dir) {
+  void add_MSO_observation(const vector<Real> &loc, const vector<Real> &dir, const int i) {
     // there are two coordinate systems,
     // MSO, and model
     // model_x = MSO_z
@@ -40,17 +40,15 @@ protected:
     assert(loc.size() == 3 && "only three-vectors allowed");
     assert(dir.size() == 3 && "only three-vectors allowed");
     
-    //Vector3 loc_MSO = { loc[0] , loc[1], loc[2] };
-    Vector3 loc_model = { loc[2] , -loc[1], loc[0] };
+    //vector<Real> loc_MSO = { loc[0] , loc[1], loc[2] };
+    vector<Real> loc_model = { loc[2] , -loc[1], loc[0] };
 
-    //Vector3 dir_MSO = { dir[0] , dir[1], dir[2] };
-    Vector3 dir_model = { dir[2] , -dir[1], dir[0] };
+    //vector<Real> dir_MSO = { dir[0] , dir[1], dir[2] };
+    vector<Real> dir_model = { dir[2] , -dir[1], dir[0] };
 
     atmo_point pt;
     pt.xyz(loc_model[0],loc_model[1],loc_model[2]);
-    obs_vecs[n_obs] = atmo_vector(pt, dir_model[0], dir_model[1], dir_model[2]);
-
-    n_obs++;
+    obs_vecs[i] = atmo_vector(pt, dir_model[0], dir_model[1], dir_model[2]);
   }
 
   void resize_input(int n_obss) {
@@ -61,8 +59,8 @@ protected:
     obs_vecs = new atmo_vector[n_obs];
   }
 
-
 public:
+
   brightness_tracker<n_emissions> *los = NULL;
 
   Real emission_g_factors[n_emissions];
@@ -72,13 +70,16 @@ public:
   brightness_tracker<n_emissions> *d_los = NULL;
   observation<n_emissions> *d_obs=NULL;
   
-  observation(const std::string (&emission_namess)[n_emissions])
-  : n_obs(0)
+  observation()
+    : n_obs(0)
   {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      emission_names[i_emission] = emission_namess[i_emission];
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
       emission_g_factors[i_emission] = 0;
-    }
+  }
+  observation(const std::string (&emission_namess)[n_emissions])
+  : observation()
+  {
+    set_names(emission_names);
   }
   ~observation() {
     if (obs_vecs != NULL)
@@ -137,6 +138,12 @@ public:
 
     return *this;
   }
+
+  void set_names(const string (&emission_namess)[n_emissions])
+  {
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      emission_names[i_emission] = emission_namess[i_emission];
+  }
   
   void set_emission_g_factors(Real (&g)[n_emissions]) {
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
@@ -153,13 +160,13 @@ public:
     los = new brightness_tracker<n_emissions>[n_obs];
   }
 
-  void add_MSO_observation(vector<Vector3> &locations, vector<Vector3> &directions) {
+  void add_MSO_observation(const vector<vector<Real>> &locations, const vector<vector<Real>> &directions) {
     assert(locations.size() == directions.size() && "location and look direction must have the same length.");
 
-    resize_input(0);
+    resize_input(locations.size());
     
     for (unsigned int i=0;i<locations.size();i++)
-      add_MSO_observation(locations[i],directions[i]);
+      add_MSO_observation(locations[i],directions[i],i);
 
     reset_output();
   }

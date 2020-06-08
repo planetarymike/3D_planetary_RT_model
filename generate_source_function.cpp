@@ -81,6 +81,7 @@ int main(int argc, char* argv[]) {
 #else
   //RT.generate_S();
   RT.generate_S_gpu();
+  RT.generate_S_gpu();
 #endif
   //now print out the output
   RT.save_S("test/test_source_function.dat");

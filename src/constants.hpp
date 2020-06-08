@@ -9,6 +9,7 @@
 //planetary constants
 const Real rMars = 3395e5;// cm, radius of Mars
 const Real mMars = .1076 * 5.98e27;// gm, Mass of Mars (from fraction of Earth mass)
+const Real rexo_typical = rMars + 200e5;//typical exobase altitude
 const Real aMars_typical = 1.41; // AU, typical Mars-Sun distance
 
 //physical  constants

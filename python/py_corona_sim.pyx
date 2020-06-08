@@ -19,13 +19,21 @@ ELSE:
     ctypedef double Real
     realconvert = np.float64
 
+cdef extern from "atm/chamberlain_exosphere.hpp":
+    cpdef cppclass Temp_converter:
+        Real lc_from_T(Real T)
+        Real eff_from_T(Real T)
+
 cdef extern from "observation_fit.hpp":
     cpdef cppclass observation_fit:
         observation_fit()
         void add_observation(vector[vector[Real]] MSO_locations, vector[vector[Real]] MSO_directions)
         void set_g_factor(Real &g)
         void generate_source_function(Real nHexo, Real Texo)
+        void generate_source_function_lc(Real nHexo, Real lc)
+        void generate_source_function_effv(Real nHexo, Real effv)
         vector[Real] brightness()
+        Temp_converter Tconv
         
 cdef class Pyobservation_fit:
     cpdef observation_fit *thisptr #holds the reference to the cpp class
@@ -46,7 +54,15 @@ cdef class Pyobservation_fit:
         self.thisptr.add_observation(loc_vec,dir_vec)
     def set_g_factor(self, Real g):
         self.thisptr.set_g_factor(g)
+    def lc_from_T(self, T):
+        return self.thisptr.Tconv.lc_from_T(realconvert(T))
+    def eff_from_T(self, T):
+        return self.thisptr.Tconv.eff_from_T(realconvert(T))
     def generate_source_function(self, Real nH, Real T):
         self.thisptr.generate_source_function(nH,T)
+    def generate_source_function_lc(self, Real nH, Real lc):
+        self.thisptr.generate_source_function_lc(nH,lc)
+    def generate_source_function_effv(self, Real nH, Real effv):
+        self.thisptr.generate_source_function_effv(nH,effv)
     def brightness(self):
         return np.asarray(self.thisptr.brightness())

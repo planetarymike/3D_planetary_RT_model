@@ -15,7 +15,7 @@ chamb_diff_1d::chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
 			     Real nCO2exoo, //a good number is 10^9 (?)
 			     temperature &tempp)
   : chamb_diff_1d(/*          rmin = */rMars + 80e5,
-		  /*          rexo = */rMars + 200e5,
+		  /*          rexo = */rexo_typical,
 		  /*         nHmin = */10,
 		  /* rmindiffusion = */rMars + 120e5,
 		  nHexoo,

@@ -86,7 +86,7 @@ struct Base_interp
   }
 
 
-  Real operator()(Real x)
+  Real operator()(Real x) 
   // Given a value x, return an interpolated value, using data
   // pointed to by xx and yy.
   {
