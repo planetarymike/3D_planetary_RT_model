@@ -118,6 +118,7 @@ struct emission {
   void matrix_to_device(vm & device_vec, vm & host_vec, bool transfer = true);
 
   void copy_influence_to_host();
+  void copy_solved_to_host();
   void vector_to_host(vv & host_vec);
   void matrix_to_host(vm & host_vec);
 };

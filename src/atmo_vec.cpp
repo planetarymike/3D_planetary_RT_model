@@ -40,7 +40,7 @@ atmo_point & atmo_point::operator=(const atmo_point &rhs) {
 }
 
 CUDA_CALLABLE_MEMBER
-void atmo_point::rtp(const Real rr, const Real tt, const Real pp) {
+void atmo_point::rtp(const Real &rr, const Real &tt, const Real &pp) {
   r = rr; t = tt; p = pp;
   x = r*sin(t)*cos(p);
   y = r*sin(t)*sin(p);
@@ -49,7 +49,7 @@ void atmo_point::rtp(const Real rr, const Real tt, const Real pp) {
 }
 
 CUDA_CALLABLE_MEMBER  
-void atmo_point::xyz(const Real xx, const Real yy, const Real zz) {
+void atmo_point::xyz(const Real &xx, const Real &yy, const Real &zz) {
   x = xx; y = yy; z = zz;
   r=sqrt(x*x + y*y + z*z);
   t=acos(z/r);
@@ -60,7 +60,7 @@ void atmo_point::xyz(const Real xx, const Real yy, const Real zz) {
 }
 
 CUDA_CALLABLE_MEMBER
-void atmo_point::set_voxel_index(const int ii) {
+void atmo_point::set_voxel_index(const int &ii) {
   assert(init && "point must be initialized to assign a voxel index.");
   i_voxel = ii;
 }
@@ -131,7 +131,7 @@ atmo_ray & atmo_ray::operator=(const atmo_ray &rhs) {
 }
 
 CUDA_CALLABLE_MEMBER
-void atmo_ray::tp(Real tt, Real pp) {
+void atmo_ray::tp(const Real &tt, const Real &pp) {
   t=tt;
   p=pp;
 
@@ -141,7 +141,7 @@ void atmo_ray::tp(Real tt, Real pp) {
 }
 
 CUDA_CALLABLE_MEMBER
-void atmo_ray::set_ray_index(const int ii, Real twt, Real pwt) {
+void atmo_ray::set_ray_index(const int &ii, const Real &twt, const Real &pwt) {
   if (init) {
     i_ray = ii;
     domega = sint*twt*pwt/4/M_PI;
@@ -202,10 +202,10 @@ atmo_vector::atmo_vector(atmo_point ptt, atmo_ray rayy) : pt(ptt), ray(rayy)
 }
 
 CUDA_CALLABLE_MEMBER
-atmo_vector::atmo_vector(const atmo_point ptt, const Real (&vec)[3]) : atmo_vector(ptt,vec[0],vec[1],vec[2]) { }
+atmo_vector::atmo_vector(const atmo_point &ptt, const Real (&vec)[3]) : atmo_vector(ptt,vec[0],vec[1],vec[2]) { }
   
 CUDA_CALLABLE_MEMBER
-atmo_vector::atmo_vector(const atmo_point ptt, const Real line_xx, const Real line_yy, const Real line_zz) :
+atmo_vector::atmo_vector(const atmo_point &ptt, const Real &line_xx, const Real &line_yy, const Real &line_zz) :
   pt(ptt) 
 {
   //this overload exists to construct rays from points toward the
@@ -236,9 +236,15 @@ atmo_point atmo_vector::extend(const Real & dist) const {
   atmo_point retpt;
 
   const Real scale = 1e9;
-  retpt.xyz(pt.x/scale + (line_x * dist)/scale,
-	    pt.y/scale + (line_y * dist)/scale,
-	    pt.z/scale + (line_z * dist)/scale);
+
+  //CUDA compiler breaks my code if these are not defined and added
+  //seperately (???)
+  Real newx = pt.x/scale;
+  newx += (line_x * dist)/scale;
+  const Real newy = pt.y/scale + (line_y * dist)/scale;
+  const Real newz = pt.z/scale + (line_z * dist)/scale;
+
+  retpt.xyz(newx,newy,newz);
 
   return retpt*scale;
 }

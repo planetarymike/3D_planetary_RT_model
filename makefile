@@ -19,16 +19,16 @@ CC=g++
 LIBS=-lm 
 MPFLAGS=-fopenmp
 #OFLAGS=-Ofast -march=native -DNDEBUG
-OFLAGS=-O3 -march=native -DNDEBUG
+OFLAGS=-O3 -march=native -DNDEBUG 
 
 # Nvidia CUDA Compiler
 NCC=nvcc --disable-warnings
-NFLAGS=-x cu -D RT_FLOAT
+NFLAGS=-x cu -D RT_FLOAT 
 NIDIR=$(IDIR) \
-      -L/usr/local/cuda-10.2/lib64/ \
-      -I/home/mike/Documents/Utilities/cuda-samples/Common/
-NLIBS=-lm -lcudart
-NOFLAGS= -O3 -DNDEBUG #-lineinfo
+      -L$(CUDA_HOME)/lib64/ \
+      -I$(CUDA_HOME)/samples/common/inc/
+NLIBS=-lm -lcudart -lcusolver -lcublas
+NOFLAGS= -O3 -DNDEBUG -dlto 
 NDBGFLAGS=-O0 -g -G
 
 # # intel compiler
@@ -74,7 +74,7 @@ $(OBJDIR)/%.cuda.o: %.cu
 
 generate_source_function_gpu_debug: $(NOBJFILESDBG) 
 	@echo "linking ..."
-	@$(NCC) $(NOBJFILESDBG) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
+	@$(NCC) $(NOBJFILESDBG) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o generate_source_function_gpu.x
 
 $(OBJDIR)/%.cuda.debug.o: %.cpp
 	@echo "compiling $<..."

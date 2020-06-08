@@ -49,6 +49,8 @@ void emission<N_VOXELS>::copy_to_device_influence(emission<N_VOXELS> *device_emi
   vector_to_device(device_emission->tau_species_single_scattering, tau_species_single_scattering, false);
   vector_to_device(device_emission->tau_absorber_single_scattering, tau_absorber_single_scattering, false);
   vector_to_device(device_emission->singlescat, singlescat, false);
+  vector_to_device(device_emission->sourcefn, sourcefn, false);
+  vector_to_device(device_emission->log_sourcefn, log_sourcefn, false);
 }
 
 template <int N_VOXELS>
@@ -65,4 +67,15 @@ void emission<N_VOXELS>::copy_influence_to_host() {
   tau_species_single_scattering.to_host();
   tau_absorber_single_scattering.to_host();
   singlescat.to_host();
+}
+
+template <int N_VOXELS>
+void emission<N_VOXELS>::copy_solved_to_host() {
+  
+  tau_species_single_scattering.to_host();
+  tau_absorber_single_scattering.to_host();
+  singlescat.to_host();
+
+  sourcefn.to_host();
+  log_sourcefn.to_host();
 }

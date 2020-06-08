@@ -25,12 +25,12 @@ struct atmo_point {
   atmo_point & operator=(const atmo_point &rhs);
 
   CUDA_CALLABLE_MEMBER
-  void rtp(const Real rr, const Real tt, const Real pp);
+  void rtp(const Real &rr, const Real &tt, const Real &pp);
   CUDA_CALLABLE_MEMBER  
-  void xyz(const Real xx, const Real yy, const Real zz);
+  void xyz(const Real &xx, const Real &yy, const Real &zz);
 
   CUDA_CALLABLE_MEMBER
-  void set_voxel_index(const int ii);
+  void set_voxel_index(const int &ii);
 
   CUDA_CALLABLE_MEMBER
   atmo_point operator*(const Real & scale) const;
@@ -58,10 +58,10 @@ struct atmo_ray {
   atmo_ray & operator=(const atmo_ray &rhs);
 
   CUDA_CALLABLE_MEMBER
-  void tp(Real tt, Real pp);
+  void tp(const Real &tt, const Real &pp);
 
   CUDA_CALLABLE_MEMBER
-  void set_ray_index(const int ii, Real twt, Real pwt);  
+  void set_ray_index(const int &ii, const Real &twt, const Real &pwt);  
 };
 
 
@@ -85,9 +85,9 @@ struct atmo_vector {
   CUDA_CALLABLE_MEMBER
   atmo_vector(atmo_point ptt, atmo_ray rayy);
   CUDA_CALLABLE_MEMBER
-  atmo_vector(const atmo_point ptt, const Real (&vec)[3]);
+  atmo_vector(const atmo_point &ptt, const Real (&vec)[3]);
   CUDA_CALLABLE_MEMBER
-  atmo_vector(const atmo_point ptt, const Real line_xx, const Real line_yy, const Real line_zz);
+  atmo_vector(const atmo_point &ptt, const Real &line_xx, const Real &line_yy, const Real &line_zz);
 
   CUDA_CALLABLE_MEMBER
   atmo_point extend(const Real & dist) const;

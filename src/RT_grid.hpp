@@ -45,15 +45,18 @@ struct RT_grid {
   void emissions_to_device_influence();
   void emissions_to_device_brightness();
   void emissions_influence_to_host();
+  void emissions_solved_to_host();
   
-  RT_grid(const string (&emission_names)[n_emissions])
+  RT_grid()
   {
     all_emissions_init = false;
     
-    for (int i_emission=0; i_emission < n_emissions; i_emission++) {
-      emissions[i_emission].name = emission_names[i_emission];
+    for (int i_emission=0; i_emission < n_emissions; i_emission++)
       emissions[i_emission].resize();
-    }
+  }
+  RT_grid(const string (&emission_names)[n_emissions]) : RT_grid()
+  {
+    set_names(emission_names);
   }
   ~RT_grid() {
 #ifdef __CUDACC__
@@ -61,6 +64,12 @@ struct RT_grid {
       checkCudaErrors(cudaFree(d_RT));
 #endif
   }
+
+  void set_names(const string (&emission_names)[n_emissions]) {
+    for (int i_emission=0; i_emission < n_emissions; i_emission++)
+      emissions[i_emission].name = emission_names[i_emission];
+  }
+
   
   template<typename C>
   void define_emission(string emission_name,
@@ -217,6 +226,10 @@ struct RT_grid {
       emissions[i_emission].solved=true;
     }
   }
+  void transpose_influence_gpu();
+  void solve_emission_gpu(emission<grid_type::n_voxels> & emiss);
+  void solve_gpu();
+
 
   //generate source functions on the grid
   void generate_S() {
