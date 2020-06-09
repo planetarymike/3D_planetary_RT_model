@@ -40,15 +40,11 @@ void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations,
   obs.add_MSO_observation(MSO_locations,MSO_directions);
 }
 
-// void add_observation(Real* MSO_locations, Real* MSO_directions, int n_obs) {
-//   obs.add_MSO_observation(MSO_locations,MSO_directions,n_obs);
-// }
-
 void observation_fit::set_g_factor(Real &g) {
   obs.emission_g_factors[0] = g;
 }
 
-void observation_fit::generate_source_function(Real nHexo, Real Texo) {
+void observation_fit::generate_source_function(const Real &nHexo, const Real &Texo) {
 
   temp = krasnopolsky_temperature(Texo);
   atm = chamb_diff_1d(nHexo,CO2_exobase_density,temp);
@@ -71,19 +67,19 @@ void observation_fit::generate_source_function(Real nHexo, Real Texo) {
 #endif
 }
 
-void observation_fit::generate_source_function_effv(Real nHexo, Real effv_exo) {
+void observation_fit::generate_source_function_effv(const Real &nHexo, const Real &effv_exo) {
   Real Texo = Tconv.T_from_eff(effv_exo);
   
   generate_source_function(nHexo,Texo);
 }
 
-void observation_fit::generate_source_function_lc(Real nHexo, Real lc_exo) {
+void observation_fit::generate_source_function_lc(const Real &nHexo, const Real &lc_exo) {
   Real Texo = Tconv.T_from_lc(lc_exo);
   
   generate_source_function(nHexo,Texo);
 }
   
-vector<Real> observation_fit::brightness() {
+vector<Real> observation_fit::brightness(int emission/* = 0*/) {
   obs.reset_output();
     
   //compute brightness on the GPU if compiled with NVCC
@@ -97,29 +93,123 @@ vector<Real> observation_fit::brightness() {
   brightness.resize(obs.size());
 
   for (int i=0;i<obs.size();i++)
-    brightness[i] = obs.los[i].brightness[0];
+    brightness[i] = obs.los[i].brightness[emission];
 
   return brightness;
 }
 
-void add_observed_brightness(const std::vector<vector<Real>> &brightness,
-			     const std::vector<vector<Real>> &sigma) {
+void observation_fit::add_observed_brightness(const std::vector<Real> &brightness,
+			     const std::vector<Real> &sigma,
+			     const int emission/* = 0*/) {
   //add the observed brightness to obs (not obs_deriv)
   //so we can compute log-likelihoods
-
+  assert(obs.size() == brightness.size());
+  for (int i=0;i<obs.size();i++) {
+    obs.los_observed[i].brightness[emission] = brightness[i];
+    obs.los_observed[i].sigma[emission]      = sigma[i];
+  }
 }
 
-vector<Real> likelihood_and_derivatives(Real nHexo, Real Texo) {
-  //computes likelihood and derivatives along each input dimension
+// vector<Real> observation_fit::likelihood_and_derivatives(const Real &nHexo, const Real &Texo) {
+//   //computes likelihood and derivatives along each input dimension
+//   const Real scale = 0.01;
 
-  //set up the atmospheres to simulate
+//   //set up the atmospheres to simulate
+//   Real center_parameters[n_parameters] = {nHexo, Texo};
+//   Real parameters[n_parameters];
 
-  //simulate to retrieve model brightness
+//   for (int j_parameter = 0; j_parameter < n_parameters; j_parameter++)
+//     parameters[j_parameter] = center_parameter[j_parameter];
+  
+//   //atmosphere at center point
+//   temp = krasnopolsky_temperature(parameters[1]);
+//   atm = chamb_diff_1d(parameters[0],CO2_exobase_density,temp);
 
-  //compute log likelihood for each simulatation
+//   RT_deriv.grid.setup_voxels(atm);
+//   RT_deriv.grid.setup_rays();
 
-  //compute derivative of log-likelihood for each parameter
+//   //set up emission 0, H Lyman alpha
+//   i_emission = 0;
+  
+//   int i_simulate_center = i_emission * n_simulate_per_emission;
+//   RT_deriv.define_emission(emission_names[i_emission],
+// 			   1.0,
+// 			   atm,
+// 			   &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
+// 			   &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+  
+//   for (int i_parameter = 0; i_parameter < n_parameters; i_parameter++) { 
+//     for (int i_derivative = 0; i_derivative < n_pts_per_derivative; i_derivative++) {
+//       int i_simulate = i_simulate_center+i_parameter*n_pts_per_derivative+i_derivative+1;
+      
+//       for (int j_parameter = 0; j_parameter < n_parameters; j_parameter++)
+// 	parameters[j_parameter] = center_parameter[j_parameter];
+      
+//       parameters[i_parameter] *= i_derivative == 0 ? 1.0-scale : 1.0+scale;
+      
+//       //atmosphere at this derivative point
+//       temp = krasnopolsky_temperature(parameters[1]);
+//       atm = chamb_diff_1d(parameters[0],CO2_exobase_density,temp);
+      
+//       RT_deriv.define_emission(simulate_names[i_simulate],
+// 			       1.0,
+// 			       atm,
+// 			       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
+// 			       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+      
+//     }
+//   }
 
-  //return log-likelihood and derivatives in the form pyMC3 prefers
+//   //no more emissions to set up!
+  
 
-}
+//   //simulate to retrieve model brightness
+// #ifdef __CUDACC__
+//   RT_deriv.generate_S_gpu();
+// #else
+//   RT_deriv.generate_S();
+// #endif
+
+//   obs_deriv.reset_output();
+//   //compute brightness on the GPU if compiled with NVCC
+// #ifdef __CUDACC__
+//   RT_deriv.brightness_gpu(obs_deriv);
+// #else
+//   RT_deriv.brightness(obs_deriv);
+// #endif
+
+//   //compute log likelihood for each simulatation
+// #ifdef __CUDACC__
+//   logl_gpu();
+// #else
+//   logl();
+// #endif
+
+//   //compute derivative of log-likelihood for each parameter
+//   for (int i_parameter = 0; i_parameter < n_parameters; i_parameter++) { 
+//     for (int i_derivative = 0; i_derivative < n_pts_per_derivative; i_derivative++) {
+//       int i_simulate = i_simulate_center+i_parameter*n_pts_per_derivative+i_derivative+1;
+
+// 	for (int j_parameter = 0; j_parameter < n_parameters; j_parameter++)
+// 	  parameters[j_parameter] = center_parameter[j_parameter];
+
+// 	parameters[i_parameter] *= i_derivative == 0 ? 1.0-scale : 1.0+scale;
+	
+// 	//atmosphere at this derivative point
+// 	temp = krasnopolsky_temperature(parameters[1]);
+// 	atm = chamb_diff_1d(parameters[0],CO2_exobase_density,temp);
+	
+// 	RT_deriv.define_emission(simulate_names[i_simulate],
+// 				 1.0,
+// 				 atm,
+// 				 &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
+// 				 &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+	
+//       }
+//     }
+//   }
+
+
+//   //return log-likelihood and derivatives in the form pyMC3 prefers
+
+// }

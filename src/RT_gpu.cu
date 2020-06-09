@@ -383,6 +383,10 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::transpose_influence_gpu() {
 		&unity, emissions[i_emission].influence_matrix.d_mat, N,
 		&null, emissions[i_emission].influence_matrix.d_mat, N,
 		d_transpose, N);
+
+    checkCudaErrors( cudaPeekAtLastError() );
+    checkCudaErrors( cudaDeviceSynchronize() );
+
     //reassign to original location
     cublasSgeam(handle, 
 		CUBLAS_OP_N, CUBLAS_OP_N,
@@ -390,10 +394,11 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::transpose_influence_gpu() {
 		&unity, d_transpose, N,
 		&null, d_transpose, N,
 		emissions[i_emission].influence_matrix.d_mat, N);
+
+    checkCudaErrors( cudaPeekAtLastError() );
+    checkCudaErrors( cudaDeviceSynchronize() );
   }
 
-  checkCudaErrors( cudaPeekAtLastError() );
-  checkCudaErrors( cudaDeviceSynchronize() );
   cublasDestroy(handle);
 }
 
@@ -413,6 +418,8 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::solve_gpu() {
   checkCudaErrors( cudaDeviceSynchronize() );
 
 #ifdef EIGEN_ROWMAJOR
+  // we need to transpose the influence matrix from row-major to
+  // column-major before the CUDA utils can solve it
   transpose_influence_gpu();
 #endif
   

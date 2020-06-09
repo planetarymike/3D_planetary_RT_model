@@ -7,6 +7,7 @@
 #include "cuda_compatibility.hpp"
 #include "atmo_vec.hpp"
 #include "los_tracker.hpp"
+#include "gpu_vector.hpp"
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -28,7 +29,7 @@ protected:
 
   int n_obs;
 
-  atmo_vector *obs_vecs = NULL;
+  gpu_vector<atmo_vector> obs_vecs;
   
   void add_MSO_observation(const vector<Real> &loc, const vector<Real> &dir, const int i) {
     // there are two coordinate systems,
@@ -54,20 +55,19 @@ protected:
   void resize_input(int n_obss) {
     n_obs=n_obss;
 
-    if (obs_vecs != NULL)
-      delete [] obs_vecs;
-    obs_vecs = new atmo_vector[n_obs];
+    obs_vecs.resize(n_obs);
+    los_observed.resize(n_obs);
   }
 
 public:
 
-  brightness_tracker<n_emissions> *los = NULL;
+  gpu_vector<brightness_tracker<n_emissions>> los;
+  gpu_vector<observed<n_emissions>> los_observed;
+  Real log_likelihood;
 
   Real emission_g_factors[n_emissions];
 
   //CUDA device pointers for dynamic arrays
-  atmo_vector *d_obs_vecs = NULL;
-  brightness_tracker<n_emissions> *d_los = NULL;
   observation<n_emissions> *d_obs=NULL;
   
   observation()
@@ -82,61 +82,10 @@ public:
     set_names(emission_names);
   }
   ~observation() {
-    if (obs_vecs != NULL)
-      delete [] obs_vecs;
-    if (los != NULL)
-      delete [] los;
-
 #ifdef __CUDACC__
-    if (d_los != NULL)
-      checkCudaErrors(cudaFree(d_los));
-    if (d_obs_vecs != NULL)
-      checkCudaErrors(cudaFree(d_obs_vecs));
     if (d_obs != NULL)
       checkCudaErrors(cudaFree(d_obs));
 #endif
-    
-  }
-  observation(const observation &copy) {
-    assert(n_emissions == copy.n_emissions);
-    for (int i = 0; i<n_emissions; i++) {
-      assert(emission_names[i] == copy.emission_names[i]);
-      emission_g_factors[i] = copy.emission_g_factors[i];
-    }
-    n_obs = copy.n_obs;
-    resize_input(n_obs);
-    reset_output();
-    for (int i = 0; i < n_obs; i++) {
-      obs_vecs[i] = copy.obs_vecs[i];
-      los[i] = copy.los[i];
-    }
-
-    d_obs = copy.d_obs;
-    d_obs_vecs = copy.d_obs_vecs;
-    d_los = copy.d_los;
-  }
-  observation& operator=(const observation &rhs) {
-    if(this == &rhs) return *this;
-
-    assert(n_emissions == rhs.n_emissions);
-    for (int i = 0; i<n_emissions; i++) {
-      assert(emission_names[i] == rhs.emission_names[i]);
-      emission_g_factors[i] = rhs.emission_g_factors[i];
-    }
-    
-    n_obs = rhs.n_obs;
-    resize_input(n_obs);
-    reset_output();
-    for (int i = 0; i < n_obs; i++) {
-      obs_vecs[i] = rhs.obs_vecs[i];
-      los[i] = rhs.los[i];
-    }
-
-    d_obs = rhs.d_obs;
-    d_obs_vecs = rhs.d_obs_vecs;
-    d_los = rhs.d_los;
-
-    return *this;
   }
 
   void set_names(const string (&emission_namess)[n_emissions])
@@ -155,9 +104,7 @@ public:
   }
   
   void reset_output() {
-    if (los != NULL)
-      delete [] los;
-    los = new brightness_tracker<n_emissions>[n_obs];
+    los.resize(n_obs,brightness_tracker<n_emissions>());
   }
 
   void add_MSO_observation(const vector<vector<Real>> &locations, const vector<vector<Real>> &directions) {
@@ -246,50 +193,43 @@ public:
     //static arrays are copied automatically by CUDA, including emission_g_factors
     
     //move geometry
-    if (d_obs_vecs != NULL)
-      checkCudaErrors(cudaFree(d_obs_vecs));
+    obs_vecs.to_device();
+    //point the object device pointer to the same location
     checkCudaErrors(
-		    cudaMalloc((void**) &d_obs_vecs,
-			       n_obs*sizeof(atmo_vector))
-		    );
-    checkCudaErrors(
-		    cudaMemcpy(d_obs_vecs,
-			       obs_vecs,
-			       n_obs*sizeof(atmo_vector),
+		    cudaMemcpy(&((d_obs->obs_vecs).v),
+			       &obs_vecs.d_v,
+			       sizeof(atmo_vector*),
 			       cudaMemcpyHostToDevice)
 		    );
-    //point the device pointer at the same location we just moved memory to
+
+    //move brightness and sigma
+    los_observed.to_device();
     checkCudaErrors(
-		    cudaMemcpy(&(d_obs->obs_vecs),
-			       &d_obs_vecs,
+		    cudaMemcpy(&((d_obs->los_observed).v),
+			       &los_observed.d_v,
 			       sizeof(atmo_vector*),
 			       cudaMemcpyHostToDevice)
 		    );
     
-    //prepare brightness object
-    if (d_los != NULL)
-      checkCudaErrors(cudaFree(d_los));
+    //prepare simulated brightness storage
+    los.to_device(false);
+    //point the object device pointer to the same location
     checkCudaErrors(
-		    cudaMalloc((void**) &d_los,
-			       n_obs*sizeof(brightness_tracker<n_emissions>) )
-		    );
-    //point the device pointer at the same location we just moved memory to
-    checkCudaErrors(
-		    cudaMemcpy(&(d_obs->los),
-			       &d_los,
+		    cudaMemcpy(&((d_obs->los).v),
+			       &los.d_v,
 			       sizeof(brightness_tracker<n_emissions>*),
 			       cudaMemcpyHostToDevice)
 		    );
   }
 
   void to_host() {
-    reset_output();
-    checkCudaErrors(
-		    cudaMemcpy(los,
-			       d_los,
-			       n_obs*sizeof(brightness_tracker<n_emissions>),
-			       cudaMemcpyDeviceToHost)
-		    );
+    los.to_host();
+    // checkCudaErrors(
+    // 		    cudaMemcpy(&(log_likelihood),
+    // 			       &(d_obs.log_likelihood),
+    // 			       sizeof(Real),
+    // 			       cudaMemcpyDeviceToHost)
+    // 		    );
   }
 
 #endif

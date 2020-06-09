@@ -61,18 +61,21 @@ public:
   void add_observation(const std::vector<vector<Real>> &MSO_locations,
 		       const std::vector<vector<Real>> &MSO_directions);
 
-  void add_observed_brightness(const std::vector<vector<Real>> &brightness,
-			       const std::vector<vector<Real>> &sigma);
+  void add_observed_brightness(const std::vector<Real> &brightness,
+			       const std::vector<Real> &sigma,
+			       const int emission = 0);
   
   void set_g_factor(Real &g);
 
-  void generate_source_function(Real nHexo, Real Texo);
-  void generate_source_function_effv(Real nHexo, Real effv_exo);
-  void generate_source_function_lc(Real nHexo, Real lc_exo);
+  void generate_source_function(const Real &nHexo, const Real &Texo);
+  void generate_source_function_effv(const Real &nHexo, const Real &effv_exo);
+  void generate_source_function_lc(const Real &nHexo, const Real &lc_exo);
   
-  std::vector<Real> brightness();  
+  std::vector<Real> brightness(const int emission = 0);
 
-  std::vector<Real> likelihood_and_derivatives(Real nHexo, Real Texo);
+  std::vector<Real> likelihood_and_derivatives(const Real &nHexo, const Real &Texo);
+  void logl();
+  void logl_gpu();
 };
 
 //might be needed to instantiate template members

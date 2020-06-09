@@ -204,4 +204,38 @@ public:
   Real sourcefn_interp[N];
 };
 
+
+template <int N_EMISS>
+struct observed {
+  Real brightness[N_EMISS];
+  Real sigma[N_EMISS];
+
+  CUDA_CALLABLE_MEMBER
+  observed() {
+    for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
+      brightness[i_emission]=0;
+      sigma[i_emission]=0;
+    }
+  }
+  CUDA_CALLABLE_MEMBER
+  ~observed() { }
+  CUDA_CALLABLE_MEMBER
+  observed(const observed<N_EMISS> &copy) {
+    for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
+      brightness[i_emission]=copy.brightness[i_emission];
+      sigma[i_emission]=copy.sigma[i_emission];
+    }
+  }
+  CUDA_CALLABLE_MEMBER
+  observed& operator=(const observed<N_EMISS> &rhs) {
+    if(this == &rhs) return *this;
+    for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
+      brightness[i_emission]=rhs.brightness[i_emission];
+      sigma[i_emission]=rhs.sigma[i_emission];
+    }
+    return *this;
+  }
+};
+
+
 #endif

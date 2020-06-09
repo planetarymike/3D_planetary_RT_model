@@ -112,18 +112,8 @@ struct holstein_approx : influence {
   holstein_approx(Real tauminn=1e-6,
 		  Real taumaxx=1e6);
 
-  inline int get_lerp_loc(Real logtau_target) const {
-    int itau = (int) ((logtau_target-logtaumin)*invlogtaustep);
-    if (logtau_target<logtau[itau])
-      itau--;
-    if (logtau[itau+1]<=logtau_target)
-      itau++;
-    assert(0<=itau && itau<ntau && "itau must be in range");
-    assert(logtau[itau]<=logtau_target && logtau_target < logtau[itau+1] && "target tau must be in this increment");
-    return itau;
-  }
-
-    
+  CUDA_CALLABLE_MEMBER
+  int get_lerp_loc(Real logtau_target) const;    
 
   Real Tint(const Real tau) const;
   CUDA_CALLABLE_MEMBER
