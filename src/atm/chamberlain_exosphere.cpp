@@ -7,8 +7,10 @@ using std::pow;
 
 #include <boost/math/special_functions/gamma.hpp>
 
-
-chamberlain_exosphere::chamberlain_exosphere(Real &rexoo, Real &Texoo, Real &nHexoo)
+chamberlain_exosphere::chamberlain_exosphere() { }
+chamberlain_exosphere::chamberlain_exosphere(const Real &rexoo,
+					     const Real &Texoo,
+					     const Real &nHexoo)
   : rexo(rexoo), Texo(Texoo), nHexo(nHexoo)
 {
   lambdac = G*mMars*mH/(kB*Texo*rexo);//chamberlain lambda @ rexo

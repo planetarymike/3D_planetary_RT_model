@@ -1,7 +1,8 @@
 // things to improve/change in code
 
 Near term:
---python fitting routine  (switch to NVCC)
+--compute voxel densities as average over zone rather than typical value
+--python fitting routine (get it running fast)
 --move finite-difference derivative calculation inside observation_fit
 --deuterium and hot H physical densities
 --O I 102.6 nm radiance calculation (probably requires frequency redistribution)

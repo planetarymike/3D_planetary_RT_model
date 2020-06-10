@@ -24,6 +24,10 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
 			   N_RAYS_THETA*N_RAYS_PHI,
 			   N_RADIAL_BOUNDARIES>;
 
+  int rmethod;
+  static const int rmethod_altitude = 0;
+  static const int rmethod_lognH = 1;
+
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
   Real radial_boundaries[n_radial_boundaries];
   Real pts_radii[n_radial_boundaries-1];
@@ -36,9 +40,28 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
 
-    get_radial_log_linear_points(radial_boundaries, 
-				 n_radial_boundaries,
-				 atm.rmin, atm.rexo, atm.rmax);
+    assert((rmethod == rmethod_altitude || rmethod == rmethod_lognH)
+	   && "rmethod must match a defined radial points method");
+    // don't define a tau radial points method; tau < 0.1 is
+    // important and max(tau) > 10; this leads to many required
+    // gridpoints
+    if (rmethod == rmethod_altitude) {
+      vector<Real> radial_boundaries_vector;
+      get_radial_log_linear_points(radial_boundaries_vector, n_radial_boundaries,
+				   atm.rmin, atm.rexo, atm.rmax);
+      for (int i=0;i<n_radial_boundaries;i++)
+	radial_boundaries[i] = radial_boundaries_vector[i];
+    }
+    if (rmethod == rmethod_lognH) {
+      Real lognH_max = log(atm.nH(atm.rmin));
+      Real lognH_min = log(atm.nH(atm.rmax));
+      Real lognH_step = (lognH_max-lognH_min)/(n_radial_boundaries-1.);
+      
+      for(int i=0;i<n_radial_boundaries;i++) {
+	Real nH_target=exp(lognH_max-i*lognH_step);
+	radial_boundaries[i]=atm.r_from_nH(nH_target);
+      }
+    }
 
     for (int i=0; i<n_radial_boundaries-1; i++) {
       pts_radii[i]=sqrt(radial_boundaries[i]*radial_boundaries[i+1]);
@@ -164,6 +187,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
 	       << "Species cross section [cm2]: " << emissions[i_emission].species_sigma.transpose() << "\n"
 	       << "Absorber density [cm-3]: " << emissions[i_emission].absorber_density.transpose() << "\n"
 	       << "Absorber single scattering tau: " <<	emissions[i_emission].tau_absorber_single_scattering.transpose() << "\n"
+	       << "Species single scattering source function S0: " <<	emissions[i_emission].singlescat.transpose() << "\n"
 	       << "Source function: " << emissions[i_emission].sourcefn.transpose() << "\n\n";
       }
   }

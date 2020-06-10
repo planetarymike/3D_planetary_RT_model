@@ -419,6 +419,12 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 		 << "    Absorber single scattering tau: " 
 		 <<	 sza_slice(emissions[i_emission].tau_absorber_single_scattering,j).transpose() << "\n"
 
+		 << "    Absorber single scattering tau: " 
+		 <<	 sza_slice(emissions[i_emission].tau_absorber_single_scattering,j).transpose() << "\n"
+
+		 << "    Species single scattering source function S0: " 
+		 <<	 sza_slice(emissions[i_emission].singlescat,j).transpose() << "\n"	      
+
 		 << "    Source function: " 
 		 <<      sza_slice(emissions[i_emission].sourcefn,j).transpose() << "\n\n";
 	  }

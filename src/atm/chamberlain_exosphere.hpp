@@ -11,7 +11,8 @@ struct chamberlain_exosphere {
   Real effusion_velocity;
   Real H_escape_flux;
 
-  chamberlain_exosphere(Real &rexoo, Real &Texoo, Real &nHexoo);
+  chamberlain_exosphere();
+  chamberlain_exosphere(const Real &rexoo, const Real &Texoo, const Real &nHexoo);
   
   Real nH(Real r);
   Real operator()(Real r); //alias for nH

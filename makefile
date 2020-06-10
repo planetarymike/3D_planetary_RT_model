@@ -62,7 +62,7 @@ generate_source_function_gpu: $(NOBJFILES)
 $(OBJDIR)/%.cuda.o: %.cpp
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	@$(NCC) -Xcompiler -pipe $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
 $(OBJDIR)/%.cuda.o: %.cu
 	@echo "compiling $<..."
