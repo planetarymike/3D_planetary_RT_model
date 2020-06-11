@@ -1,7 +1,6 @@
 // things to improve/change in code
 
 Near term:
---compute voxel densities as average over zone rather than typical value
 --python fitting routine (get it running fast)
 --move finite-difference derivative calculation inside observation_fit
 --deuterium and hot H physical densities
@@ -21,6 +20,9 @@ Small code improvements
      should be relatively easy, add line profile to tau_tracker)
 
 longer-term:
---more realistic exosphere
+--more realistic exosphere (Vidal-Madjar or similar)
 --frequency redistribution (needs some refactoring of emission object)
 --RT anisotropy??
+
+done:
+xx--compute voxel densities as average over zone rather than typical value
