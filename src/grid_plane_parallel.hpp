@@ -64,9 +64,18 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
     }
 
     for (int i=0; i<n_radial_boundaries-1; i++) {
+      this->voxels[i].rbounds[0] = radial_boundaries[i];
+      this->voxels[i].rbounds[1] = radial_boundaries[i+1];
+      this->voxels[i].tbounds[0] = 0;
+      this->voxels[i].tbounds[1] = pi;
+      this->voxels[i].pbounds[0] = 0;
+      this->voxels[i].pbounds[1] = 2*pi;
+      this->voxels[i].i_voxel = i;
+      this->voxels[i].init = true;
+
       pts_radii[i]=sqrt(radial_boundaries[i]*radial_boundaries[i+1]);
-      this->pts[i].xyz(0.,0.,pts_radii[i]);
-      this->pts[i].set_voxel_index(i);
+      this->voxels[i].pt.xyz(0.,0.,pts_radii[i]);
+      this->voxels[i].pt.set_voxel_index(i);
     }
 
     for (int i=0; i<n_radial_boundaries; i++) 

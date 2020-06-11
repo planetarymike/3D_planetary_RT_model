@@ -75,10 +75,10 @@ struct RT_grid {
   void define_emission(string emission_name,
 		       Real emission_branching_ratio,
 		       C &atmosphere,
-		       Real (C::*species_density_function)(const atmo_point) ,
-		       Real (C::*species_sigma_function)(const atmo_point),
-		       Real (C::*absorber_density_function)(const atmo_point),
-		       Real (C::*absorber_sigma_function)(const atmo_point)) {
+		       void (C::*species_density_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt) ,
+		       void (C::*species_sigma_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
+		       void (C::*absorber_density_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
+		       void (C::*absorber_sigma_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt)) {
 
     //find emission name (dumb search but n_emissions is small and these are called infrequently)
     int n;
@@ -97,7 +97,7 @@ struct RT_grid {
 			  species_sigma_function,
 			  absorber_density_function,
 			  absorber_sigma_function,
-			  grid.pts);
+			  grid.voxels);
       
       all_emissions_init = true;
       for (int i_emission=0;i_emission<n_emissions;i_emission++)
@@ -246,19 +246,19 @@ struct RT_grid {
     Real max_tau_species = 0;
   
 #pragma omp parallel for firstprivate(vec,temp_influence) shared(max_tau_species,std::cout) default(none)
-    for (int i_pt = 0; i_pt < grid.n_voxels; i_pt++) {
+    for (int i_vox = 0; i_vox < grid.n_voxels; i_vox++) {
       Real omega = 0.0; // make sure sum(domega) = 4*pi
     
       //now integrate outward along the ray grid:
       for (int i_ray=0; i_ray < grid.n_rays; i_ray++) {
-	vec = atmo_vector(grid.pts[i_pt], grid.rays[i_ray]);
+	vec = atmo_vector(grid.voxels[i_vox].pt, grid.rays[i_ray]);
 	omega += vec.ray.domega;
 
 	temp_influence.reset();
 	voxel_traverse(vec, &RT_grid::influence_update, temp_influence);
 	for (int i_emission=0;i_emission<n_emissions;i_emission++)
-	  for (int j_pt = 0; j_pt < grid.n_voxels; j_pt++)
-	    emissions[i_emission].influence_matrix(i_pt,j_pt) += temp_influence.influence[i_emission][j_pt];
+	  for (int j_vox = 0; j_vox < grid.n_voxels; j_vox++)
+	    emissions[i_emission].influence_matrix(i_vox,j_vox) += temp_influence.influence[i_emission][j_vox];
 	
 	if (temp_influence.max_tau_species > max_tau_species)
 	  max_tau_species = temp_influence.max_tau_species;
@@ -271,7 +271,7 @@ struct RT_grid {
     
       //now compute the single scattering function:
       temp_influence.reset();
-      get_single_scattering(grid.pts[i_pt], temp_influence);
+      get_single_scattering(grid.voxels[i_vox].pt, temp_influence);
       if (temp_influence.max_tau_species > max_tau_species)
 	max_tau_species = temp_influence.max_tau_species;
     }
@@ -321,9 +321,9 @@ struct RT_grid {
     
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       retval.dtau_species_interp[i_emission]  = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_dtau_species));
+								 emissions[i_emission].log_dtau_species_pt));
       retval.dtau_absorber_interp[i_emission] = exp(interp_array(indices, weights,
-								 emissions[i_emission].log_dtau_absorber));
+								 emissions[i_emission].log_dtau_absorber_pt));
       retval.sourcefn_interp[i_emission]      = exp(interp_array(indices, weights,
 								 emissions[i_emission].log_sourcefn));
     }

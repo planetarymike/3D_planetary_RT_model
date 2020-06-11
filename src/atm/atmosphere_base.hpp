@@ -12,12 +12,14 @@ struct atmosphere {
   Real rmax;// cm, max altitude in model atmosphere
 
   virtual Real nH(const atmo_point pt) = 0;
+  virtual void nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) = 0;
   virtual vector<Real> nH(const vector<atmo_point> pts);
   virtual Real nH(const Real r);
 
   virtual Real r_from_nH(const Real nH);
 
   virtual Real nCO2(const atmo_point pt) = 0;
+  virtual void nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) = 0;
   virtual vector<Real> nCO2(const vector<atmo_point> pts);
   virtual Real nCO2(const Real r);
 
@@ -27,8 +29,10 @@ struct atmosphere {
 
   //really ought to refactor so cross section info is stored in a
   //totally seperate object
+  virtual void sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) = 0;
   virtual Real sH_lya(const atmo_point pt) = 0;
   virtual Real sH_lya(const Real r);  
+  virtual void sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) = 0;
   virtual Real sCO2_lya(const atmo_point pt) = 0;
   virtual Real sCO2_lya(const Real r);
 };

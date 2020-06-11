@@ -124,22 +124,20 @@ __global__
 void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
 {
   //each thread runs one line of sight for one voxel
-  int i_pt = blockIdx.x;
+  int i_vox = blockIdx.x;
   int i_ray = threadIdx.x;
 
   //initialize matrix to zero
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
-    for (int j_pt_index = threadIdx.x; j_pt_index < grid_type::n_voxels; j_pt_index+=blockDim.x) {
-      int j_pt = j_pt_index;
-      RT->emissions[i_emission].influence_matrix(i_pt,j_pt) = 0;
-    }
+    for (int j_vox = threadIdx.x; j_vox < grid_type::n_voxels; j_vox+=blockDim.x)
+      RT->emissions[i_emission].influence_matrix(i_vox,j_vox) = 0;
 
   //initialize objects
   atmo_vector vec;
   influence_tracker<N_EMISSIONS,grid_type::n_voxels> temp_influence;
 
   //get the vector for this thread and run through the grid
-  vec = atmo_vector(RT->grid.pts[i_pt], RT->grid.rays[i_ray]);
+  vec = atmo_vector(RT->grid.voxels[i_vox].pt, RT->grid.rays[i_ray]);
   temp_influence.reset();
   RT->voxel_traverse(vec,
 		     &RT_grid<N_EMISSIONS,grid_type,influence_type>::influence_update,
@@ -149,9 +147,9 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   
   // reduce temp_influence across the thread block
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
-    for (int j_pt_index = threadIdx.x; j_pt_index < grid_type::n_voxels+threadIdx.x; j_pt_index++) {
-      int j_pt = j_pt_index % grid_type::n_voxels;
-      RT->emissions[i_emission].influence_matrix(i_pt,j_pt) += temp_influence.influence[i_emission][j_pt];
+    for (int j_vox_index = threadIdx.x; j_vox_index < grid_type::n_voxels+threadIdx.x; j_vox_index++) {
+      int j_vox = j_vox_index % grid_type::n_voxels;
+      RT->emissions[i_emission].influence_matrix(i_vox,j_vox) += temp_influence.influence[i_emission][j_vox];
       __syncthreads();
     }
 
@@ -159,7 +157,7 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   //only one thread needs to do this
   if (threadIdx.x == 0) {
     temp_influence.reset();
-    RT->get_single_scattering(RT->grid.pts[i_pt], temp_influence);
+    RT->get_single_scattering(RT->grid.voxels[i_vox].pt, temp_influence);
   }
 }
 
@@ -320,23 +318,22 @@ __global__
 void prepare_for_solution(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
 {
   //each block prepares one row of the influence matrix
-  int i_pt = blockIdx.x;
+  int i_vox = blockIdx.x;
 
   //convert to kernel from influence (kernel = identity - influence)
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
-    for (int j_pt_index = threadIdx.x; j_pt_index < grid_type::n_voxels; j_pt_index+=blockDim.x) {
-      int j_pt = j_pt_index;
-      RT->emissions[i_emission].influence_matrix(i_pt,j_pt) *= -1;
+    for (int j_vox = threadIdx.x; j_vox < grid_type::n_voxels; j_vox+=blockDim.x) {
+      RT->emissions[i_emission].influence_matrix(i_vox,j_vox) *= -1;
     }
   //add the identity matrix
   for (int i_emission=threadIdx.x; i_emission < N_EMISSIONS; i_emission+=blockDim.x)
-    RT->emissions[i_emission].influence_matrix(i_pt,i_pt) += 1;
+    RT->emissions[i_emission].influence_matrix(i_vox,i_vox) += 1;
 
   
   //now copy singlescat to sourcefn, preparing for in-place solution
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
-    for (int j_pt = threadIdx.x; j_pt < grid_type::n_voxels; j_pt += blockDim.x) {
-      RT->emissions[i_emission].sourcefn[j_pt] = RT->emissions[i_emission].singlescat[j_pt];
+    for (int j_vox = threadIdx.x; j_vox < grid_type::n_voxels; j_vox += blockDim.x) {
+      RT->emissions[i_emission].sourcefn[j_vox] = RT->emissions[i_emission].singlescat[j_vox];
     }
 }
 
@@ -348,11 +345,11 @@ void get_log_sourcefn(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
-    for (int j_pt = index; j_pt < grid_type::n_voxels; j_pt += stride) {
-      if (RT->emissions[i_emission].sourcefn[j_pt] == 0)
-	RT->emissions[i_emission].log_sourcefn[j_pt] = -1e5;
+    for (int j_vox = index; j_vox < grid_type::n_voxels; j_vox += stride) {
+      if (RT->emissions[i_emission].sourcefn[j_vox] == 0)
+	RT->emissions[i_emission].log_sourcefn[j_vox] = -1e5;
       else
-	RT->emissions[i_emission].log_sourcefn[j_pt] = std::log(RT->emissions[i_emission].sourcefn[j_pt]);
+	RT->emissions[i_emission].log_sourcefn[j_vox] = std::log(RT->emissions[i_emission].sourcefn[j_vox]);
     }
 }
 

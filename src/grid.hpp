@@ -21,7 +21,7 @@ struct grid {
   Real rmax,rmin;//max and min altitudes in the atmosphere
   
   //points inside the voxels to shoot rays from
-  atmo_point pts[NVOXELS];
+  atmo_voxel voxels[NVOXELS];
   
   //ray info
   static const int n_rays = NRAYS;

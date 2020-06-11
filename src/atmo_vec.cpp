@@ -1,6 +1,10 @@
 //atmo_vec.cpp -- basic definitions for points, rays, and vectors
 #include "atmo_vec.hpp"
 
+//atmo_voxel
+atmo_voxel::atmo_voxel()
+  : i_voxel(-1),init(false) { }
+
 //atmo_point
 
 CUDA_CALLABLE_MEMBER

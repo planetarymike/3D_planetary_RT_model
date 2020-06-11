@@ -9,6 +9,9 @@ using boost::numeric::odeint::integrate_const;
 #include <boost/numeric/odeint/stepper/runge_kutta4.hpp>
 using boost::numeric::odeint::runge_kutta4;
 
+#include <boost/math/quadrature/tanh_sinh.hpp>
+using boost::math::quadrature::tanh_sinh;
+
 #include <fstream>
 
 chamb_diff_1d::chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
@@ -84,6 +87,46 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
 							 exosphere_step_logr);
   invlognH_exosphere = Linear_interp(lognHexosphere,logr_exosphere);
 
+
+  //now we need to integrate the relevant quantites so we can compute averages
+  int n_int_steps = 1000;
+  Real log_r_int_step = (log(rmax-rMars) - log(rmin-rMars))/(n_int_steps - 1.);
+  log_r_int.push_back(log((rmax-rMars)*(1-ABS)));
+  nH_int.push_back(0);
+  nCO2_int.push_back(0);
+  Tint.push_back(0);
+  for (int i_int=1; i_int<n_int_steps; i_int++) {
+    log_r_int.push_back(log(rmax-rMars)-i_int*log_r_int_step);
+    if (exp(log_r_int.back()) < rmin-rMars)
+      log_r_int.back() = log((rmin-rMars)*(1+ABS));
+    
+    Real r0 = exp(log_r_int[i_int-1])+rMars;
+    Real r1 = exp(log_r_int[i_int])+rMars;
+    Real dr = r0-r1;
+
+    nH_int.push_back( (nH(r1) + nH(r0))/2.0 * dr + nH_int.back() );
+    nCO2_int.push_back( (nCO2(r1) + nCO2(r0))/2.0 * dr + nCO2_int.back() );
+
+    temp->get(r0);
+    Real T0 = temp->T;
+    temp->get(r1);
+    Real T1 = temp->T;
+
+    Tint.push_back( (T1 + T0)/2.0 * dr + Tint.back() );
+  }
+  nH_int_spline = cardinal_cubic_b_spline<Real>(nH_int.rbegin(),
+						nH_int.rend(),
+						log_r_int.back(),
+						log_r_int_step);
+  nCO2_int_spline = cardinal_cubic_b_spline<Real>(nCO2_int.rbegin(),
+						  nCO2_int.rend(),
+						  log_r_int.back(),
+						  log_r_int_step);
+  Tint_spline = Linear_interp(log_r_int, Tint);
+  // Tint_spline = cardinal_cubic_b_spline<Real>(Tint.rbegin(),
+  // 					      Tint.rend(),
+  // 					      log_r_int.back(),
+  // 					      log_r_int_step);
 }
 
 
@@ -97,6 +140,12 @@ Real chamb_diff_1d::nCO2(const Real &r) {
 }
 Real chamb_diff_1d::nCO2(const atmo_point pt) {
   return nCO2(pt.r);
+}
+void chamb_diff_1d::nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  ret_avg =  (nCO2_int_spline(log(vox.rbounds[0]-rMars))
+	      -nCO2_int_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
+							    -vox.rbounds[0]);
+  ret_pt = nCO2(vox.pt.r);
 }
 
 
@@ -115,6 +164,12 @@ Real chamb_diff_1d::nH(const Real &r) {
 Real chamb_diff_1d::nH(const atmo_point pt) {
   return nH(pt.r);
 }
+void chamb_diff_1d::nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  ret_avg =  (nH_int_spline(log(vox.rbounds[0]-rMars))
+	      -nH_int_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
+							  -vox.rbounds[0]);
+  ret_pt = nH(vox.pt.r);
+}
 
 
 
@@ -125,12 +180,22 @@ Real chamb_diff_1d::sH_lya(const Real r) {
 Real chamb_diff_1d::sH_lya(const atmo_point pt) {
   return sH_lya(pt.r);
 }
+void chamb_diff_1d::sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  Real Tavg = (Tint_spline(log(vox.rbounds[0]-rMars))
+	       -Tint_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
+							 -vox.rbounds[0]);
+  ret_avg =  lyman_alpha_line_center_cross_section_coef/sqrt(Tavg);
+  ret_pt = sH_lya(vox.pt.r);
+}
 
 Real chamb_diff_1d::sCO2_lya(const Real r) {
   return CO2_lyman_alpha_absorption_cross_section;
 }
 Real chamb_diff_1d::sCO2_lya(const atmo_point pt) {
   return sCO2_lya(pt.r);
+}
+void chamb_diff_1d::sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  ret_avg = ret_pt = CO2_lyman_alpha_absorption_cross_section;
 }
 
 Real chamb_diff_1d::sH_lyb(const Real r) {
@@ -140,12 +205,22 @@ Real chamb_diff_1d::sH_lyb(const Real r) {
 Real chamb_diff_1d::sH_lyb(const atmo_point pt) {
   return sH_lyb(pt.r);
 }
+void chamb_diff_1d::sH_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  Real Tavg = (Tint_spline(log(vox.rbounds[0]-rMars))
+	       -Tint_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
+							 -vox.rbounds[0]);
+  ret_avg = lyman_beta_line_center_cross_section_coef/sqrt(Tavg);
+  ret_pt = sH_lyb(vox.pt.r);
+}
 
 Real chamb_diff_1d::sCO2_lyb(const Real r) {
   return CO2_lyman_beta_absorption_cross_section;
 }
 Real chamb_diff_1d::sCO2_lyb(const atmo_point pt) {
   return sCO2_lyb(pt.r);
+}
+void chamb_diff_1d::sCO2_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  ret_avg = ret_pt = CO2_lyman_beta_absorption_cross_section;
 }
 
 

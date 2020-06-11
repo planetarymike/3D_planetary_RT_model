@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
   // 		                 n_rays_phi,
   // 		                 n_rays_theta> grid_type;
 
-  static const int n_radial_boundaries = 40;
+  static const int n_radial_boundaries = 80;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_phi = 6;
   static const int n_rays_theta = 12;

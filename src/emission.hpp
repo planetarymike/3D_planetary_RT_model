@@ -26,17 +26,27 @@ struct emission {
   //the vectors point to the Eigen objects so that these can be used interchangably
   typedef voxel_vector<N_VOXELS> vv;
   typedef voxel_matrix<N_VOXELS> vm;
-  vv species_density; //densities of scatterers and absorbers on the tabulated grid
+  vv species_density; //average and point densities of scatterers and absorbers on the tabulated grid
+  vv species_density_pt;
   vv absorber_density; 
-  vv species_sigma;//scatterer and absorber cross section on the tabulated grid
+  vv absorber_density_pt; 
+  vv species_sigma;//average and point scatterer and absorber cross section on the tabulated grid
+  vv species_sigma_pt;
   vv absorber_sigma;
+  vv absorber_sigma_pt;
 
   vv dtau_species;
+  vv dtau_species_pt;
   vv log_dtau_species; //quantities that need to be interpolated are also stored as log
+  vv log_dtau_species_pt; 
   vv dtau_absorber;
+  vv dtau_absorber_pt;
   vv log_dtau_absorber;
+  vv log_dtau_absorber_pt; 
   vv abs; //ratio of dtau_abs to dtau_species
+  vv abs_pt; //ratio of dtau_abs to dtau_species
   vv log_abs; 
+  vv log_abs_pt; 
 
   //Radiative transfer parameters
   vm influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
@@ -58,16 +68,26 @@ struct emission {
 
   void resize() {
     species_density.resize();
+    species_density_pt.resize();
     absorber_density.resize();
+    absorber_density_pt.resize();
     species_sigma.resize();
+    species_sigma_pt.resize();
     absorber_sigma.resize();
+    absorber_sigma_pt.resize();
 
     dtau_species.resize();
+    dtau_species_pt.resize();
     log_dtau_species.resize();
+    log_dtau_species_pt.resize();
     dtau_absorber.resize();
+    dtau_absorber_pt.resize();
     log_dtau_absorber.resize();
+    log_dtau_absorber_pt.resize();
     abs.resize();
+    abs_pt.resize();
     log_abs.resize();
+    log_abs_pt.resize();
 
     influence_matrix.resize();
 
@@ -79,37 +99,87 @@ struct emission {
     tau_absorber_single_scattering.resize();
   }
   
-  template<typename C, typename V>
+  // template<typename C, typename V>
+  // void define(Real emission_branching_ratio,
+  // 	      C &atmosphere,
+  // 	      Real (C::*species_density_function)(const atmo_point),
+  // 	      Real (C::*species_sigma_function)(const atmo_point),
+  // 	      Real (C::*absorber_density_function)(const atmo_point),
+  // 	      Real (C::*absorber_sigma_function)(const atmo_point),
+  // 	      const V &pts) {
+    
+  //   branching_ratio = emission_branching_ratio;
+    
+  //   for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
+  //     species_density[i_voxel]=(atmosphere.*species_density_function)(pts[i_voxel]);
+  //     species_sigma[i_voxel]=(atmosphere.*species_sigma_function)(pts[i_voxel]);
+  //     absorber_density[i_voxel]=(atmosphere.*absorber_density_function)(pts[i_voxel]);
+  //     absorber_sigma[i_voxel]=(atmosphere.*absorber_sigma_function)(pts[i_voxel]);
+  //   }
+    
+  //   //define differential optical depths by coefficientwise multiplication
+  //   dtau_species = species_density.array() * species_sigma.array();
+  //   dtau_absorber = absorber_density.array() * absorber_sigma.array();
+  //   abs = dtau_absorber.array() / dtau_species.array();
+    
+  //   for (unsigned int i=0;i<log_dtau_species.size();i++) {
+  //     log_dtau_species(i) = dtau_species(i) == 0 ? -1e5 : log(dtau_species(i));
+  //     log_dtau_absorber(i) = dtau_absorber(i) == 0 ? -1e5 : log(dtau_species(i));
+  //     log_abs(i) = abs(i) == 0 ? -1e5 : log(abs(i));
+  //   }
+    
+  //   init=true;
+  // }
+
+  template<typename C>
   void define(Real emission_branching_ratio,
 	      C &atmosphere,
-	      Real (C::*species_density_function)(const atmo_point),
-	      Real (C::*species_sigma_function)(const atmo_point),
-	      Real (C::*absorber_density_function)(const atmo_point),
-	      Real (C::*absorber_sigma_function)(const atmo_point),
-	      const V &pts) {
+	      void (C::*species_density_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
+	      void (C::*species_sigma_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
+	      void (C::*absorber_density_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
+	      void (C::*absorber_sigma_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
+	      const atmo_voxel (&voxels)[n_voxels]) {
     
     branching_ratio = emission_branching_ratio;
     
     for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
-      species_density[i_voxel]=(atmosphere.*species_density_function)(pts[i_voxel]);
-      species_sigma[i_voxel]=(atmosphere.*species_sigma_function)(pts[i_voxel]);
-      absorber_density[i_voxel]=(atmosphere.*absorber_density_function)(pts[i_voxel]);
-      absorber_sigma[i_voxel]=(atmosphere.*absorber_sigma_function)(pts[i_voxel]);
+      (atmosphere.*species_density_function)(voxels[i_voxel],
+					     species_density[i_voxel],
+					     species_density_pt[i_voxel]);
+
+      (atmosphere.*species_sigma_function)(voxels[i_voxel],
+					   species_sigma[i_voxel],
+					   species_sigma_pt[i_voxel]);
+      
+      (atmosphere.*absorber_density_function)(voxels[i_voxel],
+					      absorber_density[i_voxel],
+					      absorber_density_pt[i_voxel]);
+      
+      (atmosphere.*absorber_sigma_function)(voxels[i_voxel],
+					    absorber_sigma[i_voxel],
+					    absorber_sigma_pt[i_voxel]);
     }
     
     //define differential optical depths by coefficientwise multiplication
     dtau_species = species_density.array() * species_sigma.array();
+    dtau_species_pt = species_density_pt.array() * species_sigma_pt.array();
     dtau_absorber = absorber_density.array() * absorber_sigma.array();
+    dtau_absorber_pt = absorber_density_pt.array() * absorber_sigma_pt.array();
     abs = dtau_absorber.array() / dtau_species.array();
+    abs_pt = dtau_absorber_pt.array() / dtau_species_pt.array();
     
     for (unsigned int i=0;i<log_dtau_species.size();i++) {
       log_dtau_species(i) = dtau_species(i) == 0 ? -1e5 : log(dtau_species(i));
+      log_dtau_species_pt(i) = dtau_species_pt(i) == 0 ? -1e5 : log(dtau_species_pt(i));
       log_dtau_absorber(i) = dtau_absorber(i) == 0 ? -1e5 : log(dtau_species(i));
+      log_dtau_absorber_pt(i) = dtau_absorber_pt(i) == 0 ? -1e5 : log(dtau_species_pt(i));
       log_abs(i) = abs(i) == 0 ? -1e5 : log(abs(i));
+      log_abs_pt(i) = abs_pt(i) == 0 ? -1e5 : log(abs_pt(i));
     }
     
     init=true;
   }
+
 
   //methods to transfer objects to device
   void copy_to_device_influence(emission<N_VOXELS> *device_emission);

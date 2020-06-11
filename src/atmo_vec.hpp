@@ -38,6 +38,21 @@ struct atmo_point {
   atmo_point operator/(const Real & scale) const;
 };
 
+struct atmo_voxel {
+  Real rbounds[2];
+  Real tbounds[2];
+  Real pbounds[2];
+
+  int i_voxel; //voxel index to which this point belongs
+  bool init;
+
+  atmo_point pt;
+  //atmo_point influence_pt;
+  //atmo_point singlescat_pt;
+
+  atmo_voxel();
+};
+
 
 
 struct atmo_ray {

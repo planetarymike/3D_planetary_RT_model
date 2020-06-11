@@ -131,13 +131,22 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       sza_boundary_cones[i].set_angle(sza_boundaries[i+1]);
 
 
-    int ivoxel;
+    int i_voxel;
     for (unsigned int i=0; i<n_radial_boundaries-1; i++) {
       for (unsigned int j=0;j<n_sza_boundaries-1;j++) {
-	ivoxel = i*(n_sza_boundaries-1) + j;
+	i_voxel = i*(n_sza_boundaries-1) + j;
 
-	this->pts[ivoxel].rtp(pts_radii[i],pts_sza[j],0.);
-	this->pts[ivoxel].set_voxel_index(ivoxel);
+	this->voxels[i_voxel].rbounds[0] = radial_boundaries[i];
+	this->voxels[i_voxel].rbounds[1] = radial_boundaries[i+1];
+	this->voxels[i_voxel].tbounds[0] = sza_boundaries[j];
+	this->voxels[i_voxel].tbounds[1] = sza_boundaries[j+1];
+	this->voxels[i_voxel].pbounds[0] = 0;
+	this->voxels[i_voxel].pbounds[1] = 2*pi;
+	this->voxels[i_voxel].i_voxel = i_voxel;
+	this->voxels[i_voxel].init = true;
+
+	this->voxels[i_voxel].pt.rtp(pts_radii[i], pts_sza[j],0.);
+	this->voxels[i_voxel].pt.set_voxel_index(i_voxel);
       }
     }
 

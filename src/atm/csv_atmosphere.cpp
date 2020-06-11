@@ -89,6 +89,9 @@ Real csv_atmosphere::nCO2(const Real &r) {
 Real csv_atmosphere::nCO2(const atmo_point pt) {
   return nCO2(pt.r);
 }
+void csv_atmosphere::nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  assert(false && "not implemented in this class");
+}
 
 Real csv_atmosphere::nH(const Real &r) {
   return exp(lognH_spline((r-rMars)/1e5));
@@ -96,17 +99,28 @@ Real csv_atmosphere::nH(const Real &r) {
 Real csv_atmosphere::nH(const atmo_point pt) {
   return nH(pt.r);
 }
+void csv_atmosphere::nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  assert(false && "not implemented in this class");
+}
 
 Real csv_atmosphere::r_from_nH(Real nHtarget) {
   return inv_lognH_spline(log(nHtarget))*1e5 + rMars;
 }
 
+
+
 Real csv_atmosphere::sH_lya(const atmo_point pt) {
   assert(false && "not implemented in this class");
   return 0;
+}
+void csv_atmosphere::sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  assert(false && "not implemented in this class");
 }
 
 Real csv_atmosphere::sCO2_lya(const atmo_point pt) {
   assert(false && "not implemented in this class");
   return 0;
+}
+void csv_atmosphere::sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+  assert(false && "not implemented in this class");
 }

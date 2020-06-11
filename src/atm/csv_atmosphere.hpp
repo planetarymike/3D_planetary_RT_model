@@ -36,12 +36,16 @@ public:
 
   Real nCO2(const Real &r);
   Real nCO2(const atmo_point pt);
+  void nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
 
   Real nH(const Real &r);
   Real nH(const atmo_point pt);
+  void nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
 
   Real r_from_nH(Real nHtarget);
 
   Real sH_lya(const atmo_point pt);//not implemented
+  void sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
   Real sCO2_lya(const atmo_point pt);//not implemented
+  void sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
 };

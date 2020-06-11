@@ -15,7 +15,6 @@ using std::vector;
 #include <boost/math/interpolators/cardinal_cubic_b_spline.hpp>
 using boost::math::interpolators::cardinal_cubic_b_spline;
 
-
 struct chamb_diff_1d : atmosphere {
   Real nHexo;   // cm-3, H density at exobase
   Real nCO2exo; // cm-3, CO2 density at exobase
@@ -47,6 +46,16 @@ struct chamb_diff_1d : atmosphere {
   cardinal_cubic_b_spline<Real> lognH_exosphere_spline;
   Linear_interp invlognH_exosphere;
 
+  //integrated quantities to get averages
+  vector<Real> log_r_int;
+  vector<Real> nH_int;
+  cardinal_cubic_b_spline<Real> nH_int_spline;
+  vector<Real> nCO2_int;
+  cardinal_cubic_b_spline<Real> nCO2_int_spline;
+  vector<Real> Tint;
+  Linear_interp Tint_spline;
+  //  cardinal_cubic_b_spline<Real> Tint_spline;
+
   chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
 		Real nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp);
@@ -62,21 +71,27 @@ struct chamb_diff_1d : atmosphere {
 
   Real nCO2(const Real &r);
   Real nCO2(const atmo_point pt);
+  void nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
 
   Real nH(const Real &r);
   Real nH(const atmo_point pt);
+  void nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
 
   Real sH_lya(const Real r);
   Real sH_lya(const atmo_point pt);
+  void sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
 
   Real sCO2_lya(const Real r);
   Real sCO2_lya(const atmo_point pt);
+  void sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
 
   Real sH_lyb(const Real r);
   Real sH_lyb(const atmo_point pt);
+  void sH_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
 
   Real sCO2_lyb(const Real r);
   Real sCO2_lyb(const atmo_point pt);
+  void sCO2_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
 
   Real r_from_nH(Real nHtarget);  
 
