@@ -13,6 +13,7 @@ Needed next 6 months:
 Small code improvements
   --incoroporate CO2 absorption in holstein function instead of midpoint approximation 
     (needs 2d holstein interps with absorption)
+  --improve treatment of planetary shadow by doubling up voxels on the shadow boundary, with one treating the inside of the shadow and the other the outside.
   --use monotone cubic interpolation in brightness calculation
   --fix illumination of zones that straddle the planetary shadow (following Bishop)
   --switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
