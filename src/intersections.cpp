@@ -36,9 +36,11 @@ void plane::intersections(const atmo_vector & vec,
     }
   }
     
-  for (int i=0;i<n_hits;i++) 
-    assert(is_zero(vec.extend(distances[i]).z/z-1.0)
+  for (int i=0;i<n_hits;i++) {
+    atmo_point ipt = vec.extend(distances[i]);
+    assert(is_zero(ipt.z/z-1.0)
 	   && "vector must intersect plane at specified distance.");
+  }
 }
 
 
@@ -81,9 +83,11 @@ void sphere::intersections(const atmo_vector & vec,
     }
   }
 
-  for (int i=0;i<n_hits;i++)
-    assert(is_zero(vec.extend(distances[i]).r/r/scale-1.0,ABS)
+  for (int i=0;i<n_hits;i++) {
+    atmo_point ipt = vec.extend(distances[i]);
+    assert(is_zero(ipt.r/r/scale-1.0,ABS)
 	   && "vector must intersect sphere at specified distance.");
+  }
 }
 
 
@@ -106,16 +110,21 @@ void cone::intersections(const atmo_vector & vec,
 			 int &n_hits) const {
   n_hits = 0;
 
-  const Real z_norm = vec.pt.z/scale;
-  const Real r_norm = vec.pt.r/scale;
+  const Real rscale = vec.pt.r;
+  const Real z_norm = vec.pt.z/rscale;
+  //  const Real r_norm = vec.pt.r/rscale;
 
   const Real A = vec.line_z * vec.line_z - cosangle2;
-  const Real B = z_norm * vec.line_z - r_norm * vec.ray.cost * cosangle2;
-  const Real C = z_norm * z_norm - r_norm * r_norm * cosangle2;
+  const Real B = z_norm * vec.line_z - vec.ray.cost * cosangle2;
+  const Real C = z_norm * z_norm - cosangle2;
     
   if (!is_zero(A)) {
-    const Real discr = B*B-A*C;
-
+    //const Real discr = B*B-A*C;
+    const Real discr = cosangle2*(vec.line_z*vec.line_z
+				  +z_norm*z_norm
+				  -2*z_norm*vec.line_z*vec.ray.cost
+				  -cosangle2*vec.ray.sint*vec.ray.sint);
+    
     if (discr > 0) {
 
       const Real q = (B > 0) ? 
@@ -124,26 +133,27 @@ void cone::intersections(const atmo_vector & vec,
 
       const Real d0 = q/A;
       if (d0 > 0 && samesign(z_norm + d0*vec.line_z, cosangle) ) {
-	distances[n_hits]=d0*scale;
+	distances[n_hits]=d0*rscale;
 	n_hits++;
       }
       const Real d1 = C/q;
       if (d1 > 0 && samesign(z_norm + d1*vec.line_z, cosangle)) {
-	distances[n_hits]=d1*scale;
+	distances[n_hits]=d1*rscale;
 	n_hits++;
       }
     }
   } else {
     const Real d = -C/(2*B);
     if (d>0 && samesign(z_norm + d*vec.line_z, cosangle)) {
-      distances[n_hits]=d*scale;
+      distances[n_hits]=d*rscale;
       n_hits++;
     }
   }
 
   for (int i=0;i<n_hits;i++) {
     //this test needs work, still needs very large error term to pass on floats
-    assert(is_zero(vec.extend(distances[i]).t-angle,CONEABS)
+    atmo_point ipt = vec.extend(distances[i]);
+    assert(is_zero(ipt.t/angle-1,CONEABS)
 	   && "vector must intersect cone at specified distance.");
   }
 }

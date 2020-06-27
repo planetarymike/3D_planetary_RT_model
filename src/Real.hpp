@@ -9,7 +9,7 @@
 #ifdef RT_FLOAT
 
 typedef float Real;
-#define CONEABS 3e-2 //gross, but floating point errors compel this
+#define CONEABS 1e-2
 #define ABS 1e-3
 #define STRICTABS 1e-5
 
