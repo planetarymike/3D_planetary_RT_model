@@ -7,6 +7,7 @@
 #include "cuda_compatibility.hpp"
 #include "emission.hpp"
 #include "boundaries.hpp"
+#include <cmath>
 
 template <int N_EMISS>
 struct tau_tracker {
@@ -77,9 +78,14 @@ struct tau_tracker {
       tau_species_final[i_emission] = ( tau_species_initial[i_emission]
 					+ (emissions[i_emission].dtau_species(stepper.current_voxel)
 					   * stepper.pathlength));
+      assert(!std::isnan(tau_species_final[i_emission]) && "optical depths must be real numbers");
+      assert(tau_species_final[i_emission]>=0 && "optical depths must be positive");
+
       tau_absorber_final[i_emission] = ( tau_absorber_initial[i_emission]
 					 + (emissions[i_emission].dtau_absorber(stepper.current_voxel)
 					    * stepper.pathlength)); 
+      assert(!std::isnan(tau_absorber_final[i_emission]) && "optical depths must be real numbers");
+      assert(tau_absorber_final[i_emission]>=0 && "optical depths must be positive");
     }
   }
   
