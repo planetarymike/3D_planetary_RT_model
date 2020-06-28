@@ -132,6 +132,8 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
     for (int j_vox = threadIdx.x; j_vox < grid_type::n_voxels; j_vox+=blockDim.x)
       RT->emissions[i_emission].influence_matrix(i_vox,j_vox) = 0;
 
+  __syncthreads();
+  
   //initialize objects
   atmo_vector vec;
   influence_tracker<N_EMISSIONS,grid_type::n_voxels> temp_influence;
@@ -191,14 +193,17 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::generate_S_gpu() {
   kernel_clk.stop();
   kernel_clk.print_elapsed("influence matrix generation takes ");
 
-  // //solve on CPU with Eigen
-  // emissions_influence_to_host();
-  // solve();
+  //solve on CPU with Eigen
+  emissions_influence_to_host();
+  solve();
 
-  //solve on GPU (~2.5x slower for first call)
-  //much faster than CPU on subsequent calls
-  solve_gpu();
-  emissions_solved_to_host();
+  // //solve on GPU (~2.5x slower for first call)
+  // //much faster than CPU on subsequent calls
+  // solve_gpu();
+  // emissions_solved_to_host();
+
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
  
   // print time elapsed
   clk.stop();
@@ -320,11 +325,12 @@ void prepare_for_solution(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   //each block prepares one row of the influence matrix
   int i_vox = blockIdx.x;
 
-  //convert to kernel from influence (kernel = identity - influence)
+  //convert to kernel from influence (kernel = identity - branching_ratio*influence)
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
     for (int j_vox = threadIdx.x; j_vox < grid_type::n_voxels; j_vox+=blockDim.x) {
-      RT->emissions[i_emission].influence_matrix(i_vox,j_vox) *= -1;
+      RT->emissions[i_emission].influence_matrix(i_vox,j_vox) *= -RT->emissions[i_emission].branching_ratio;
     }
+  
   //add the identity matrix
   for (int i_emission=threadIdx.x; i_emission < N_EMISSIONS; i_emission+=blockDim.x)
     RT->emissions[i_emission].influence_matrix(i_vox,i_vox) += 1;
