@@ -54,10 +54,17 @@ void emission<N_VOXELS>::copy_to_device_influence(emission<N_VOXELS> *device_emi
 
 template <int N_VOXELS>
 void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_emission) {
+  vector_to_device(device_emission->dtau_species, dtau_species);
   vector_to_device(device_emission->log_dtau_species, log_dtau_species);
+  vector_to_device(device_emission->dtau_species_pt, dtau_species_pt);
   vector_to_device(device_emission->log_dtau_species_pt, log_dtau_species_pt);
+  
+  vector_to_device(device_emission->dtau_absorber, dtau_absorber);
   vector_to_device(device_emission->log_dtau_absorber, log_dtau_absorber);
+  vector_to_device(device_emission->dtau_absorber_pt, dtau_absorber_pt);
   vector_to_device(device_emission->log_dtau_absorber_pt, log_dtau_absorber_pt);
+
+  vector_to_device(device_emission->sourcefn, sourcefn); 
   vector_to_device(device_emission->log_sourcefn, log_sourcefn); 
 }
 
