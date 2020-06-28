@@ -18,10 +18,11 @@ chamberlain_exosphere::chamberlain_exosphere(const Real &rexoo,
   H_escape_flux = nHexo * effusion_velocity;
 }
 
-Real chamberlain_exosphere::nH(Real r) {
+Real chamberlain_exosphere::nH(const Real rr) const {
   // computes hydrogen number density as a function of altitude above
   // the exobase, assuming a chamberlain exosphere w/o satellite particles
-
+  Real r = rr;
+  
   using boost::math::gamma_p;
 
 
@@ -52,12 +53,12 @@ Real chamberlain_exosphere::nH(Real r) {
   // multiply by the exobase density and return
   return nHexo*frac*exp(lambda-lambdac);
 }
-Real chamberlain_exosphere::operator()(Real r) {
+Real chamberlain_exosphere::operator()(const Real r) const {
   return this->nH(r);
 }
 
 //find r corresponding to a given nH
-Real chamberlain_exosphere::r(Real &nHtarget) {  
+Real chamberlain_exosphere::r(const Real &nHtarget) const {  
   assert(nHtarget<nHexo && "exosphere nH must be less than nHexo");
 
 
@@ -122,24 +123,24 @@ Temp_converter::Temp_converter(Real rexoo)
   inv_lc = Linear_interp(lcvec,Tvec);
 }
 
-Real Temp_converter::lc_from_T_exact(Real T) const {
+Real Temp_converter::lc_from_T_exact(const Real T) const {
   return G*mMars*mH/(kB*T*rexo);
 }
-Real Temp_converter::eff_from_T_exact(Real T) const {
+Real Temp_converter::eff_from_T_exact(const Real T) const {
   Real lambdac = lc_from_T_exact(T);
   return 0.5 * sqrt( 2.0*kB*T / (mH*pi) ) * (1.0 + lambdac) * exp(-lambdac);
 }
 
-Real Temp_converter::eff_from_T(Real T) const {
+Real Temp_converter::eff_from_T(const Real T) const {
   return eff_spline(T);
 }
-Real Temp_converter::T_from_eff(Real eff) {
+Real Temp_converter::T_from_eff(const Real eff) const {
   return inv_eff(eff);
 }
 
-Real Temp_converter::lc_from_T(Real T) const {
+Real Temp_converter::lc_from_T(const Real T) const {
   return lc_spline(T);
 }
-Real Temp_converter::T_from_lc(Real lc) {
+Real Temp_converter::T_from_lc(const Real lc) const {
   return inv_lc(lc);
 }

@@ -14,25 +14,25 @@ struct chamberlain_exosphere {
   chamberlain_exosphere();
   chamberlain_exosphere(const Real &rexoo, const Real &Texoo, const Real &nHexoo);
   
-  Real nH(Real r);
-  Real operator()(Real r); //alias for nH
+  Real nH(const Real r) const;
+  Real operator()(Real r) const; //alias for nH
 
   template <typename T>
   struct nHfinder {
-    T *parent;
-    Real nHtarget;
+    const T *parent;
+    const Real nHtarget;
 
-    nHfinder(T *parentt, Real &nHtargett)
+    nHfinder(const T *parentt, const Real &nHtargett)
       : parent(parentt), nHtarget(nHtargett)
     { }
       
-    Real operator()(Real r) {
+    Real operator()(const Real r) const {
       return parent->nH(r) - nHtarget;
     }
   };
   
   //find r corresponding to a given nH
-  Real r(Real &nHtarget);
+  Real r(const Real &nHtarget) const;
 };
 
 #include "constants.hpp"
@@ -61,14 +61,14 @@ protected:
 public:
   Temp_converter(Real rexoo = rexo_typical);
 
-  Real lc_from_T_exact(Real T) const;
-  Real eff_from_T_exact(Real T) const;
+  Real lc_from_T_exact(const Real T) const;
+  Real eff_from_T_exact(const Real T) const;
 
-  Real eff_from_T(Real T) const; 
-  Real T_from_eff(Real eff);
+  Real eff_from_T(const Real T) const; 
+  Real T_from_eff(const Real eff) const;
 
-  Real lc_from_T(Real T) const; 
-  Real T_from_lc(Real eff);
+  Real lc_from_T(const Real T) const; 
+  Real T_from_lc(const Real eff) const;
 };
 
 

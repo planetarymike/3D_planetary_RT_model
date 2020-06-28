@@ -3,6 +3,18 @@
 
 using std::exp;
 
+Real temperature::T(const Real &r) {
+  if (r != last_r)
+    get(r);
+  return T_internal;
+}
+
+Real temperature::Tprime(const Real &r) {
+  if (r != last_r)
+    get(r);
+  return Tprime_internal;
+}
+
 krasnopolsky_temperature::krasnopolsky_temperature(Real T_exoo,
 						   Real T_tropoo,
 						   Real r_tropoo,
@@ -14,7 +26,9 @@ krasnopolsky_temperature::krasnopolsky_temperature(Real T_exoo,
 }
 
 void krasnopolsky_temperature::get(const Real &r) {
+  last_r = r;
+  
   const Real rdiff = r - r_tropo;
-  T = T_exo - (T_exo - T_tropo)*exp(-rdiff*rdiff*1e-10/(shape_parameter*T_exo));
-  Tprime = ( T_exo - T ) * ( 2*rdiff*1e-10 / (shape_parameter*T_exo) );
+  T_internal      = T_exo - (T_exo - T_tropo)*exp(-rdiff*rdiff*1e-10/(shape_parameter*T_exo));
+  Tprime_internal = ( T_exo - T_internal ) * ( 2*rdiff*1e-10 / (shape_parameter*T_exo) );
 }

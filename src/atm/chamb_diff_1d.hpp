@@ -24,6 +24,9 @@ struct chamb_diff_1d : atmosphere {
   Real nCO2rmindiffusion;
   
   temperature *temp;
+  bool temp_dependent_sH;
+  Real constant_temp_sH;
+
   chamberlain_exosphere exosphere;
   thermosphere_diffeq diffeq;
 
@@ -47,15 +50,25 @@ struct chamb_diff_1d : atmosphere {
   Linear_interp invlognH_exosphere;
 
   //integrated quantities to get averages
+  static const int r_int_scale = 1e8;
   vector<Real> log_r_int;
   vector<Real> nH_int;
   cardinal_cubic_b_spline<Real> nH_int_spline;
+  vector<Real> nH_int_spherical;
+  cardinal_cubic_b_spline<Real> nH_int_spline_spherical;
   vector<Real> nCO2_int;
   cardinal_cubic_b_spline<Real> nCO2_int_spline;
+  vector<Real> nCO2_int_spherical;
+  cardinal_cubic_b_spline<Real> nCO2_int_spline_spherical;
   vector<Real> Tint;
   Linear_interp Tint_spline;
+  vector<Real> Tint_spherical;
+  Linear_interp Tint_spline_spherical;
   //  cardinal_cubic_b_spline<Real> Tint_spline;
 
+  bool spherical;//whether to compute averages in spherical geometry
+		 //or not
+  
   chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
 		Real nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp);
@@ -69,37 +82,47 @@ struct chamb_diff_1d : atmosphere {
 		temperature &tempp);
 
 
-  Real nCO2(const Real &r);
-  Real nCO2(const atmo_point pt);
-  void nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
+  Real ravg(const Real &r0, const Real &r1,
+	    const Real &q0, const Real &q1) const;
+  
+  Real nCO2(const Real &r) const;
+  Real nCO2avg(const Real &r0, const Real &r1) const;
+  //child chamb_diff_1d_asymmetric needs to override these
+  virtual Real nCO2(const atmo_point &pt) const; 
+  virtual void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real nH(const Real &r);
-  Real nH(const atmo_point pt);
-  void nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
+  Real nH(const Real &r) const;
+  Real nHavg(const Real &r0, const Real &r1) const;
+  //child chamb_diff_1d_asymmetric needs to override these
+  virtual Real nH(const atmo_point &pt) const;
+  virtual void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real sH_lya(const Real r);
-  Real sH_lya(const atmo_point pt);
-  void sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
+  Real Tavg(const Real &r0, const Real &r1) const;
 
-  Real sCO2_lya(const Real r);
-  Real sCO2_lya(const atmo_point pt);
-  void sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
+  Real sH_lya(const Real &r) const;
+  Real sH_lya(const atmo_point &pt) const;
+  void sH_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real sH_lyb(const Real r);
-  Real sH_lyb(const atmo_point pt);
-  void sH_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
+  Real sCO2_lya(const Real &r) const;
+  Real sCO2_lya(const atmo_point &pt) const;
+  void sCO2_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real sCO2_lyb(const Real r);
-  Real sCO2_lyb(const atmo_point pt);
-  void sCO2_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);
+  Real sH_lyb(const Real &r) const;
+  Real sH_lyb(const atmo_point &pt) const;
+  void sH_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real r_from_nH(Real nHtarget);  
+  Real sCO2_lyb(const Real &r) const;
+  Real sCO2_lyb(const atmo_point &pt) const;
+  void sCO2_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real nCO2_exact(const Real &r);
-  Real nH_exact(const Real &r);
+  Real r_from_nH(const Real &nHtarget) const;  
 
-  void write_vector(std::ofstream &file, std::string preamble, vector<Real> &data);  
-  void save(std::string fname);  
+  Real nCO2_exact(const Real &r) const;
+  Real nH_exact(const Real &r) const;
+
+  void write_vector(std::ofstream &file, const std::string &preamble,
+		    const vector<Real> &data) const;  
+  void save(std::string fname) const;  
 };
 
 #endif

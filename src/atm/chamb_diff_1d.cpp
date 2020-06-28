@@ -37,8 +37,11 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
     nCO2exo(nCO2exoo),
     rmindiffusion(rmindiffusionn),
     temp(&tempp), 
+    temp_dependent_sH(true),
+    constant_temp_sH(temp->T_exo),
     exosphere(rexo, temp->T_exo, nHexo),
-    diffeq(tempp, exosphere.H_escape_flux, rexo)      
+    diffeq(tempp, exosphere.H_escape_flux, rexo),
+    spherical(true)
 {
 
   //set the max altitude by finding the density at which the exosphere = nHmin
@@ -89,48 +92,94 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
 
 
   //now we need to integrate the relevant quantites so we can compute averages
-  int n_int_steps = 1000;
-  Real log_r_int_step = (log(rmax-rMars) - log(rmin-rMars))/(n_int_steps - 1.);
-  log_r_int.push_back(log((rmax-rMars)*(1-ABS)));
+  int n_int_steps = 100;
+
+  //integrate from the top of the atmosphere down to minimize floating
+  //point subtraction errors
+  Real log_r_int_step = (log((rmax-rMars)/r_int_scale) - log((rmin-rMars)/r_int_scale))/(n_int_steps - 1.);
+  log_r_int.push_back(log((rmax-rMars)*(1-ABS)/r_int_scale));
+
   nH_int.push_back(0);
+  nH_int_spherical.push_back(0);
   nCO2_int.push_back(0);
+  nCO2_int_spherical.push_back(0);
   Tint.push_back(0);
+  Tint_spherical.push_back(0);
   for (int i_int=1; i_int<n_int_steps; i_int++) {
-    log_r_int.push_back(log(rmax-rMars)-i_int*log_r_int_step);
-    if (exp(log_r_int.back()) < rmin-rMars)
-      log_r_int.back() = log((rmin-rMars)*(1+ABS));
-    
-    Real r0 = exp(log_r_int[i_int-1])+rMars;
-    Real r1 = exp(log_r_int[i_int])+rMars;
-    Real dr = r0-r1;
+    log_r_int.push_back(log_r_int[0]-i_int*log_r_int_step);
+    if (exp(log_r_int.back()) < (rmin-rMars)/r_int_scale)
+      log_r_int.back() = log((rmin-rMars)*(1+ABS)/r_int_scale);
 
-    nH_int.push_back( (nH(r1) + nH(r0))/2.0 * dr + nH_int.back() );
-    nCO2_int.push_back( (nCO2(r1) + nCO2(r0))/2.0 * dr + nCO2_int.back() );
+    //scaled quantities
+    Real r0s = exp(log_r_int[i_int-1])+rMars/r_int_scale;
+    Real r1s = exp(log_r_int[i_int])+rMars/r_int_scale;
+    Real drs = r0s-r1s;
+    //unscaled quantities
+    Real r0 = exp(log_r_int[i_int-1])*r_int_scale+rMars;
+    Real r1 = exp(log_r_int[i_int])*r_int_scale+rMars;
+    //Real dr = r0-r1;
 
-    temp->get(r0);
-    Real T0 = temp->T;
-    temp->get(r1);
-    Real T1 = temp->T;
+    nH_int.push_back( (nH(r1) + nH(r0))/2.0 * drs + nH_int.back() );
+    nH_int_spherical.push_back( (nH(r1)*r1s*r1s + nH(r0)*r0s*r0s)/2.0 * drs + nH_int_spherical.back() );
 
-    Tint.push_back( (T1 + T0)/2.0 * dr + Tint.back() );
+    if (r1>rexo) {
+      nCO2_int.push_back( 0.0 );
+      nCO2_int_spherical.push_back( 0.0 );
+    } else {
+      nCO2_int.push_back( (nCO2(r1) + nCO2(r0))/2.0 * drs + nCO2_int.back() );
+      nCO2_int_spherical.push_back( (nCO2(r1)*r1s*r1s + nCO2(r0)*r0s*r0s)/2.0 * drs + nCO2_int_spherical.back() );
+    }
+
+    Real T0 = temp->T(r0);
+    Real T1 = temp->T(r1);
+
+    Tint.push_back( (T1 + T0)/2.0 * drs + Tint.back() );
+    Tint_spherical.push_back( (T1*r1s*r1s + T0*r0s*r0s)/2.0 * drs + Tint_spherical.back() );
   }
   nH_int_spline = cardinal_cubic_b_spline<Real>(nH_int.rbegin(),
 						nH_int.rend(),
 						log_r_int.back(),
 						log_r_int_step);
+  nH_int_spline_spherical = cardinal_cubic_b_spline<Real>(nH_int_spherical.rbegin(),
+							  nH_int_spherical.rend(),
+							  log_r_int.back(),
+							  log_r_int_step);
   nCO2_int_spline = cardinal_cubic_b_spline<Real>(nCO2_int.rbegin(),
 						  nCO2_int.rend(),
 						  log_r_int.back(),
 						  log_r_int_step);
+  nCO2_int_spline_spherical = cardinal_cubic_b_spline<Real>(nCO2_int_spherical.rbegin(),
+							    nCO2_int_spherical.rend(),
+							    log_r_int.back(),
+							    log_r_int_step);
   Tint_spline = Linear_interp(log_r_int, Tint);
+  Tint_spline_spherical = Linear_interp(log_r_int, Tint_spherical);
   // Tint_spline = cardinal_cubic_b_spline<Real>(Tint.rbegin(),
   // 					      Tint.rend(),
   // 					      log_r_int.back(),
   // 					      log_r_int_step);
 }
 
+Real chamb_diff_1d::ravg(const Real &r0, const Real &r1,
+			 const Real &q0, const Real &q1) const {
+  //compute average values from integral quantities q;
+  if (spherical) {
+    return -3*( q1 - q0 )/( r1*r1*r1 - r0*r0*r0 );// volume is
+						  // int_r0^r1(r^2)=1/3(r1^3-r0^3)
+						  // (no 4pi b/c integral is r only)
+    //     ^this (-) is here because integration is from the top of
+    //     the atmosphere down, to minimize the chance of floating
+    //     point errors
+  } else {
+    return -( q1 - q0 )/( r1 - r0 );
+    //     ^this (-) is here because integration is from the top of
+    //     the atmosphere down, to minimize the chance of floating
+    //     point errors
+  }
+}
+  
 
-Real chamb_diff_1d::nCO2(const Real &r) {
+Real chamb_diff_1d::nCO2(const Real &r) const {
   if (r>rexo)
     return 0.0;
   else {
@@ -138,18 +187,35 @@ Real chamb_diff_1d::nCO2(const Real &r) {
     return exp(lognCO2_thermosphere_spline(r));
   }
 }
-Real chamb_diff_1d::nCO2(const atmo_point pt) {
+Real chamb_diff_1d::nCO2(const atmo_point &pt) const {
   return nCO2(pt.r);
 }
-void chamb_diff_1d::nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
-  ret_avg =  (nCO2_int_spline(log(vox.rbounds[0]-rMars))
-	      -nCO2_int_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
-							    -vox.rbounds[0]);
-  ret_pt = nCO2(vox.pt.r);
+Real chamb_diff_1d::nCO2avg(const Real &r0, const Real &r1) const {
+  if (r0>rexo) {
+    return 0.0;
+  } else if (r1 > rexo) {
+    return nCO2avg(r0,(1.0-ABS)*rexo);
+  } else {
+    if (spherical) {
+      return ravg(r0/r_int_scale, r1/r_int_scale,
+		  nCO2_int_spline_spherical(log((r0-rMars)/r_int_scale)),
+		  nCO2_int_spline_spherical(log((r1-rMars)/r_int_scale)));
+    } else {
+      return ravg(r0/r_int_scale, r1/r_int_scale,
+		  nCO2_int_spline(log((r0-rMars)/r_int_scale)),
+		  nCO2_int_spline(log((r1-rMars)/r_int_scale)));
+    }
+  }
+}
+void chamb_diff_1d::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  ret_avg = nCO2avg(vox.rbounds[0], vox.rbounds[1]);
+  assert(!isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
+  ret_pt  = nCO2(vox.pt.r);
+  assert(!isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
 }
 
 
-Real chamb_diff_1d::nH(const Real &r) {
+Real chamb_diff_1d::nH(const Real &r) const {
   if (r>=rexo)
     return exp(lognH_exosphere_spline(log(r)));
   else {
@@ -161,72 +227,94 @@ Real chamb_diff_1d::nH(const Real &r) {
     }
   }
 }
-Real chamb_diff_1d::nH(const atmo_point pt) {
+Real chamb_diff_1d::nH(const atmo_point &pt) const {
   return nH(pt.r);
 }
-void chamb_diff_1d::nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
-  ret_avg =  (nH_int_spline(log(vox.rbounds[0]-rMars))
-	      -nH_int_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
-							  -vox.rbounds[0]);
-  ret_pt = nH(vox.pt.r);
+Real chamb_diff_1d::nHavg(const Real &r0, const Real &r1) const {
+  if (spherical) {
+    return ravg(r0/r_int_scale, r1/r_int_scale,
+		nH_int_spline_spherical(log((r0-rMars)/r_int_scale)),
+		nH_int_spline_spherical(log((r1-rMars)/r_int_scale)));
+  } else {
+    return ravg(r0/r_int_scale, r1/r_int_scale,
+		nH_int_spline(log((r0-rMars)/r_int_scale)),
+		nH_int_spline(log((r1-rMars)/r_int_scale)));
+  }
+}
+void chamb_diff_1d::nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  ret_avg = nHavg(vox.rbounds[0],vox.rbounds[1]);
+  assert(!isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
+  ret_pt  = nH(vox.pt.r);
+  assert(!isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
 }
 
-
-
-Real chamb_diff_1d::sH_lya(const Real r) {
-  temp->get(r);
-  return lyman_alpha_line_center_cross_section_coef/sqrt(temp->T);
+Real chamb_diff_1d::Tavg(const Real &r0, const Real &r1) const {
+  if (r0 > rexo) {
+    return temp->T_exo;
+  } else {
+    if (spherical) {
+      return ravg(r0/r_int_scale, r1/r_int_scale,
+		  Tint_spline_spherical(log((r0-rMars)/r_int_scale)),
+		  Tint_spline_spherical(log((r1-rMars)/r_int_scale)));
+    } else {
+      return ravg(r0/r_int_scale, r1/r_int_scale,
+		  Tint_spline(log((r0-rMars)/r_int_scale)),
+		  Tint_spline(log((r1-rMars)/r_int_scale)));
+    }
+  }
+}
+Real chamb_diff_1d::sH_lya(const Real &r) const {
+  Real t_sH = temp_dependent_sH ? temp->T(r) : constant_temp_sH;
+  return lyman_alpha_line_center_cross_section_coef/sqrt(t_sH);
 }    
-Real chamb_diff_1d::sH_lya(const atmo_point pt) {
+Real chamb_diff_1d::sH_lya(const atmo_point &pt) const {
   return sH_lya(pt.r);
 }
-void chamb_diff_1d::sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
-  Real Tavg = (Tint_spline(log(vox.rbounds[0]-rMars))
-	       -Tint_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
-							 -vox.rbounds[0]);
-  ret_avg =  lyman_alpha_line_center_cross_section_coef/sqrt(Tavg);
+void chamb_diff_1d::sH_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  ret_avg =  lyman_alpha_line_center_cross_section_coef/sqrt(Tavg(vox.rbounds[0],
+								  vox.rbounds[1]));
   ret_pt = sH_lya(vox.pt.r);
 }
 
-Real chamb_diff_1d::sCO2_lya(const Real r) {
+Real chamb_diff_1d::sCO2_lya(__attribute__((unused)) const Real &r) const {
   return CO2_lyman_alpha_absorption_cross_section;
 }
-Real chamb_diff_1d::sCO2_lya(const atmo_point pt) {
+Real chamb_diff_1d::sCO2_lya(const atmo_point &pt) const {
   return sCO2_lya(pt.r);
 }
-void chamb_diff_1d::sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+void chamb_diff_1d::sCO2_lya(__attribute__((unused)) const atmo_voxel &vox,
+			     Real &ret_avg, Real &ret_pt) const {
   ret_avg = ret_pt = CO2_lyman_alpha_absorption_cross_section;
 }
 
-Real chamb_diff_1d::sH_lyb(const Real r) {
-  temp->get(r);
-  return lyman_beta_line_center_cross_section_coef/sqrt(temp->T);
+Real chamb_diff_1d::sH_lyb(const Real &r) const {
+  Real t_sH = temp_dependent_sH ? temp->T(r) : constant_temp_sH;
+  return lyman_beta_line_center_cross_section_coef/sqrt(t_sH);
 }    
-Real chamb_diff_1d::sH_lyb(const atmo_point pt) {
+Real chamb_diff_1d::sH_lyb(const atmo_point &pt) const {
   return sH_lyb(pt.r);
 }
-void chamb_diff_1d::sH_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
-  Real Tavg = (Tint_spline(log(vox.rbounds[0]-rMars))
-	       -Tint_spline(log(vox.rbounds[1]-rMars)))/(vox.rbounds[1]
-							 -vox.rbounds[0]);
-  ret_avg = lyman_beta_line_center_cross_section_coef/sqrt(Tavg);
+void chamb_diff_1d::sH_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  ret_avg = lyman_beta_line_center_cross_section_coef/sqrt(Tavg(vox.rbounds[0],
+								  vox.rbounds[1]));
   ret_pt = sH_lyb(vox.pt.r);
 }
 
-Real chamb_diff_1d::sCO2_lyb(const Real r) {
+Real chamb_diff_1d::sCO2_lyb(__attribute__((unused)) const Real &r) const {
   return CO2_lyman_beta_absorption_cross_section;
 }
-Real chamb_diff_1d::sCO2_lyb(const atmo_point pt) {
+Real chamb_diff_1d::sCO2_lyb(const atmo_point &pt) const {
   return sCO2_lyb(pt.r);
 }
-void chamb_diff_1d::sCO2_lyb(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+void chamb_diff_1d::sCO2_lyb(__attribute__((unused)) const atmo_voxel &vox,
+			     Real &ret_avg, Real &ret_pt) const {
   ret_avg = ret_pt = CO2_lyman_beta_absorption_cross_section;
 }
 
 
 
 
-Real chamb_diff_1d::r_from_nH(Real nHtarget) {
+Real chamb_diff_1d::r_from_nH(const Real &nHtarget) const {
   if (nHtarget==nHexo) {
     return rexo;
   } else if (nHtarget<nHexo) {
@@ -242,7 +330,7 @@ Real chamb_diff_1d::r_from_nH(Real nHtarget) {
 
 
 
-Real chamb_diff_1d::nCO2_exact(const Real &r) {
+Real chamb_diff_1d::nCO2_exact(const Real &r) const {
   if (r>rexo)
     return 0.0;
   else {
@@ -262,7 +350,7 @@ Real chamb_diff_1d::nCO2_exact(const Real &r) {
   }
 }
 
-Real chamb_diff_1d::nH_exact(const Real &r) {
+Real chamb_diff_1d::nH_exact(const Real &r) const {
   if (r>=rexo)
     return exosphere(r);
   else {
@@ -290,9 +378,10 @@ Real chamb_diff_1d::nH_exact(const Real &r) {
 
 
 
-void chamb_diff_1d::write_vector(std::ofstream &file, std::string preamble, vector<Real> &data) {
-  VectorX write_out = Eigen::Map<VectorX>(data.data(),
-					  data.size());
+void chamb_diff_1d::write_vector(std::ofstream &file, const std::string &preamble,
+				 const vector<Real> &data) const {
+  VectorX write_out = Eigen::Map<const VectorX>(data.data(),
+						data.size());
 
   file << preamble << write_out.transpose() << "\n";
 }
@@ -300,7 +389,7 @@ void chamb_diff_1d::write_vector(std::ofstream &file, std::string preamble, vect
 
 
 
-void chamb_diff_1d::save(std::string fname) {
+void chamb_diff_1d::save(std::string fname) const {
 
   std::ofstream file(fname.c_str());
   if (file.is_open())
