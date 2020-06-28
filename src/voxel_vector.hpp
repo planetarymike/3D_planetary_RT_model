@@ -21,7 +21,9 @@ public:
   Real* vec;
   Real* d_vec = NULL;//pointer to device memory for CUDA
 
-  voxel_vector() : VectorX() { }
+  voxel_vector() : VectorX() {
+    resize();
+  }
 
   ~voxel_vector() {
 #ifdef __CUDACC__
@@ -55,7 +57,7 @@ public:
     return vec[n];
   }
   CUDA_CALLABLE_MEMBER
-  Real operator[](const int n) const {
+  const Real & operator[](const int n) const {
     return vec[n];
   }
   CUDA_CALLABLE_MEMBER
@@ -63,7 +65,7 @@ public:
     return vec[n];
   }
   CUDA_CALLABLE_MEMBER
-  Real operator()(const int n) const {
+  const Real & operator()(const int n) const {
     return vec[n];
   }
 
@@ -102,7 +104,9 @@ public:
   Real* mat;
   Real* d_mat = NULL;//pointer to device memory for CUDA
 
-  voxel_matrix() : MatrixX() { }
+  voxel_matrix() : MatrixX() {
+    resize();
+  }
 
   ~voxel_matrix() {
 #ifdef __CUDACC__
@@ -135,9 +139,18 @@ public:
     mat = MatrixX::data();
   }
 
-  //overload [] to access coefficients of mat
+  //overload () to access coefficients of mat
   CUDA_CALLABLE_MEMBER
   Real & operator()(const int n, const int m) {
+#ifdef EIGEN_ROWMAJOR
+    const int i = n*n_voxels + m;//row major
+#else
+    const int i = m*n_voxels + n;//column major
+#endif
+    return mat[i];
+  }
+  CUDA_CALLABLE_MEMBER
+  const Real & operator()(const int n, const int m) const {
 #ifdef EIGEN_ROWMAJOR
     const int i = n*n_voxels + m;//row major
 #else
