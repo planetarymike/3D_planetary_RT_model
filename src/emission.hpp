@@ -11,6 +11,7 @@
 #include "voxel_vector.hpp"
 
 using std::string;
+using std::isnan;
 
 template <int N_VOXELS>
 struct emission {
@@ -63,81 +64,14 @@ struct emission {
   emission() :
     init(false)
   { }
-  CUDA_CALLABLE_MEMBER
-  ~emission() { };
-
-  void resize() {
-    species_density.resize();
-    species_density_pt.resize();
-    absorber_density.resize();
-    absorber_density_pt.resize();
-    species_sigma.resize();
-    species_sigma_pt.resize();
-    absorber_sigma.resize();
-    absorber_sigma_pt.resize();
-
-    dtau_species.resize();
-    dtau_species_pt.resize();
-    log_dtau_species.resize();
-    log_dtau_species_pt.resize();
-    dtau_absorber.resize();
-    dtau_absorber_pt.resize();
-    log_dtau_absorber.resize();
-    log_dtau_absorber_pt.resize();
-    abs.resize();
-    abs_pt.resize();
-    log_abs.resize();
-    log_abs_pt.resize();
-
-    influence_matrix.resize();
-
-    singlescat.resize();
-    sourcefn.resize();
-    log_sourcefn.resize();
-
-    tau_species_single_scattering.resize();
-    tau_absorber_single_scattering.resize();
-  }
-  
-  // template<typename C, typename V>
-  // void define(Real emission_branching_ratio,
-  // 	      C &atmosphere,
-  // 	      Real (C::*species_density_function)(const atmo_point),
-  // 	      Real (C::*species_sigma_function)(const atmo_point),
-  // 	      Real (C::*absorber_density_function)(const atmo_point),
-  // 	      Real (C::*absorber_sigma_function)(const atmo_point),
-  // 	      const V &pts) {
-    
-  //   branching_ratio = emission_branching_ratio;
-    
-  //   for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
-  //     species_density[i_voxel]=(atmosphere.*species_density_function)(pts[i_voxel]);
-  //     species_sigma[i_voxel]=(atmosphere.*species_sigma_function)(pts[i_voxel]);
-  //     absorber_density[i_voxel]=(atmosphere.*absorber_density_function)(pts[i_voxel]);
-  //     absorber_sigma[i_voxel]=(atmosphere.*absorber_sigma_function)(pts[i_voxel]);
-  //   }
-    
-  //   //define differential optical depths by coefficientwise multiplication
-  //   dtau_species = species_density.array() * species_sigma.array();
-  //   dtau_absorber = absorber_density.array() * absorber_sigma.array();
-  //   abs = dtau_absorber.array() / dtau_species.array();
-    
-  //   for (unsigned int i=0;i<log_dtau_species.size();i++) {
-  //     log_dtau_species(i) = dtau_species(i) == 0 ? -1e5 : log(dtau_species(i));
-  //     log_dtau_absorber(i) = dtau_absorber(i) == 0 ? -1e5 : log(dtau_species(i));
-  //     log_abs(i) = abs(i) == 0 ? -1e5 : log(abs(i));
-  //   }
-    
-  //   init=true;
-  // }
 
   template<typename C>
   void define(Real emission_branching_ratio,
-	      C &atmosphere,
-	      void (C::*species_density_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
-	      void (C::*species_sigma_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
-	      void (C::*absorber_density_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
-	      void (C::*absorber_sigma_function)(const atmo_voxel, Real &ret_avg, Real &ret_pt),
+	      const C &atmosphere,
+	      void (C::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      void (C::*species_sigma_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      void (C::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      void (C::*absorber_sigma_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
 	      const atmo_voxel (&voxels)[n_voxels]) {
     
     branching_ratio = emission_branching_ratio;
@@ -146,18 +80,42 @@ struct emission {
       (atmosphere.*species_density_function)(voxels[i_voxel],
 					     species_density[i_voxel],
 					     species_density_pt[i_voxel]);
-
+      assert(!isnan(species_density[i_voxel])
+	     && species_density[i_voxel] >= 0
+	     && "densities must be real and positive");
+      assert(!isnan(species_density_pt[i_voxel])
+	     && species_density_pt[i_voxel] >= 0
+	     && "densities must be real and positive");
+      
       (atmosphere.*species_sigma_function)(voxels[i_voxel],
 					   species_sigma[i_voxel],
 					   species_sigma_pt[i_voxel]);
+      assert(!isnan(species_sigma[i_voxel])
+	     && species_sigma[i_voxel] >= 0
+	     && "densities must be real and positive");
+      assert(!isnan(species_sigma_pt[i_voxel])
+	     && species_sigma_pt[i_voxel] >= 0
+	     && "densities must be real and positive");
       
       (atmosphere.*absorber_density_function)(voxels[i_voxel],
 					      absorber_density[i_voxel],
 					      absorber_density_pt[i_voxel]);
+      assert(!isnan(absorber_density[i_voxel])
+	     && absorber_density[i_voxel] >= 0
+	     && "densities must be real and positive");
+      assert(!isnan(absorber_density_pt[i_voxel])
+	     && absorber_density_pt[i_voxel] >= 0
+	     && "densities must be real and positive");
       
       (atmosphere.*absorber_sigma_function)(voxels[i_voxel],
 					    absorber_sigma[i_voxel],
 					    absorber_sigma_pt[i_voxel]);
+      assert(!isnan(absorber_sigma[i_voxel])
+	     && absorber_sigma[i_voxel] >= 0
+	     && "densities must be real and positive");
+	assert(!isnan(absorber_sigma_pt[i_voxel])
+	     && absorber_sigma_pt[i_voxel] >= 0
+	     && "densities must be real and positive");
     }
     
     //define differential optical depths by coefficientwise multiplication
