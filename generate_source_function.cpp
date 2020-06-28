@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
   // 		                 n_rays_phi,
   // 		                 n_rays_theta> grid_type;
 
-  static const int n_radial_boundaries = 80;
+  static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_phi = 6;
   static const int n_rays_theta = 12;
@@ -63,10 +63,10 @@ int main(int argc, char* argv[]) {
 
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",
-		       1.0,
-		       atm,
-		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
-		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+		     1.0,
+		     atm,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
+		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
   //solve for H lyman beta
   RT.define_emission("H Lyman beta",
 		       lyman_beta_branching_ratio,
