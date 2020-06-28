@@ -159,8 +159,15 @@ Real holstein_approx::Tint_lerp(const Real tau) const {
   }  else {
     Real logtau_target = log(tau);
     int itau = get_lerp_loc(logtau_target);
-    Real lerp = logTint[itau]+(logTint[itau+1]-logTint[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
-    return exp(lerp);
+
+    //CUDA produces zero here when adding zero (yes, really), so we must explictly check
+    Real lerp = logTint[itau];
+    if (logtau_target != logtau[itau])
+      lerp += (logTint[itau+1]-logTint[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
+
+    lerp = exp(lerp);
+    assert(!std::isnan(lerp) && lerp >= 0 && "holstein integrals must be positive.");
+    return lerp;
   }
 }
 
@@ -184,9 +191,15 @@ Real holstein_approx::T_lerp(const Real tau) const {
   }  else {
     Real logtau_target = log(tau);
     int itau = get_lerp_loc(logtau_target);
-    Real lerp = logT[itau]+(logT[itau+1]-logT[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
-      
-    return exp(lerp);
+
+    //CUDA produces zero here when adding zero (yes, really), so we must explictly check
+    Real lerp = logT[itau];
+    if (logtau_target != logtau[itau])
+      lerp += (logT[itau+1]-logT[itau])*(logtau_target-logtau[itau])/(logtau[itau+1]-logtau[itau]);
+
+    lerp = exp(lerp);
+    assert(!std::isnan(lerp) && lerp >= 0 && "holstein integrals must be positive.");
+    return lerp;
   }
 }
 
