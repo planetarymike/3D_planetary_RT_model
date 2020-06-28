@@ -1,12 +1,7 @@
 //atmo_vec.cpp -- basic definitions for points, rays, and vectors
 #include "atmo_vec.hpp"
 
-//atmo_voxel
-atmo_voxel::atmo_voxel()
-  : i_voxel(-1),init(false) { }
-
 //atmo_point
-
 CUDA_CALLABLE_MEMBER
 atmo_point::atmo_point() {
   init=false;
@@ -55,9 +50,9 @@ void atmo_point::rtp(const Real &rr, const Real &tt, const Real &pp) {
 CUDA_CALLABLE_MEMBER  
 void atmo_point::xyz(const Real &xx, const Real &yy, const Real &zz) {
   x = xx; y = yy; z = zz;
-  r=sqrt(x*x + y*y + z*z);
-  t=acos(z/r);
-  p=atan2(y,x);
+  r = hypot(hypot(x,y),z);
+  t = acos(z/r);
+  p = atan2(y,x);
   if (p<0)
     p+=2*M_PI;//puts the negative values on the right branch [0,2pi]
   init=true;
@@ -96,6 +91,44 @@ atmo_point atmo_point::operator/(const Real & scale) const {
 }
 
 
+//atmo_voxel
+CUDA_CALLABLE_MEMBER
+atmo_voxel::atmo_voxel() {
+  init = false;
+  i_voxel = -1;
+}
+
+CUDA_CALLABLE_MEMBER
+atmo_voxel::~atmo_voxel() { };
+
+CUDA_CALLABLE_MEMBER
+atmo_voxel::atmo_voxel(const atmo_voxel &copy) {
+  rbounds[0]=copy.rbounds[0];
+  rbounds[1]=copy.rbounds[1];
+  tbounds[0]=copy.tbounds[0];
+  tbounds[1]=copy.tbounds[1];
+  pbounds[0]=copy.pbounds[0];
+  pbounds[1]=copy.pbounds[1];
+  i_voxel=copy.i_voxel;
+  init=copy.init;
+  pt=copy.pt;
+}
+
+CUDA_CALLABLE_MEMBER
+atmo_voxel & atmo_voxel::operator=(const atmo_voxel &rhs) {
+  if(this == &rhs) return *this;
+  rbounds[0]=rhs.rbounds[0];
+  rbounds[1]=rhs.rbounds[1];
+  tbounds[0]=rhs.tbounds[0];
+  tbounds[1]=rhs.tbounds[1];
+  pbounds[0]=rhs.pbounds[0];
+  pbounds[1]=rhs.pbounds[1];
+  i_voxel=rhs.i_voxel;
+  init=rhs.init;
+  pt=rhs.pt;
+
+  return *this;
+}
 
 
 
@@ -187,8 +220,11 @@ atmo_vector & atmo_vector::operator=(const atmo_vector &rhs) {
 }
   
 CUDA_CALLABLE_MEMBER
-atmo_vector::atmo_vector(atmo_point ptt, atmo_ray rayy) : pt(ptt), ray(rayy)
+atmo_vector::atmo_vector(atmo_point ptt, atmo_ray rayy)
 {
+  pt=ptt;
+  ray=rayy;
+  
   //construct the cartesian elements from the point and ray
   //spherical coordinates.
 
@@ -218,32 +254,35 @@ atmo_vector::atmo_vector(const atmo_point &ptt, const Real &line_xx, const Real 
   //domega = 1. We need only set the theta values since these are
   //used in computing intersections.
     
-  Real line_mag=sqrt(line_xx*line_xx + line_yy*line_yy + line_zz*line_zz);
+  Real line_mag=hypot(hypot(line_xx,line_yy),line_zz);
   line_x = line_xx/line_mag;
   line_y = line_yy/line_mag;
   line_z = line_zz/line_mag;
 
-  ray.cost=(line_x*pt.x + line_y*pt.y + line_z*pt.z)/(pt.r);
+  //CUDA coerces to NaN if this isn't split up like this???
+  Real costx = line_x*(pt.x/pt.r);
+  Real costy = line_y*(pt.y/pt.r);
+  Real costz = line_z*(pt.z/pt.r);
+  
+  ray.cost=costx+costy+costz;
   ray.sint=sqrt(1.0-ray.cost*ray.cost);
 
   ray.t=acos(ray.cost);
   ray.p=-1.0;
     
   ray.domega=1.0;
-  ray.init=true;
+  // ray.init=true;
 
   init=true;
 }
 
 CUDA_CALLABLE_MEMBER
-atmo_point atmo_vector::extend(const Real & dist) const {
+atmo_point atmo_vector::extend(const Real &dist) const {
   atmo_point retpt;
 
   const Real scale = 1e9;
 
-  //CUDA compiler breaks my code if these are not defined and added
-  //seperately (???)
-  Real newx = pt.x/scale;
+  Real newx = pt.x/scale; //more baffling CUDA shenanigans here
   newx += (line_x * dist)/scale;
   const Real newy = pt.y/scale + (line_y * dist)/scale;
   const Real newz = pt.z/scale + (line_z * dist)/scale;

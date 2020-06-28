@@ -20,7 +20,6 @@ struct atmo_point {
   ~atmo_point();
   CUDA_CALLABLE_MEMBER
   atmo_point(const atmo_point &copy);
-
   CUDA_CALLABLE_MEMBER
   atmo_point & operator=(const atmo_point &rhs);
 
@@ -50,7 +49,14 @@ struct atmo_voxel {
   //atmo_point influence_pt;
   //atmo_point singlescat_pt;
 
+  CUDA_CALLABLE_MEMBER
   atmo_voxel();
+  CUDA_CALLABLE_MEMBER
+  ~atmo_voxel();
+  CUDA_CALLABLE_MEMBER
+  atmo_voxel(const atmo_voxel &copy);
+  CUDA_CALLABLE_MEMBER
+  atmo_voxel & operator=(const atmo_voxel &rhs);
 };
 
 
@@ -105,7 +111,7 @@ struct atmo_vector {
   atmo_vector(const atmo_point &ptt, const Real &line_xx, const Real &line_yy, const Real &line_zz);
 
   CUDA_CALLABLE_MEMBER
-  atmo_point extend(const Real & dist) const;
+  atmo_point extend(const Real &dist) const;
 
   CUDA_CALLABLE_MEMBER
   atmo_vector operator*(const Real & scale) const;
