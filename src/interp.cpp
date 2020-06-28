@@ -1,6 +1,6 @@
 #include "interp.hpp"
 
-int Base_interp::locate(const Real x)
+int Base_interp::locate(const Real x) const
 // given a value x, return a value j such that x is (insofar as
 // possible) centered in the subrange xx[j..j+mmm-1], where xx is the
 // stored pointer. The values in xx must be monotonic, either
@@ -32,7 +32,7 @@ int Base_interp::locate(const Real x)
 }
 
 
-int Base_interp::hunt(const Real x)
+int Base_interp::hunt(const Real x) const
 // given a value x, return a value j such that x is (insofar as
 // possible) centered in the subrange xx[j..j+mmm-1], where xx is the
 // stored pointer. The values in xx must be monotonic, either

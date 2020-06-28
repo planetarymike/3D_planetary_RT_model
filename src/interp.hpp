@@ -15,7 +15,8 @@ struct Base_interp
 // Abstract base class used by all interpolation routines in this
 // chapter. Only interp is called by the user.
 {
-  int n, mmm, jsav, cor, dj;
+  int n, mmm, dj;
+  mutable int jsav, cor;
   Real *xx, *yy;
 
   Base_interp() { }
@@ -86,7 +87,7 @@ struct Base_interp
   }
 
 
-  Real operator()(Real x) 
+  Real operator()(const Real x) const 
   // Given a value x, return an interpolated value, using data
   // pointed to by xx and yy.
   {
@@ -94,7 +95,7 @@ struct Base_interp
     return rawinterp(jlo, x);
   }
 
-  int index(Real x)
+  int index(const Real x) const
   // Given a value x, return an interpolated value, using data
   // pointed to by xx and yy.
   {
@@ -102,10 +103,10 @@ struct Base_interp
     return jlo;
   }
 
-  int locate(const Real x);
-  int hunt(const Real x);
+  int locate(const Real x) const;
+  int hunt(const Real x) const;
 
-  virtual Real rawinterp(int jlo, Real x) = 0;
+  virtual Real rawinterp(const int jlo, const Real x) const = 0;
   // derived classes provide this as the actual interpolation method used.
 
 };
@@ -118,7 +119,7 @@ struct Linear_interp : Base_interp
 
   Linear_interp(vector<Real> &xv, vector<Real> &yv) : Base_interp(xv,yv,2) {}
   
-  Real rawinterp(int j, Real x) {
+  Real rawinterp(const int j, const Real x) const {
     if(xx[j] == xx[j+1]) return yy[j]; // table defective, but recover
     else return yy[j] + ((x-xx[j])/(xx[j+1]-xx[j]))*(yy[j+1]-yy[j]);
   }
@@ -140,7 +141,7 @@ struct Bilinear_interp
     : m(x1v.size()), n(x2v.size()), x1terp(x1v,x1v), x2terp(x2v,x2v) { y = ym; }
     // we need dummy 1 dim interp objects for their locate and hunt functions
 
-  Real interp(Real x1p, Real x2p) {
+  Real interp(const Real x1p, const Real x2p) const {
     int i, j;
     Real yy, t, u;
     //find the grid square:
