@@ -51,9 +51,11 @@ protected:
   Real cosangle;
   Real cosangle2;
 
+  Real rmin;
 public:
   void set_angle(const Real &a);
-
+  void set_rmin(const Real &rminn);
+  
   CUDA_CALLABLE_MEMBER
   void intersections(const atmo_vector & vec,
 		     Real (&distances)[2],

@@ -127,8 +127,13 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       pts_sza[i]=0.5*(sza_boundaries[i] + sza_boundaries[i+1]);
     }
     
-    for (int i=0;i<n_sza_boundaries-2;i++)
+    for (int i=0;i<n_sza_boundaries-2;i++) {
       sza_boundary_cones[i].set_angle(sza_boundaries[i+1]);
+      sza_boundary_cones[i].set_rmin(atm.rmin);//radius below which to ignore
+				               //bad cone intersections for
+				               //floating point rounding
+				               //reasons
+    }
 
 
     int i_voxel;
@@ -428,8 +433,8 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 		 << "    Absorber single scattering tau: " 
 		 <<	 sza_slice(emissions[i_emission].tau_absorber_single_scattering,j).transpose() << "\n"
 
-		 << "    Absorber single scattering tau: " 
-		 <<	 sza_slice(emissions[i_emission].tau_absorber_single_scattering,j).transpose() << "\n"
+		 << "    Absorber cross section [cm2]: " 
+		 <<	 sza_slice(emissions[i_emission].absorber_sigma,j).transpose() << "\n"
 
 		 << "    Species single scattering source function S0: " 
 		 <<	 sza_slice(emissions[i_emission].singlescat,j).transpose() << "\n"	      

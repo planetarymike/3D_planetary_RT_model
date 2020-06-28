@@ -104,6 +104,15 @@ void cone::set_angle(const Real &a) {
 	 && "problems occur if there is a cone with an opening angle of pi/2 degrees.");
 }
 
+void cone::set_rmin(const Real &rminn) {
+  //set the minimum radius at which to consider cone
+  //intersections. This solves a floating point rounding issue when
+  //intersections are near the origin and far from the original
+  //location
+  rmin = rminn;
+}
+  
+
 CUDA_CALLABLE_MEMBER
 void cone::intersections(const atmo_vector & vec,
 			 Real (&distances)[2],
@@ -119,11 +128,11 @@ void cone::intersections(const atmo_vector & vec,
   const Real C = z_norm * z_norm - cosangle2;
     
   if (!is_zero(A)) {
-    //const Real discr = B*B-A*C;
-    const Real discr = cosangle2*(vec.line_z*vec.line_z
-				  +z_norm*z_norm
-				  -2*z_norm*vec.line_z*vec.ray.cost
-				  -cosangle2*vec.ray.sint*vec.ray.sint);
+    const Real discr = B*B-A*C;
+    // const Real discr = cosangle2*(vec.line_z*vec.line_z
+    // 				  +z_norm*z_norm
+    // 				  -2*z_norm*vec.line_z*vec.ray.cost
+    // 				  -cosangle2*vec.ray.sint*vec.ray.sint);
     
     if (discr > 0) {
 
@@ -151,10 +160,15 @@ void cone::intersections(const atmo_vector & vec,
   }
 
   for (int i=0;i<n_hits;i++) {
-    //this test needs work, still needs very large error term to pass on floats
     atmo_point ipt = vec.extend(distances[i]);
-    assert(is_zero(ipt.t/angle-1,CONEABS)
-	   && "vector must intersect cone at specified distance.");
+    if (ipt.r > rmin)
+      //This conditional solves a floating point rounding issue when
+      //intersections are near the origin and far from the original
+      //location
+      assert(is_zero(ipt.t/angle-1,ABS)
+	     && "vector must intersect cone at specified distance.");
+    //we don't need to discard intersections with r<rmin because the
+    //integration code does this automatically
   }
 }
 
