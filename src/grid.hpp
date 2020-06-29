@@ -12,10 +12,21 @@ template <int NDIM, int NVOXELS, int NRAYS, int N_MAX_INTERSECTIONS>
 struct grid {
   static const int n_dimensions = NDIM; //dimensionality of the grid
   static const int n_voxels = NVOXELS;//number of grid voxels
+
+
+  // !!!!! Note: Even though the next three functions are commented
+  // !!!!! out, they MUST be implemented in any child class of grid.
+  // !!!!! (They are commented out because CUDA cannot deal with the
+  // !!!!! vtable built on the host for these methods when the object
+  // !!!!! is copied to the device. No idea why it works for the
+  // !!!!! other virtual functions in this class.)
+  //
+  // !!!!!
+  // !!!!!
   //helper functions to swap between voxel and coordinate indices
-  CUDA_CALLABLE_MEMBER virtual void indices_to_voxel(const int (&/*indices*/)[n_dimensions], int & ret) const { };
-  CUDA_CALLABLE_MEMBER virtual void voxel_to_indices(const int /*i_voxel*/, int (&/*indices*/)[n_dimensions]) const { };
-  CUDA_CALLABLE_MEMBER virtual void point_to_indices(const atmo_point /*pt*/, int (&/*indices*/)[n_dimensions]) const { };
+  //CUDA_CALLABLE_MEMBER virtual void indices_to_voxel(const int (&/*indices*/)[n_dimensions], int & ret) const { };
+  //CUDA_CALLABLE_MEMBER virtual void voxel_to_indices(const int /*i_voxel*/, int (&/*indices*/)[n_dimensions]) const { };
+  //CUDA_CALLABLE_MEMBER virtual void point_to_indices(const atmo_point &/*pt*/, int (&/*indices*/)[n_dimensions]) const = 0;
   
   virtual void setup_voxels() {};
   Real rmax,rmin;//max and min altitudes in the atmosphere
@@ -32,7 +43,7 @@ struct grid {
   static const int n_max_intersections = N_MAX_INTERSECTIONS;
   CUDA_CALLABLE_MEMBER
   virtual void ray_voxel_intersections(const atmo_vector &vec,
-				       boundary_intersection_stepper<n_dimensions, n_max_intersections> &stepper) const { }; 
+				       boundary_intersection_stepper<n_dimensions, n_max_intersections> &stepper) const = 0; 
   
   //where the sun is, for single scattering
   const Real sun_direction[3] = {0.,0.,1.};
@@ -41,10 +52,10 @@ struct grid {
   static const int n_interp_points = 2*n_dimensions;
   CUDA_CALLABLE_MEMBER
   virtual void interp_weights(const int &ivoxel, const atmo_point &pt,
-			      int (&/*indices*/)[n_interp_points], Real (&/*weights*/)[n_interp_points] ) const { };
+			      int (&/*indices*/)[n_interp_points], Real (&/*weights*/)[n_interp_points] ) const = 0;
 
 
-  virtual void save_S(const string &fname, const emission<n_voxels> *emiss) const { };
+  virtual void save_S(const string &fname, const emission<n_voxels> *emiss, const int n_emissions) const = 0;
 };
 
 #endif

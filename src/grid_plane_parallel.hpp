@@ -109,11 +109,11 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
     indices_to_voxel(indices[0], ret);
   }
   CUDA_CALLABLE_MEMBER 
-  void voxel_to_indices(const int i_voxel, int (&ret)[parent_grid::n_dimensions]) const {
+  void voxel_to_indices(const int i_voxel, int (&indices)[parent_grid::n_dimensions]) const {
     if ((i_voxel < 0) || (i_voxel > parent_grid::n_voxels-1))
-      ret[0]=-1;
+      indices[0]=-1;
     else
-      ret[0]=i_voxel;
+      indices[0]=i_voxel;
   }
 
   template <class V>

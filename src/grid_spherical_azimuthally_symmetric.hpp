@@ -189,18 +189,18 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       vox_idx = r_idx*(n_sza_boundaries-1)+sza_idx;
   }
   CUDA_CALLABLE_MEMBER 
-  void indices_to_voxel(const int *indices, int & vox_idx) const {
+  void indices_to_voxel(const int (&indices)[parent_grid::n_dimensions], int & vox_idx) const {
     indices_to_voxel(indices[r_dimension], indices[sza_dimension], vox_idx);
   }
 
   CUDA_CALLABLE_MEMBER 
-  void voxel_to_indices(const int &i_voxel, int *v) const {
+  void voxel_to_indices(const int &i_voxel, int (&indices)[parent_grid::n_dimensions]) const {
     if ((i_voxel < 0) || (i_voxel > parent_grid::n_voxels-1)) {
-      v[r_dimension]=-1;
-      v[sza_dimension]=-1;
+      indices[r_dimension]=-1;
+      indices[sza_dimension]=-1;
     } else {
-      v[r_dimension]=i_voxel / (n_sza_boundaries-1);
-      v[sza_dimension]=i_voxel % (n_sza_boundaries-1);
+      indices[r_dimension]=i_voxel / (n_sza_boundaries-1);
+      indices[sza_dimension]=i_voxel % (n_sza_boundaries-1);
     }
   }
 
@@ -389,7 +389,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     return ret;
   }
 
-  void save_S(const string fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
+  void save_S(const string &fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
     std::ofstream file(fname.c_str());
     if (file.is_open())
       {
