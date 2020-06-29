@@ -32,8 +32,10 @@ public:
       for (int i = 0; i < n; i++)
 	v[i] = copy.v[i];
     }
+#ifdef __CUDACC__  
     if (copy.d_v)
       to_device();
+#endif
   }
   gpu_vector& operator=(gpu_vector &rhs) {
     if(this == &rhs) return *this;
@@ -43,8 +45,10 @@ public:
       for (int i = 0; i < n; i++)
 	v[i] = rhs.v[i];
     }
+#ifdef __CUDACC__  
     if (rhs.d_v)
       to_device();
+#endif
     return *this;
   }
 
@@ -81,8 +85,8 @@ public:
     return v[n];
   }
 
-  void to_device(bool transfer = true) {
 #ifdef __CUDACC__  
+  void to_device(bool transfer = true) {
     if (d_v != NULL)
       checkCudaErrors(cudaFree(d_v));
     //allocate the host's d_v to point at device memory
@@ -98,18 +102,16 @@ public:
 				 n*sizeof(T),
 				 cudaMemcpyHostToDevice)
 		      );
-#endif
   }
   void to_host() {
-#ifdef __CUDACC__  
     checkCudaErrors(
 		    cudaMemcpy(v,
 			       d_v,
 			       n*sizeof(T),
 			       cudaMemcpyDeviceToHost)
 		    );
-#endif
   }
+#endif
 };
 
 
