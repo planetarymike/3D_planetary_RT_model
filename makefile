@@ -1,5 +1,10 @@
 MAKEFLAGS += -j20 #parallel compilation
 
+# you may need these in your .bashrc
+# export CUDA_HOME=/usr/local/cuda-11.0
+# export PATH=$CUDA_HOME/bin${PATH:+:${PATH}}$ 
+# export LD_LIBRARY_PATH=$CUDA_HOME/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
 #files that need compilin'
 OBJDIR = ./bin
 SRCDIR = src
@@ -18,7 +23,6 @@ IDIR=-I$(SRCDIR) $(BOOSTDIR) $(EIGENDIR)
 CC=g++
 LIBS=-lm 
 MPFLAGS=-fopenmp
-#OFLAGS=-Ofast -march=native -DNDEBUG
 OFLAGS=-O3 -march=native -DNDEBUG 
 
 # Nvidia CUDA Compiler
@@ -28,7 +32,11 @@ NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
       -I$(CUDA_HOME)/samples/common/inc/
 NLIBS=-lm -lcudart -lcusolver -lcublas
-NOFLAGS= -O3 -DNDEBUG -dlto 
+NOFLAGS= -O3 -DNDEBUG
+# if we are CUDA 11, link time optimization is possible
+ifeq (`cat $$CUDA_HOME/version.txt | awk '{split($$3,a,"."); print a[1]}'`,11)
+NOFLAGS=$(NOFLAGS) -dlto
+endif
 NDBGFLAGS=-O0 -g -G
 
 # # intel compiler
@@ -92,5 +100,6 @@ clean_gpu:
 	find ./bin/ -type f -name '*cuda*' -delete
 
 clean_all:
+	rm -f generate_source_function.x
 	rm -f generate_source_function_gpu.x
 	rm -r bin
