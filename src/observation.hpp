@@ -76,7 +76,7 @@ public:
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       emission_g_factors[i_emission] = 0;
   }
-  observation(const std::string (&emission_namess)[n_emissions])
+  observation(const std::string (&emission_names)[n_emissions])
   : observation()
   {
     set_names(emission_names);
