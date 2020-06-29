@@ -4,6 +4,7 @@
 #include "Real.hpp"
 #include "constants.hpp"
 #include "atmosphere_base.hpp"
+#include <vector>
 using std::vector;
 
 #include "push_back.hpp"
@@ -96,7 +97,8 @@ struct chamb_diff_1d : atmosphere {
   //child chamb_diff_1d_asymmetric needs to override these
   virtual Real nH(const atmo_point &pt) const;
   virtual void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-
+  Real n_species(const Real &r) const;
+  
   Real Tavg(const Real &r0, const Real &r1) const;
 
   Real sH_lya(const Real &r) const;
@@ -115,6 +117,7 @@ struct chamb_diff_1d : atmosphere {
   Real sCO2_lyb(const atmo_point &pt) const;
   void sCO2_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
+  Real r_from_n_species(const Real &n_species) const;
   Real r_from_nH(const Real &nHtarget) const;  
 
   Real nCO2_exact(const Real &r) const;

@@ -3,6 +3,7 @@
 #include "Real.hpp"
 #include "constants.hpp"
 #include "atmosphere_base.hpp"
+#include <vector>
 using std::vector;
 
 #include "interp.hpp"

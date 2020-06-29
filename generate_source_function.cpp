@@ -53,7 +53,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 	  influence_function> RT(emission_names);
 
   //RT.grid.rmethod = RT.grid.rmethod_altitude;
-  RT.grid.rmethod = RT.grid.rmethod_lognH;
+  RT.grid.rmethod = RT.grid.rmethod_log_n_species;
   //RT.grid.szamethod = RT.grid.szamethod_uniform;
   RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
   

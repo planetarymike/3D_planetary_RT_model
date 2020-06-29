@@ -1,4 +1,5 @@
 #include "chamb_diff_1d.hpp"
+using std::vector;
 
 #include <boost/numeric/odeint/integrate/integrate.hpp>
 using boost::numeric::odeint::integrate;
@@ -177,7 +178,6 @@ Real chamb_diff_1d::ravg(const Real &r0, const Real &r1,
     //     point errors
   }
 }
-  
 
 Real chamb_diff_1d::nCO2(const Real &r) const {
   if (r>rexo)
@@ -214,7 +214,6 @@ void chamb_diff_1d::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) con
   assert(!isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
 }
 
-
 Real chamb_diff_1d::nH(const Real &r) const {
   if (r>=rexo)
     return exp(lognH_exosphere_spline(log(r)));
@@ -247,6 +246,16 @@ void chamb_diff_1d::nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const
   ret_pt  = nH(vox.pt.r);
   assert(!isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
 }
+
+Real chamb_diff_1d::n_species(const Real &r) const {
+  return nH(r);
+}
+
+
+
+
+
+
 
 Real chamb_diff_1d::Tavg(const Real &r0, const Real &r1) const {
   if (r0 > rexo) {
@@ -325,7 +334,9 @@ Real chamb_diff_1d::r_from_nH(const Real &nHtarget) const {
     return invlognH_thermosphere(log(nHtarget));
   }
 }
-  
+Real chamb_diff_1d::r_from_n_species(const Real &n_species) const {
+  return r_from_nH(n_species);
+}
 
 
 

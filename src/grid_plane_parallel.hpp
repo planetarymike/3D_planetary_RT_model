@@ -26,7 +26,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
 
   int rmethod;
   static const int rmethod_altitude = 0;
-  static const int rmethod_lognH = 1;
+  static const int rmethod_log_n_species= 1;
 
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
   Real radial_boundaries[n_radial_boundaries];
@@ -40,7 +40,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
 
-    assert((rmethod == rmethod_altitude || rmethod == rmethod_lognH)
+    assert((rmethod == rmethod_altitude || rmethod == rmethod_log_n_species)
 	   && "rmethod must match a defined radial points method");
     // don't define a tau radial points method; tau < 0.1 is
     // important and max(tau) > 10; this leads to many required
@@ -52,14 +52,14 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
       for (int i=0;i<n_radial_boundaries;i++)
 	radial_boundaries[i] = radial_boundaries_vector[i];
     }
-    if (rmethod == rmethod_lognH) {
-      Real lognH_max = log(atm.nH(atm.rmin));
-      Real lognH_min = log(atm.nH(atm.rmax));
-      Real lognH_step = (lognH_max-lognH_min)/(n_radial_boundaries-1.);
+    if (rmethod == rmethod_log_n_species) {
+      Real log_n_species_max = log(atm.n_species(atm.rmin));
+      Real log_n_species_min = log(atm.n_species(atm.rmax));
+      Real log_n_species_step = (log_n_species_max-log_n_species_min)/(n_radial_boundaries-1.);
       
       for(int i=0;i<n_radial_boundaries;i++) {
-	Real nH_target=exp(lognH_max-i*lognH_step);
-	radial_boundaries[i]=atm.r_from_nH(nH_target);
+	Real n_species_target=exp(log_n_species_max-i*log_n_species_step);
+	radial_boundaries[i]=atm.r_from_n_species(n_species_target);
       }
     }
 

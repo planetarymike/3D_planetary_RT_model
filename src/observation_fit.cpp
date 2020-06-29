@@ -30,10 +30,10 @@ observation_fit::observation_fit()
   obs_deriv.set_names(simulate_names);
   RT_deriv.set_names(simulate_names);
 
-  RT.grid.rmethod = RT.grid.rmethod_lognH;
+  RT.grid.rmethod = RT.grid.rmethod_log_n_species;
   RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
 
-  RT_deriv.grid.rmethod = RT_deriv.grid.rmethod_lognH;
+  RT_deriv.grid.rmethod = RT_deriv.grid.rmethod_log_n_species;
   RT_deriv.grid.szamethod = RT_deriv.grid.szamethod_uniform_cos;
 }
 
