@@ -57,6 +57,7 @@ struct RT_grid {
 #ifdef __CUDACC__
     if(d_RT!=NULL)
       checkCudaErrors(cudaFree(d_RT));
+    cudaDeviceReset();
 #endif
   }
 
