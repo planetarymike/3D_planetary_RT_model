@@ -72,12 +72,20 @@ void csv_atmosphere::load_densities(string fname) {
 }
 
 void csv_atmosphere::scale_H(Real scale) {
-  for (int i = 0; i < lognH.size(); i++)
+  for (unsigned int i = 0; i < lognH.size(); i++)
     lognH[i]+=std::log(scale);
   lognH_spline = Linear_interp(n_alt,lognH);
   inv_lognH_spline = Linear_interp(lognH,n_alt);
 }
-
+void csv_atmosphere::scale_CO2(Real scale) {
+  for (unsigned int i = 0; i < lognCO2.size(); i++)
+    lognCO2[i]+=std::log(scale);
+  lognCO2_spline = Linear_interp(n_alt,lognCO2);
+}
+void csv_atmosphere::scale_densities(Real scale) {
+  scale_H(scale);
+  scale_CO2(scale);
+}
 
 Real csv_atmosphere::get_T(const Real &r) {
   return T_spline((r-rMars)/1e5);
@@ -89,7 +97,9 @@ Real csv_atmosphere::nCO2(const Real &r) {
 Real csv_atmosphere::nCO2(const atmo_point pt) {
   return nCO2(pt.r);
 }
-void csv_atmosphere::nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+void csv_atmosphere::nCO2(__attribute__((unused)) const atmo_voxel vox,
+			  __attribute__((unused)) Real &ret_avg,
+			  __attribute__((unused)) Real &ret_pt) {
   assert(false && "not implemented in this class");
 }
 
@@ -99,7 +109,9 @@ Real csv_atmosphere::nH(const Real &r) {
 Real csv_atmosphere::nH(const atmo_point pt) {
   return nH(pt.r);
 }
-void csv_atmosphere::nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+void csv_atmosphere::nH(__attribute__((unused)) const atmo_voxel vox,
+			__attribute__((unused)) Real &ret_avg,
+			__attribute__((unused)) Real &ret_pt) {
   assert(false && "not implemented in this class");
 }
 
@@ -109,18 +121,22 @@ Real csv_atmosphere::r_from_nH(Real nHtarget) {
 
 
 
-Real csv_atmosphere::sH_lya(const atmo_point pt) {
+Real csv_atmosphere::sH_lya(__attribute__((unused)) const atmo_point pt) {
   assert(false && "not implemented in this class");
   return 0;
 }
-void csv_atmosphere::sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+void csv_atmosphere::sH_lya(__attribute__((unused)) const atmo_voxel vox,
+			    __attribute__((unused)) Real &ret_avg,
+			    __attribute__((unused)) Real &ret_pt) {
   assert(false && "not implemented in this class");
 }
 
-Real csv_atmosphere::sCO2_lya(const atmo_point pt) {
+Real csv_atmosphere::sCO2_lya(__attribute__((unused)) const atmo_point pt) {
   assert(false && "not implemented in this class");
   return 0;
 }
-void csv_atmosphere::sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) {
+void csv_atmosphere::sCO2_lya(__attribute__((unused)) const atmo_voxel vox,
+			      __attribute__((unused)) Real &ret_avg,
+			      __attribute__((unused)) Real &ret_pt) {
   assert(false && "not implemented in this class");
 }

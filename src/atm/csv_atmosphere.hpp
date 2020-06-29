@@ -31,6 +31,8 @@ public:
   void load_densities(std::string fname);
   void load_temperature(std::string fname);
   void scale_H(Real scale);
+  void scale_CO2(Real scale);
+  void scale_densities(Real scale);
 
   Real get_T(const Real &r);
 
