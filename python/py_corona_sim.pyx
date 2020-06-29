@@ -27,12 +27,18 @@ cdef extern from "atm/chamberlain_exosphere.hpp":
 cdef extern from "observation_fit.hpp":
     cpdef cppclass observation_fit:
         observation_fit()
+
         void add_observation(vector[vector[Real]] MSO_locations, vector[vector[Real]] MSO_directions)
-        void set_g_factor(Real &g)
+
+        void set_g_factor(vector[Real] &g)
+
         void generate_source_function(Real nHexo, Real Texo)
         void generate_source_function_lc(Real nHexo, Real lc)
         void generate_source_function_effv(Real nHexo, Real effv)
-        vector[Real] brightness()
+
+        void generate_source_function_asym(Real nHexo, Real Texo, Real asym)
+
+        vector[vector[Real]] brightness()
         Temp_converter Tconv
         
 cdef class Pyobservation_fit:
@@ -41,6 +47,7 @@ cdef class Pyobservation_fit:
         self.thisptr = new observation_fit()
     def __dealloc__(self):
         del self.thisptr
+
     def add_observation(self, loc_arr, dir_arr):
         cdef vector[vector[Real]] loc_vec,dir_vec
         loc_vec.resize(loc_arr.shape[0])
@@ -52,17 +59,24 @@ cdef class Pyobservation_fit:
                 loc_vec[i][j] = realconvert(loc_arr[i,j])
                 dir_vec[i][j] = realconvert(dir_arr[i,j])
         self.thisptr.add_observation(loc_vec,dir_vec)
-    def set_g_factor(self, Real g):
+
+    def set_g_factor(self, vector[Real] g):
         self.thisptr.set_g_factor(g)
+
     def lc_from_T(self, T):
         return self.thisptr.Tconv.lc_from_T(realconvert(T))
     def eff_from_T(self, T):
         return self.thisptr.Tconv.eff_from_T(realconvert(T))
+
     def generate_source_function(self, Real nH, Real T):
         self.thisptr.generate_source_function(nH,T)
     def generate_source_function_lc(self, Real nH, Real lc):
         self.thisptr.generate_source_function_lc(nH,lc)
     def generate_source_function_effv(self, Real nH, Real effv):
         self.thisptr.generate_source_function_effv(nH,effv)
+
+    def generate_source_function_asym(self, Real nH, Real Texo, Real asym):
+        self.thisptr.generate_source_function_asym(nH,Texo,asym)
+        
     def brightness(self):
         return np.asarray(self.thisptr.brightness())
