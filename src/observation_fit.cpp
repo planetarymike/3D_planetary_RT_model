@@ -91,6 +91,7 @@ void observation_fit::generate_source_function_asym(const Real &nHexo, const Rea
 						    const Real &asym) {
 
   temp = krasnopolsky_temperature(Texo);
+  atm = chamb_diff_1d(nHexo,CO2_exobase_density,temp);
   atm_asym = chamb_diff_1d_asymmetric(nHexo,CO2_exobase_density,temp);
   atm_asym.set_asymmetry(asym);
 
