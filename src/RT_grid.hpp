@@ -201,7 +201,7 @@ struct RT_grid {
 							 / emissions[i_emission].species_sigma(pt.i_voxel));
 	assert(!isnan(emissions[i_emission].singlescat(pt.i_voxel))
 	       && emissions[i_emission].singlescat(pt.i_voxel) >= 0
-	       && "optical depth must be real and positive");
+	       && "single scattering coefficient must be real and positive");
 
       }
     }
