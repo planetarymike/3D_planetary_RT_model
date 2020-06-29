@@ -73,7 +73,7 @@ void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *RT,
 }
 
 template<int N_EMISSIONS, typename grid_type, typename influence_type>
-void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n_emissions> &obs, const int n_subsamples/*=10*/) {
+void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n_emissions> &obs, const int n_subsamples/*=5*/) {
   cudaSetDevice(0);
   cudaFree(0);
 
@@ -133,17 +133,17 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
       RT->emissions[i_emission].influence_matrix(i_vox,j_vox) = 0;
 
   __syncthreads();
-  
+
   //initialize objects
   atmo_vector vec;
   influence_tracker<N_EMISSIONS,grid_type::n_voxels> temp_influence;
 
-  //get the vector for this thread and run through the grid
+  //integrate
   vec = atmo_vector(RT->grid.voxels[i_vox].pt, RT->grid.rays[i_ray]);
   temp_influence.reset();
   RT->voxel_traverse(vec,
-		     &RT_grid<N_EMISSIONS,grid_type,influence_type>::influence_update,
-		     temp_influence);
+  		     &RT_grid<N_EMISSIONS,grid_type,influence_type>::influence_update,
+  		     temp_influence);
 
   __syncthreads();
   
@@ -168,7 +168,7 @@ template<int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::generate_S_gpu() {
   cudaSetDevice(0);
   cudaFree(0);
-  
+
   //start timing
   my_clock clk;
   clk.start();
@@ -184,8 +184,8 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::generate_S_gpu() {
   kernel_clk.start();
   
   influence_kernel<N_EMISSIONS,
-		   grid_type,
-		   influence_type><<<numBlocks,blockSize>>>(d_RT);
+  		   grid_type,
+  		   influence_type><<<numBlocks,blockSize>>>(d_RT);
   
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
@@ -335,7 +335,6 @@ void prepare_for_solution(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   for (int i_emission=threadIdx.x; i_emission < N_EMISSIONS; i_emission+=blockDim.x)
     RT->emissions[i_emission].influence_matrix(i_vox,i_vox) += 1;
 
-  
   //now copy singlescat to sourcefn, preparing for in-place solution
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
     for (int j_vox = threadIdx.x; j_vox < grid_type::n_voxels; j_vox += blockDim.x) {
