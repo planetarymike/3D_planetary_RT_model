@@ -9,7 +9,7 @@
 #include "grid_plane_parallel.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
 
-int main(int argc, char* argv[]) {
+int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[]) {
 
   //define the physical atmosphere
   Real exobase_temp = 200;//K
@@ -20,6 +20,10 @@ int main(int argc, char* argv[]) {
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,
 		    temp);
+  // //fix temperature to the exobase temp for the RT calculation
+  // atm.temp_dependent_sH=false;
+  // atm.constant_temp_sH=exobase_temp;
+  atm.save("test/test_atmosphere.dat");
 
   //use holstein functions to compute influence integrals
   typedef holstein_approx influence_function; //setting up holstein_approx isthe most time consuming part of startup, ~0.4s
@@ -29,16 +33,17 @@ int main(int argc, char* argv[]) {
   string emission_names[n_emissions] = {"H Lyman alpha", "H Lyman beta"};
   
   // static const int n_radial_boundaries = 40;
-  // static const int n_rays_phi = 6;
-  // static const int n_rays_theta = 12;
+  // static const int n_rays_theta = 6;
+  // static const int n_rays_phi = 12;
   // typedef plane_parallel_grid<n_radial_boundaries,
   // 		                 n_rays_phi,
   // 		                 n_rays_theta> grid_type;
+  // atm.spherical = false;
 
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
-  static const int n_rays_phi = 6;
-  static const int n_rays_theta = 12;
+  static const int n_rays_theta = 6;
+  static const int n_rays_phi = 12;
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
 					       n_sza_boundaries,
 					       n_rays_phi,
@@ -47,7 +52,6 @@ int main(int argc, char* argv[]) {
 	  grid_type,
 	  influence_function> RT(emission_names);
 
-  //RT.grid.save_intersections = true;
   //RT.grid.rmethod = RT.grid.rmethod_altitude;
   RT.grid.rmethod = RT.grid.rmethod_lognH;
   //RT.grid.szamethod = RT.grid.szamethod_uniform;
@@ -56,9 +60,7 @@ int main(int argc, char* argv[]) {
   RT.grid.setup_voxels(atm);
   RT.grid.setup_rays();
   
-
-
-
+  
 
 
   //solve for H lyman alpha
@@ -92,19 +94,24 @@ int main(int argc, char* argv[]) {
   Real g[n_emissions] = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obs.set_emission_g_factors(g);
   
-  // std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
-  // std::cout << "lyman alpha tau=1 brightness at " << exobase_temp << " K : "
-  // 	    <<   (lyman_alpha_typical_g_factor/
-  // 		  (lyman_alpha_line_center_cross_section_coef/std::sqrt(exobase_temp))
-  // 		  /1e9)
-  // 	    << " kR" << std::endl;
+  std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
+  std::cout << "lyman alpha line center cross section is: "
+  	    <<  lyman_alpha_line_center_cross_section_coef << std::endl;
+  std::cout << "lyman alpha tau=1 brightness at " << exobase_temp << " K : "
+  	    <<   (lyman_alpha_typical_g_factor/
+  		  (lyman_alpha_line_center_cross_section_coef/std::sqrt(exobase_temp))
+  		  /1e9)
+  	    << " kR" << std::endl;
   
-  // std::cout << "lyman beta g factor is: " << lyman_beta_typical_g_factor << std::endl;
-  // std::cout << "lyman beta tau=1 brightness at " << exobase_temp << " K : "
-  // 	    <<   (lyman_beta_typical_g_factor/
-  // 		  (lyman_beta_line_center_cross_section_coef/std::sqrt(exobase_temp))
-  // 		  /1e6)
-  // 	    << " R" << std::endl;
+  std::cout << "lyman beta g factor is: " << lyman_beta_typical_g_factor << std::endl;
+  std::cout << "lyman beta line center cross section is: "
+  	    <<  lyman_beta_line_center_cross_section_coef << std::endl;
+  std::cout << "lyman beta tau=1 brightness at " << exobase_temp << " K : "
+  	    <<   (lyman_beta_typical_g_factor/
+  		  (lyman_beta_line_center_cross_section_coef/std::sqrt(exobase_temp))
+  		  /1e6)
+  	    << " R" << std::endl;
+  std::cout << std::endl;
 
   Real dist = 30*rMars;
 
