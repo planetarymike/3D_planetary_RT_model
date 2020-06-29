@@ -20,11 +20,10 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,
 		    temp);
-
+  // //fix temperature to the exobase temp for the RT calculation
+  // atm.temp_dependent_sH=false;
+  // atm.constant_temp_sH=exobase_temp;
   atm.save("test/test_atmosphere.dat");
-  //fix temperature to the exobase temp for the RT calculation
-  atm.temp_dependent_sH=false;
-  atm.constant_temp_sH=exobase_temp;
 
   //use holstein functions to compute influence integrals
   typedef holstein_approx influence_function; //setting up holstein_approx isthe most time consuming part of startup, ~0.4s
@@ -118,7 +117,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
 #ifndef __CUDACC__
   //CPU-only code
-  obs.fake(dist,30,300);
+  obs.fake(dist,30,600);
   observation<n_emissions> obs_nointerp(emission_names);
   obs_nointerp = obs;
   
