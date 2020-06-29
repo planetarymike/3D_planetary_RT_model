@@ -30,13 +30,13 @@ struct chamb_diff_1d_asymmetric : public chamb_diff_1d {
 
   void set_asymmetry(const Real &a);
 
-  Real theta_average_factor(const Real &t0, const Real &t1);
+  Real theta_average_factor(const Real &t0, const Real &t1) const;
 
-  Real nCO2(const atmo_point &pt);
-  void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt);
+  Real nCO2(const atmo_point &pt) const;
+  void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real nH(const atmo_point &pt);
-  void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt);
+  Real nH(const atmo_point &pt) const;
+  void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
 };
 

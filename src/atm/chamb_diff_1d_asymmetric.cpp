@@ -25,7 +25,7 @@ void chamb_diff_1d_asymmetric::set_asymmetry(const Real &a) {
   nslope=2.0/pi*(a-1)/(a+1);
 }
 
-Real chamb_diff_1d_asymmetric::theta_average_factor(const Real &t0, const Real &t1) {
+Real chamb_diff_1d_asymmetric::theta_average_factor(const Real &t0, const Real &t1) const {
   //the t voxels might have values <0 or >pi (so the pt lies on the
   //planet-Sun line) deal with that here
   Real tmin = t0 < 0  ? 0 : t0;
@@ -40,13 +40,13 @@ Real chamb_diff_1d_asymmetric::theta_average_factor(const Real &t0, const Real &
 		      /(cos_tmin-cos_tmax));
 }
 
-Real chamb_diff_1d_asymmetric::nCO2(const atmo_point &pt) {
+Real chamb_diff_1d_asymmetric::nCO2(const atmo_point &pt) const {
   //return chamb_diff_1d::nCO2(pt.r)*(pt.t*nslope+n0);
 
   //assume no CO2 asymmetry
   return chamb_diff_1d::nCO2(pt.r);
 }
-void chamb_diff_1d_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) {
+void chamb_diff_1d_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   //Real tint=theta_average_factor(vox.tbounds[0],vox.tbounds[1]);
   
   //ret_avg = tint*chamb_diff_1d::nCO2avg(vox.rbounds[0],vox.rbounds[1]);
@@ -58,10 +58,10 @@ void chamb_diff_1d_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &
 }
 
 
-Real chamb_diff_1d_asymmetric::nH(const atmo_point &pt) {
+Real chamb_diff_1d_asymmetric::nH(const atmo_point &pt) const {
   return chamb_diff_1d::nH(pt.r)*(pt.t*nslope+n0);
 }
-void chamb_diff_1d_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) {
+void chamb_diff_1d_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   Real tint=theta_average_factor(vox.tbounds[0],vox.tbounds[1]);
 
   ret_avg = tint*chamb_diff_1d::nHavg(vox.rbounds[0],vox.rbounds[1]);
