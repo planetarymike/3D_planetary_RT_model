@@ -8,17 +8,19 @@
 #include "atm/temperature.hpp"
 #include "atm/chamberlain_exosphere.hpp"
 #include "atm/chamb_diff_1d.hpp"
+#include "atm/chamb_diff_1d_asymmetric.hpp"
 #include "RT_grid.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
 
 class observation_fit {
 protected:
-  static const int n_emissions = 1;
-  const std::string emission_names[n_emissions];// = {"H Lyman alpha"};
-					   // nvcc complains about
-					   // inline definition, this
-					   // needs to go in
-					   // constructor
+  static const int n_emissions = 2;
+  const std::string emission_names[n_emissions];// = {"H Lyman alpha",
+                                                //    "H Lyman beta"};
+					        // nvcc complains about
+					        // inline definition, this
+					        // needs to go in
+					        // constructor
 
   static const int n_parameters = 2; // nH_exo and some T_exo type
   static const int n_pts_per_derivative = 2; // central difference
@@ -33,13 +35,14 @@ protected:
   krasnopolsky_temperature temp;
   const Real CO2_exobase_density = 2e8;//cm-3
   chamb_diff_1d atm;//make sure to use the same exobase alt as in Tconv
+  chamb_diff_1d_asymmetric atm_asym;//make sure to use the same quantities as in atm
 
   typedef holstein_approx influence_type;
   
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
-  static const int n_rays_phi = 6;
-  static const int n_rays_theta = 12;
+  static const int n_rays_theta = 6;
+  static const int n_rays_phi = 12;
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
 					       n_sza_boundaries,
 					       n_rays_phi,
@@ -65,13 +68,15 @@ public:
 			       const std::vector<Real> &sigma,
 			       const int emission = 0);
   
-  void set_g_factor(Real &g);
+  void set_g_factor(vector<Real> &g);
 
   void generate_source_function(const Real &nHexo, const Real &Texo);
   void generate_source_function_effv(const Real &nHexo, const Real &effv_exo);
   void generate_source_function_lc(const Real &nHexo, const Real &lc_exo);
   
-  std::vector<Real> brightness(const int emission = 0);
+  void generate_source_function_asym(const Real &nHexo, const Real &Texo, const Real &asym);
+
+  std::vector<std::vector<Real>> brightness();
 
   std::vector<Real> likelihood_and_derivatives(const Real &nHexo, const Real &Texo);
   void logl();

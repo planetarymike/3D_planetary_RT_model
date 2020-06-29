@@ -5,9 +5,10 @@ using std::vector;
 using std::string;
 
 observation_fit::observation_fit()
-  : emission_names({"H Lyman alpha"}),
+  : emission_names({"H Lyman alpha","H Lyman beta"}),
     obs(emission_names),
     atm(/*nHexo = */5e5, /*nCO2exo = */1e9, temp), //these dummy values are overwritten later
+    atm_asym(/*nHexo = */5e5, /*nCO2exo = */1e9, temp),
     RT(emission_names)
 {
 
@@ -40,8 +41,9 @@ void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations,
   obs.add_MSO_observation(MSO_locations,MSO_directions);
 }
 
-void observation_fit::set_g_factor(Real &g) {
-  obs.emission_g_factors[0] = g;
+void observation_fit::set_g_factor(vector<Real> &g) {
+  for (int i_emission=0;i_emission<n_emissions;i_emission++)
+    obs.emission_g_factors[i_emission] = g[i_emission];
 }
 
 void observation_fit::generate_source_function(const Real &nHexo, const Real &Texo) {
@@ -58,7 +60,12 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
 		     atm,
 		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
 		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
-    
+  RT.define_emission("H Lyman beta",
+		     lyman_beta_branching_ratio,
+		     atm,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
+		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+  
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
   RT.generate_S_gpu();
@@ -78,32 +85,70 @@ void observation_fit::generate_source_function_lc(const Real &nHexo, const Real 
   
   generate_source_function(nHexo,Texo);
 }
+
+
+void observation_fit::generate_source_function_asym(const Real &nHexo, const Real &Texo,
+						    const Real &asym) {
+
+  temp = krasnopolsky_temperature(Texo);
+  atm_asym = chamb_diff_1d_asymmetric(nHexo,CO2_exobase_density,temp);
+  atm_asym.set_asymmetry(asym);
+
   
-vector<Real> observation_fit::brightness(int emission/* = 0*/) {
+  RT.grid.setup_voxels(atm);
+  RT.grid.setup_rays();
+
+  //update the RT grid values
+  RT.define_emission("H Lyman alpha",
+		     1.0,
+		     atm_asym,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
+		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+  RT.define_emission("H Lyman beta",
+		     lyman_beta_branching_ratio,
+		     atm_asym,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
+		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+  
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  RT.generate_S_gpu();
+#else
+  RT.generate_S();
+#endif
+}
+
+
+
+vector<vector<Real>> observation_fit::brightness() {
   obs.reset_output();
-    
+  
   //compute brightness on the GPU if compiled with NVCC
 #ifdef __CUDACC__
   RT.brightness_gpu(obs);
 #else
   RT.brightness(obs);
 #endif
-
-  vector<Real> brightness;
-  brightness.resize(obs.size());
-
-  for (int i=0;i<obs.size();i++)
-    brightness[i] = obs.los[i].brightness[emission];
-
+  
+  vector<vector<Real>> brightness;
+  brightness.resize(n_emissions);
+  
+  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+    brightness[i_emission].resize(obs.size());
+    
+    for (int i=0;i<obs.size();i++)
+      brightness[i_emission][i] = obs.los[i].brightness[i_emission];
+  }
+  
   return brightness;
 }
 
 void observation_fit::add_observed_brightness(const std::vector<Real> &brightness,
-			     const std::vector<Real> &sigma,
-			     const int emission/* = 0*/) {
+					      const std::vector<Real> &sigma,
+					      const int emission/* = 0*/) {
   //add the observed brightness to obs (not obs_deriv)
   //so we can compute log-likelihoods
-  assert(obs.size() == brightness.size());
+  assert(obs.size() == (int) brightness.size());
   for (int i=0;i<obs.size();i++) {
     obs.los_observed[i].brightness[emission] = brightness[i];
     obs.los_observed[i].sigma[emission]      = sigma[i];
