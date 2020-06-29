@@ -74,6 +74,8 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
       this->voxels[i].init = true;
 
       pts_radii[i]=sqrt(radial_boundaries[i]*radial_boundaries[i+1]);
+      // Real frac = 0.5;
+      // pts_radii[i]=(frac*radial_boundaries[i]+(1-frac)*radial_boundaries[i+1]);
       this->voxels[i].pt.xyz(0.,0.,pts_radii[i]);
       this->voxels[i].pt.set_voxel_index(i);
     }
@@ -173,6 +175,13 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
 
     stepper.init_stepper();
   }
+
+  CUDA_CALLABLE_MEMBER 
+  void interp_weights(const int &ivoxel, const atmo_point &ptt,
+		      int (&indices)[parent_grid::n_interp_points], Real (&weights)[parent_grid::n_interp_points]) const {
+    assert(false && "interp_weights not implemented in grid_plane_parallel");
+  }
+
   
   void save_S(const string fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
     std::ofstream file(fname.c_str());
