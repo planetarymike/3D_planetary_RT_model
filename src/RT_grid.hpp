@@ -196,9 +196,9 @@ struct RT_grid {
 	       && "optical depth must be real and positive");
 
 
-	emissions[i_emission].singlescat(pt.i_voxel) = ( (transmission.T_lerp(emissions[i_emission].tau_species_single_scattering(pt.i_voxel))
-							  * exp(-emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel)) )
-							 / emissions[i_emission].species_sigma(pt.i_voxel));
+	emissions[i_emission].singlescat(pt.i_voxel) = (transmission.T_lerp(emissions[i_emission].tau_species_single_scattering(pt.i_voxel))
+							* exp(-emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel)) );
+
 	assert(!isnan(emissions[i_emission].singlescat(pt.i_voxel))
 	       && emissions[i_emission].singlescat(pt.i_voxel) >= 0
 	       && "single scattering coefficient must be real and positive");
@@ -333,6 +333,8 @@ struct RT_grid {
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       retval.dtau_species_interp[i_emission]  = interp_array(indices, weights,
 							     emissions[i_emission].dtau_species_pt);
+      retval.species_sigma_interp[i_emission] = interp_array(indices, weights,
+							     emissions[i_emission].species_sigma_pt);
       retval.dtau_absorber_interp[i_emission] = interp_array(indices, weights,
 							     emissions[i_emission].dtau_absorber_pt);
       retval.sourcefn_interp[i_emission]      = interp_array(indices, weights,
@@ -385,14 +387,16 @@ struct RT_grid {
 	}
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 
-	  Real dtau_species_temp, dtau_absorber_temp, sourcefn_temp;
+	  Real dtau_species_temp, species_sigma_temp, dtau_absorber_temp, sourcefn_temp;
 	  
 	  if (n_subsamples == 0) {
 	    dtau_species_temp  = emissions[i_emission].dtau_species[current_voxel];
+	    species_sigma_temp = emissions[i_emission].species_sigma[current_voxel];
 	    dtau_absorber_temp = emissions[i_emission].dtau_absorber[current_voxel];
 	    sourcefn_temp      = emissions[i_emission].sourcefn[current_voxel];
 	  } else {
 	    dtau_species_temp  = interp_vals.dtau_species_interp[i_emission];
+	    species_sigma_temp = interp_vals.species_sigma_interp[i_emission];
 	    dtau_absorber_temp = interp_vals.dtau_absorber_interp[i_emission];
 	    sourcefn_temp      = interp_vals.sourcefn_interp[i_emission];
 	  } 
@@ -410,8 +414,9 @@ struct RT_grid {
 				    - transmission.Tint_lerp(los.tau_species_initial[i_emission]));
 	  Real extinction_coef   = exp(-0.5*(los.tau_absorber_initial[i_emission]
 					     +los.tau_absorber_final[i_emission]));
-	  
-	  los.brightness[i_emission] += sourcefn_temp * transmission_coef * extinction_coef;
+
+	  los.brightness[i_emission] += (sourcefn_temp * transmission_coef
+					 * extinction_coef / species_sigma_temp);
 
 	  assert(!isnan(los.brightness[i_emission]) && "brightness must be a real number");
 	  assert(los.brightness[i_emission]>=0 && "brightness must be positive");

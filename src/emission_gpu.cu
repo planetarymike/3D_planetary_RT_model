@@ -58,6 +58,7 @@ void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_em
   vector_to_device(device_emission->log_dtau_species, log_dtau_species);
   vector_to_device(device_emission->dtau_species_pt, dtau_species_pt);
   vector_to_device(device_emission->log_dtau_species_pt, log_dtau_species_pt);
+  vector_to_device(device_emission->species_sigma_pt, species_sigma_pt);
   
   vector_to_device(device_emission->dtau_absorber, dtau_absorber);
   vector_to_device(device_emission->log_dtau_absorber, log_dtau_absorber);

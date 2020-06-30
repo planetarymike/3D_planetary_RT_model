@@ -206,6 +206,7 @@ template <int N>
 class interpolated_values {
 public:
   Real dtau_species_interp[N];
+  Real species_sigma_interp[N];
   Real dtau_absorber_interp[N];
   Real sourcefn_interp[N];
 };
