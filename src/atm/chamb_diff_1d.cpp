@@ -280,8 +280,8 @@ Real chamb_diff_1d::sH_lya(const atmo_point &pt) const {
   return sH_lya(pt.r);
 }
 void chamb_diff_1d::sH_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  ret_avg =  lyman_alpha_line_center_cross_section_coef/sqrt(Tavg(vox.rbounds[0],
-								  vox.rbounds[1]));
+  Real t_sH = temp_dependent_sH ? Tavg(vox.rbounds[0], vox.rbounds[1]) : constant_temp_sH;
+  ret_avg =  lyman_alpha_line_center_cross_section_coef/sqrt(t_sH);
   ret_pt = sH_lya(vox.pt.r);
 }
 
@@ -304,8 +304,8 @@ Real chamb_diff_1d::sH_lyb(const atmo_point &pt) const {
   return sH_lyb(pt.r);
 }
 void chamb_diff_1d::sH_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  ret_avg = lyman_beta_line_center_cross_section_coef/sqrt(Tavg(vox.rbounds[0],
-								  vox.rbounds[1]));
+  Real t_sH = temp_dependent_sH ? Tavg(vox.rbounds[0], vox.rbounds[1]) : constant_temp_sH;
+  ret_avg =  lyman_beta_line_center_cross_section_coef/sqrt(t_sH);
   ret_pt = sH_lyb(vox.pt.r);
 }
 
