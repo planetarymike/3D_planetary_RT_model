@@ -18,13 +18,13 @@ using boost::math::interpolators::cardinal_cubic_b_spline;
 
 struct influence {
 public:
-  virtual Real Tintint(const Real /*tau*/) const { return 0; };
-  vector<Real> Tintint(vector<Real> tau) const;
+  // virtual Real Tintint(const Real /*tau*/) const = 0;
+  // vector<Real> Tintint(vector<Real> tau) const;
 
-  virtual Real Tint(const Real /*tau*/) const { return 0; };
+  virtual Real Tint(const Real /*tau*/) const = 0;
   vector<Real> Tint(vector<Real> tau) const;
 
-  virtual Real T(const Real /*tau*/) const { return 0; };
+  virtual Real T(const Real /*tau*/) const = 0;
   vector<Real> T(vector<Real> tau) const;
 };
 

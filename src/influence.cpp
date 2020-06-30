@@ -14,12 +14,12 @@ using std::log;
 using boost::math::quadrature::exp_sinh;
 using boost::math::quadrature::tanh_sinh;
 
-vector<Real> influence::Tintint(vector<Real> tau) const {
-  vector<Real> retval;
-  for(auto&& t: tau)
-    retval.push_back(Tintint(t));
-  return retval;
-}
+// vector<Real> influence::Tintint(vector<Real> tau) const {
+//   vector<Real> retval;
+//   for(auto&& t: tau)
+//     retval.push_back(Tintint(t));
+//   return retval;
+// }
 
 vector<Real> influence::Tint(vector<Real> tau) const {
   vector<Real> retval;
