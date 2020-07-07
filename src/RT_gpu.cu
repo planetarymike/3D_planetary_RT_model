@@ -140,7 +140,7 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
 
   //integrate
   vec = atmo_vector(RT->grid.voxels[i_vox].pt, RT->grid.rays[i_ray]);
-  temp_influence.reset();
+  temp_influence.reset(RT->emissions, i_vox);
   RT->voxel_traverse(vec,
   		     &RT_grid<N_EMISSIONS,grid_type,influence_type>::influence_update,
   		     temp_influence);
@@ -158,7 +158,7 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   //now compute the single scattering function:
   //only one thread needs to do this
   if (threadIdx.x == 0) {
-    temp_influence.reset();
+    temp_influence.reset(RT->emissions, i_vox);
     RT->get_single_scattering(RT->grid.voxels[i_vox].pt, temp_influence);
   }
 }

@@ -7,95 +7,65 @@
 #include "cuda_compatibility.hpp"
 #include "emission.hpp"
 #include "boundaries.hpp"
+#include "lineshape_tracker.hpp"
 #include <cmath>
 
 template <int N_EMISS>
 struct tau_tracker {
-  Real tau_species_initial[N_EMISS];
-  Real tau_species_final[N_EMISS];
-  Real tau_absorber_initial[N_EMISS];
-  Real tau_absorber_final[N_EMISS];
+  lineshape_tracker line[N_EMISS];
   Real max_tau_species;
 
   CUDA_CALLABLE_MEMBER
-  tau_tracker() {
-    for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
-      tau_species_initial[i_emission]=0;
-      tau_species_final[i_emission]=0;
-      tau_absorber_initial[i_emission]=0;
-      tau_absorber_final[i_emission]=0;
-    }
-    max_tau_species = 0;
-  }
+  tau_tracker()
+    : max_tau_species(0.0)
+  { }
   CUDA_CALLABLE_MEMBER
   ~tau_tracker() { }
   CUDA_CALLABLE_MEMBER
   tau_tracker(const tau_tracker<N_EMISS> &copy) {
-    for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
-      tau_species_initial[i_emission]=copy.tau_species_initial[i_emission];
-      tau_species_final[i_emission]=copy.tau_species_final[i_emission];
-      tau_absorber_initial[i_emission]=copy.tau_absorber_initial[i_emission];
-      tau_absorber_final[i_emission]=copy.tau_absorber_final[i_emission];
-    }
-    max_tau_species=copy.max_tau_species;
+    max_tau_species = copy.max_tau_species;
+    for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+      line[i_emission] = copy.line[i_emission];
   }
   CUDA_CALLABLE_MEMBER
   tau_tracker& operator=(const tau_tracker<N_EMISS> &rhs) {
     if(this == &rhs) return *this;
-    for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
-      tau_species_initial[i_emission]=rhs.tau_species_initial[i_emission];
-      tau_species_final[i_emission]=rhs.tau_species_final[i_emission];
-      tau_absorber_initial[i_emission]=rhs.tau_absorber_initial[i_emission];
-      tau_absorber_final[i_emission]=rhs.tau_absorber_final[i_emission];
-    }
-    max_tau_species=rhs.max_tau_species;
+    max_tau_species = rhs.max_tau_species;
+    for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+      line[i_emission] = rhs.line[i_emission];
     return *this;
   }
 
+  template <typename E>
   CUDA_CALLABLE_MEMBER
-  void reset() {
-    for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
-      tau_species_initial[i_emission]=0;
-      tau_species_final[i_emission]=0;
-      tau_absorber_initial[i_emission]=0;
-      tau_absorber_final[i_emission]=0;
-    }
+  void reset(const E (&emissions)[N_EMISS], const int i_voxel) {
+    for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+      line[i_emission].reset(emissions[i_emission].species_T[i_voxel],
+			     emissions[i_emission].species_T_ref);
+  }
+  template <typename E>
+  CUDA_CALLABLE_MEMBER
+  void reset(const E (&emissions)[N_EMISS]) {
+    for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+      line[i_emission].reset(emissions[i_emission].species_T_ref,
+			     emissions[i_emission].species_T_ref);
   }
   
-  CUDA_CALLABLE_MEMBER
-  void check_max_tau() {
-    for (int i_emission=0; i_emission < N_EMISS; i_emission++) {
-      if (tau_species_final[i_emission] > max_tau_species)
-	max_tau_species = tau_species_final[i_emission];
-    }
-  }
-
   template <typename S, typename E>
   CUDA_CALLABLE_MEMBER
   void update_start(S& stepper,
 		    E (&emissions)[N_EMISS]) {
-    for (int i_emission=0; i_emission < N_EMISS; i_emission++) {
-      tau_species_final[i_emission] = ( tau_species_initial[i_emission]
-					+ (emissions[i_emission].dtau_species(stepper.current_voxel)
-					   * stepper.pathlength));
-      assert(!std::isnan(tau_species_final[i_emission]) && "optical depths must be real numbers");
-      assert(tau_species_final[i_emission]>=0 && "optical depths must be positive");
-
-      tau_absorber_final[i_emission] = ( tau_absorber_initial[i_emission]
-					 + (emissions[i_emission].dtau_absorber(stepper.current_voxel)
-					    * stepper.pathlength)); 
-      assert(!std::isnan(tau_absorber_final[i_emission]) && "optical depths must be real numbers");
-      assert(tau_absorber_final[i_emission]>=0 && "optical depths must be positive");
-    }
+    for (int i_emission=0; i_emission < N_EMISS; i_emission++) 
+      line[i_emission].update_start(stepper, emissions[i_emission]);
   }
-  
+
   CUDA_CALLABLE_MEMBER
   void update_end() {
     for (int i_emission=0; i_emission < N_EMISS; i_emission++) {
-      tau_species_initial[i_emission]=tau_species_final[i_emission];
-      tau_absorber_initial[i_emission]=tau_absorber_final[i_emission];
+      line[i_emission].update_end();
+      if (line[i_emission].max_tau_species > max_tau_species)
+	max_tau_species = line[i_emission].max_tau_species;
     }
-    check_max_tau();
   }
 };
 
@@ -129,9 +99,10 @@ struct influence_tracker : tau_tracker<N_EMISS> {
     return *this;
   }
 
+  template <typename E>
   CUDA_CALLABLE_MEMBER
-  void reset() {
-    tau_tracker<N_EMISS>::reset();
+  void reset(const E (&emissions)[N_EMISS],const int i_voxel) {
+    tau_tracker<N_EMISS>::reset(emissions, i_voxel);
     for (int i_emission=0; i_emission < N_EMISS; i_emission++)
       for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
 	influence[i_emission][j_pt] = 0.0;
@@ -193,9 +164,16 @@ struct brightness_tracker : tau_tracker<N_EMISS> {
     return *this;
   }
 
+  // CUDA_CALLABLE_MEMBER
+  // void reset(emission (&emissions)[N_EMISS], int i_voxel) {
+  //   tau_tracker<N_EMISS>::reset(emissions, i_voxel);
+  //   for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+  //     brightness[i_emission]=0;
+  // }
+  template <typename E>
   CUDA_CALLABLE_MEMBER
-  void reset() {
-    tau_tracker<N_EMISS>::reset();
+  void reset(const E (&emissions)[N_EMISS]) {
+    tau_tracker<N_EMISS>::reset(emissions);
     for (int i_emission=0; i_emission < N_EMISS; i_emission++)
       brightness[i_emission]=0;
   }
@@ -206,22 +184,25 @@ template <int N>
 class interpolated_values {
 public:
   Real dtau_species_interp[N];
-  Real species_sigma_interp[N];
+  Real species_T_interp[N];
   Real dtau_absorber_interp[N];
+  Real abs_interp[N];
   Real sourcefn_interp[N];
 };
 
 
 template <int N_EMISS>
 struct observed {
+  //structure for observed brightnesses and uncertainties
+
   Real brightness[N_EMISS];
-  Real sigma[N_EMISS];
+  Real brightness_unc[N_EMISS];
 
   CUDA_CALLABLE_MEMBER
   observed() {
     for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
       brightness[i_emission]=0;
-      sigma[i_emission]=0;
+      brightness_unc[i_emission]=0;
     }
   }
   CUDA_CALLABLE_MEMBER
@@ -230,7 +211,7 @@ struct observed {
   observed(const observed<N_EMISS> &copy) {
     for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
       brightness[i_emission]=copy.brightness[i_emission];
-      sigma[i_emission]=copy.sigma[i_emission];
+      brightness_unc[i_emission]=copy.brightness_unc[i_emission];
     }
   }
   CUDA_CALLABLE_MEMBER
@@ -238,7 +219,7 @@ struct observed {
     if(this == &rhs) return *this;
     for (int i_emission = 0; i_emission<N_EMISS; i_emission++) {
       brightness[i_emission]=rhs.brightness[i_emission];
-      sigma[i_emission]=rhs.sigma[i_emission];
+      brightness_unc[i_emission]=rhs.brightness_unc[i_emission];
     }
     return *this;
   }

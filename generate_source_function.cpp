@@ -13,6 +13,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   //define the physical atmosphere
   Real exobase_temp = 200;//K
+  Real H_T_ref = exobase_temp;//K
   krasnopolsky_temperature temp(exobase_temp);
 
   Real H_exobase_density = 5e5;// cm-3
@@ -20,11 +21,12 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,
 		    temp);
-  // //fix temperature to the exobase temp for the RT calculation
+  // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
   // atm.temp_dependent_sH=false;
   // atm.constant_temp_sH=exobase_temp;
+  //atm.no_CO2_absorption = true;
   atm.save("test/test_atmosphere.dat");
-
+  
   //use holstein functions to compute influence integrals
   typedef holstein_approx influence_function; //setting up holstein_approx isthe most time consuming part of startup, ~0.4s
 
@@ -54,27 +56,28 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   //RT.grid.rmethod = RT.grid.rmethod_altitude;
   RT.grid.rmethod = RT.grid.rmethod_log_n_species;
-  //RT.grid.szamethod = RT.grid.szamethod_uniform;
-  RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
+  RT.grid.szamethod = RT.grid.szamethod_uniform; //requires CONEABS = 1e-2 in Real.hpp
+  //RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
   
   RT.grid.setup_voxels(atm);
   RT.grid.setup_rays();
   
   
 
-
   //solve for H lyman alpha
   RT.define_emission("H Lyman alpha",
 		     1.0,
+		     H_T_ref, lyman_alpha_line_center_cross_section_coef/std::sqrt(H_T_ref),
 		     atm,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
 		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
   //solve for H lyman beta
   RT.define_emission("H Lyman beta",
-		       lyman_beta_branching_ratio,
-		       atm,
-		       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
-		       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+		     lyman_beta_branching_ratio,
+		     H_T_ref, lyman_beta_line_center_cross_section_coef/std::sqrt(H_T_ref),
+		     atm,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
+		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
 
   //solve for the source function
   //  RT.save_influence = true;

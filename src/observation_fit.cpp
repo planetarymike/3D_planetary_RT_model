@@ -57,13 +57,15 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
   //update the RT grid values
   RT.define_emission("H Lyman alpha",
 		     1.0,
+		     Texo, lyman_alpha_line_center_cross_section_coef/std::sqrt(Texo),
 		     atm,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
 		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
   RT.define_emission("H Lyman beta",
 		     lyman_beta_branching_ratio,
+		     Texo, lyman_beta_line_center_cross_section_coef/std::sqrt(Texo),
 		     atm,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
+		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
 		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
   
   //compute source function on the GPU if compiled with NVCC
@@ -102,14 +104,16 @@ void observation_fit::generate_source_function_asym(const Real &nHexo, const Rea
   //update the RT grid values
   RT.define_emission("H Lyman alpha",
 		     1.0,
+		     Texo, lyman_alpha_line_center_cross_section_coef/std::sqrt(Texo),
 		     atm_asym,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
-		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+		     &chamb_diff_1d_asymmetric::nH,   &chamb_diff_1d_asymmetric::H_Temp,
+		     &chamb_diff_1d_asymmetric::nCO2, &chamb_diff_1d_asymmetric::sCO2_lya);
   RT.define_emission("H Lyman beta",
 		     lyman_beta_branching_ratio,
+		     Texo, lyman_beta_line_center_cross_section_coef/std::sqrt(Texo),
 		     atm_asym,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lyb,
-		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+		     &chamb_diff_1d_asymmetric::nH,   &chamb_diff_1d_asymmetric::H_Temp,
+		     &chamb_diff_1d_asymmetric::nCO2, &chamb_diff_1d_asymmetric::sCO2_lyb);
   
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
@@ -145,14 +149,14 @@ vector<vector<Real>> observation_fit::brightness() {
 }
 
 void observation_fit::add_observed_brightness(const std::vector<Real> &brightness,
-					      const std::vector<Real> &sigma,
+					      const std::vector<Real> &brightness_unc,
 					      const int emission/* = 0*/) {
   //add the observed brightness to obs (not obs_deriv)
   //so we can compute log-likelihoods
   assert(obs.size() == (int) brightness.size());
   for (int i=0;i<obs.size();i++) {
-    obs.los_observed[i].brightness[emission] = brightness[i];
-    obs.los_observed[i].sigma[emission]      = sigma[i];
+    obs.los_observed[i].brightness[emission]     = brightness[i];
+    obs.los_observed[i].brightness_unc[emission] = brightness_unc[i];
   }
 }
 

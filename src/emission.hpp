@@ -21,31 +21,36 @@ struct emission {
   bool solved;
   
   Real branching_ratio;
-  
+  Real species_T_ref;//reference temp, K (anything near mean works OK as long
+                     //as variations are less than a factor of 5ish)
+  Real species_sigma_T_ref;//species cross section at this temperature
+
+
   //these store physical atmospheric parameters on the grid (dimension n_voxels)
   //dynamic arrays are required for dim>~32 for Eigen
   //the vectors point to the Eigen objects so that these can be used interchangably
   typedef voxel_vector<N_VOXELS> vv;
   typedef voxel_matrix<N_VOXELS> vm;
-  vv species_density; //average and point densities of scatterers and absorbers on the tabulated grid
+  vv species_density; //average and point densities of species on the grid
   vv species_density_pt;
-  vv absorber_density; 
-  vv absorber_density_pt; 
-  vv species_sigma;//average and point scatterer and absorber cross section on the tabulated grid
-  vv species_sigma_pt;
-  vv absorber_sigma;
-  vv absorber_sigma_pt;
-
-  vv dtau_species;
+  vv species_T; //average and point temperature of species on the grid
+  vv species_T_pt;
+  vv dtau_species; // species density * species_sigma_T_ref (NOT species_T)
   vv dtau_species_pt;
-  vv log_dtau_species; //quantities that need to be interpolated are also stored as log
+  vv log_dtau_species; //in case we want to do interpolation in log space
   vv log_dtau_species_pt; 
-  vv dtau_absorber;
+
+  vv absorber_density; //same as above for absorber
+  vv absorber_density_pt; 
+  vv absorber_sigma; //pure absorption does not need T info; can be implicitly T-dependent
+  vv absorber_sigma_pt;
+  vv dtau_absorber; // absorber_density * absorber_sigma for each voxel independently
   vv dtau_absorber_pt;
   vv log_dtau_absorber;
   vv log_dtau_absorber_pt; 
-  vv abs; //ratio of dtau_abs to dtau_species
-  vv abs_pt; //ratio of dtau_abs to dtau_species
+
+  vv abs; //ratio (dtau_absorber / dtau_species)
+  vv abs_pt; 
   vv log_abs; 
   vv log_abs_pt; 
 
@@ -66,15 +71,18 @@ struct emission {
   { }
 
   template<typename C>
-  void define(Real emission_branching_ratio,
+  void define(const Real &emission_branching_ratio,
+	      const Real &species_T_reff, const Real &species_sigma_T_reff,
 	      const C &atmosphere,
 	      void (C::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-	      void (C::*species_sigma_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      void (C::*species_T_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
 	      void (C::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
 	      void (C::*absorber_sigma_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
 	      const atmo_voxel (&voxels)[n_voxels]) {
     
-    branching_ratio = emission_branching_ratio;
+    branching_ratio     = emission_branching_ratio;
+    species_T_ref       = species_T_reff;
+    species_sigma_T_ref = species_sigma_T_reff;
     
     for (unsigned int i_voxel=0;i_voxel<n_voxels;i_voxel++) {
       (atmosphere.*species_density_function)(voxels[i_voxel],
@@ -87,14 +95,14 @@ struct emission {
 	     && species_density_pt[i_voxel] >= 0
 	     && "densities must be real and positive");
       
-      (atmosphere.*species_sigma_function)(voxels[i_voxel],
-					   species_sigma[i_voxel],
-					   species_sigma_pt[i_voxel]);
-      assert(!isnan(species_sigma[i_voxel])
-	     && species_sigma[i_voxel] >= 0
+      (atmosphere.*species_T_function)(voxels[i_voxel],
+				       species_T[i_voxel],
+				       species_T_pt[i_voxel]);
+      assert(!isnan(species_T[i_voxel])
+	     && species_T[i_voxel] >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(species_sigma_pt[i_voxel])
-	     && species_sigma_pt[i_voxel] >= 0
+      assert(!isnan(species_T_pt[i_voxel])
+	     && species_T_pt[i_voxel] >= 0
 	     && "densities must be real and positive");
       
       (atmosphere.*absorber_density_function)(voxels[i_voxel],
@@ -119,8 +127,8 @@ struct emission {
     }
     
     //define differential optical depths by coefficientwise multiplication
-    dtau_species = species_density.array() * species_sigma.array();
-    dtau_species_pt = species_density_pt.array() * species_sigma_pt.array();
+    dtau_species = species_density.array() * species_sigma_T_ref;
+    dtau_species_pt = species_density_pt.array() * species_sigma_T_ref;
     dtau_absorber = absorber_density.array() * absorber_sigma.array();
     dtau_absorber_pt = absorber_density_pt.array() * absorber_sigma_pt.array();
     abs = dtau_absorber.array() / dtau_species.array();

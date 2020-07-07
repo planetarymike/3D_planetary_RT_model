@@ -212,7 +212,7 @@ public:
 		    );
     
     //prepare simulated brightness storage
-    los.to_device(false);
+    los.to_device();
     //point the object device pointer to the same location
     checkCudaErrors(
 		    cudaMemcpy(&((d_obs->los).v),

@@ -296,19 +296,18 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     int sza_idx;
     sza_idx = coord_indices[sza_dimension];
 
-    const double eps = ABS;
-    if (pt.r < radial_boundaries[r_idx] && radial_boundaries[r_idx]/pt.r>(1-eps))
-      pt.r = radial_boundaries[r_idx]+eps;
-    if (radial_boundaries[r_idx+1]<pt.r && pt.r/radial_boundaries[r_idx+1]<(1+eps))
-      pt.r = radial_boundaries[r_idx+1]-eps;
+    if (pt.r < radial_boundaries[r_idx] && radial_boundaries[r_idx]/pt.r>(1-ABS))
+      pt.r = radial_boundaries[r_idx]+ABS;
+    if (radial_boundaries[r_idx+1]<pt.r && pt.r/radial_boundaries[r_idx+1]<(1+ABS))
+      pt.r = radial_boundaries[r_idx+1]-ABS;
     assert(radial_boundaries[r_idx] <= pt.r &&
 	   pt.r <= radial_boundaries[r_idx+1]
 	   && "pt must be in identified voxel.");
 
-    if (pt.t<sza_boundaries[sza_idx] && sza_boundaries[sza_idx]/pt.t>(1-eps))
-      pt.t = sza_boundaries[sza_idx]+eps;
-    if (sza_boundaries[sza_idx+1]<pt.t && pt.t/sza_boundaries[sza_idx+1]<(1+eps))
-      pt.t = sza_boundaries[sza_idx+1]-eps;
+    if (pt.t<sza_boundaries[sza_idx] && sza_boundaries[sza_idx]/pt.t>(1-CONEABS))
+      pt.t = sza_boundaries[sza_idx]+CONEABS;
+    if (sza_boundaries[sza_idx+1]<pt.t && pt.t/sza_boundaries[sza_idx+1]<(1+CONEABS))
+      pt.t = sza_boundaries[sza_idx+1]-CONEABS;
     assert(sza_boundaries[sza_idx] <= pt.t &&
 	   pt.t <= sza_boundaries[sza_idx+1] &&
 	   "pt must be in identified voxel.");
@@ -425,7 +424,13 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 		 <<	 sza_slice(emissions[i_emission].tau_species_single_scattering,j).transpose() << "\n"
 
 		 << "    Species cross section [cm2]: " 
-		 <<      sza_slice(emissions[i_emission].species_sigma,j).transpose() << "\n"
+		 <<      sza_slice(
+
+				   emissions[i_emission].species_sigma_T_ref
+				   *std::sqrt(emissions[i_emission].species_T_ref)
+				   /emissions[i_emission].species_T.array().sqrt()
+				   
+				   ,j).transpose() << "\n"
 
 		 << "    Absorber density [cm-3]: " 
 		 <<      sza_slice(emissions[i_emission].absorber_density,j).transpose() << "\n"
