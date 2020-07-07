@@ -60,6 +60,8 @@ generate_source_function_profile:
 generate_source_function_debug_warn:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -o generate_source_function.x
 
+generate_source_function_float:
+	$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
 
 
 
