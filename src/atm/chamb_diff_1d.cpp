@@ -40,6 +40,7 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
     temp(&tempp), 
     temp_dependent_sH(true),
     constant_temp_sH(temp->T_exo),
+    no_CO2_absorption(false),
     exosphere(rexo, temp->T_exo, nHexo),
     diffeq(tempp, exosphere.H_escape_flux, rexo),
     spherical(true)
@@ -56,7 +57,6 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
 
   //use a constant stepper for easy interpolation
   runge_kutta4< vector<Real> > stepper;
-  n_thermosphere_steps = 20;
   thermosphere_step_r = -(rexo-rmin)/(n_thermosphere_steps-1.);
   integrate_const( stepper , diffeq ,
 		   nexo , rexo , rmin , thermosphere_step_r,
@@ -79,7 +79,6 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
   nCO2rmindiffusion = nCO2(rmindiffusion);
     
   //now get the interpolation points in the exosphere
-  n_exosphere_steps = 20;
   exosphere_step_logr = (log(rmax) - log(rexo))/(n_exosphere_steps - 1.);
   for (int iexo = 0; iexo < n_exosphere_steps; iexo++) {
     logr_exosphere.push_back( log(rexo) + iexo * exosphere_step_logr );
@@ -93,7 +92,6 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
 
 
   //now we need to integrate the relevant quantites so we can compute averages
-  int n_int_steps = 100;
 
   //integrate from the top of the atmosphere down to minimize floating
   //point subtraction errors
@@ -272,6 +270,12 @@ Real chamb_diff_1d::Tavg(const Real &r0, const Real &r1) const {
     }
   }
 }
+void chamb_diff_1d::H_Temp(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const {
+  ret_avg = temp_dependent_sH ? Tavg(vox.rbounds[0], vox.rbounds[1]) : constant_temp_sH;
+  ret_pt = temp_dependent_sH ? temp->T(vox.pt.r) : constant_temp_sH;
+}
+
+
 Real chamb_diff_1d::sH_lya(const Real &r) const {
   Real t_sH = temp_dependent_sH ? temp->T(r) : constant_temp_sH;
   return lyman_alpha_line_center_cross_section_coef/sqrt(t_sH);
@@ -286,14 +290,23 @@ void chamb_diff_1d::sH_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) c
 }
 
 Real chamb_diff_1d::sCO2_lya(__attribute__((unused)) const Real &r) const {
-  return CO2_lyman_alpha_absorption_cross_section;
+  if (no_CO2_absorption)
+    return 0.0;
+  else
+    return CO2_lyman_alpha_absorption_cross_section;
 }
 Real chamb_diff_1d::sCO2_lya(const atmo_point &pt) const {
-  return sCO2_lya(pt.r);
+  if (no_CO2_absorption)
+    return 0.0;
+  else 
+    return sCO2_lya(pt.r);
 }
 void chamb_diff_1d::sCO2_lya(__attribute__((unused)) const atmo_voxel &vox,
 			     Real &ret_avg, Real &ret_pt) const {
-  ret_avg = ret_pt = CO2_lyman_alpha_absorption_cross_section;
+  if (no_CO2_absorption)
+    ret_avg = ret_pt = 0.0;
+  else
+    ret_avg = ret_pt = CO2_lyman_alpha_absorption_cross_section;
 }
 
 Real chamb_diff_1d::sH_lyb(const Real &r) const {
@@ -310,14 +323,23 @@ void chamb_diff_1d::sH_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) c
 }
 
 Real chamb_diff_1d::sCO2_lyb(__attribute__((unused)) const Real &r) const {
-  return CO2_lyman_beta_absorption_cross_section;
+  if (no_CO2_absorption)
+    return 0.0;
+  else
+    return CO2_lyman_beta_absorption_cross_section;
 }
 Real chamb_diff_1d::sCO2_lyb(const atmo_point &pt) const {
-  return sCO2_lyb(pt.r);
+  if (no_CO2_absorption)
+    return 0.0;
+  else
+    return sCO2_lyb(pt.r);
 }
 void chamb_diff_1d::sCO2_lyb(__attribute__((unused)) const atmo_voxel &vox,
 			     Real &ret_avg, Real &ret_pt) const {
-  ret_avg = ret_pt = CO2_lyman_beta_absorption_cross_section;
+  if (no_CO2_absorption)
+    ret_avg = ret_pt = 0.0;
+  else
+    ret_avg = ret_pt = CO2_lyman_beta_absorption_cross_section;
 }
 
 

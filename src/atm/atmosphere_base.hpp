@@ -14,9 +14,6 @@ struct atmosphere {
   virtual Real r_from_n_species(const Real &n_species) const = 0;
   //function to return radius (at subsolar point, or average) from species density
 
-  Real s_null(const atmo_point &pt) const ;
-  //return zero, useful to ignore absorption
-
   atmosphere(Real rminn, Real rexoo, Real rmaxx);
 };
 

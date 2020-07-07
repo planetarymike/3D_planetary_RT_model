@@ -28,11 +28,13 @@ struct chamb_diff_1d : atmosphere {
   bool temp_dependent_sH;
   Real constant_temp_sH;
 
+  bool no_CO2_absorption;
+
   chamberlain_exosphere exosphere;
   thermosphere_diffeq diffeq;
 
   //thermosphere interpolation object
-  int n_thermosphere_steps;
+  static const int n_thermosphere_steps = 40;
   Real thermosphere_step_r;
   vector<Real> lognCO2thermosphere;
   vector<Real> lognHthermosphere;
@@ -43,7 +45,7 @@ struct chamb_diff_1d : atmosphere {
   Linear_interp invlognH_thermosphere;
   
   //exosphere interpolation
-  int n_exosphere_steps;
+  static const int n_exosphere_steps = 40;
   Real exosphere_step_logr;
   vector<Real> lognHexosphere;
   vector<Real> logr_exosphere;
@@ -51,6 +53,7 @@ struct chamb_diff_1d : atmosphere {
   Linear_interp invlognH_exosphere;
 
   //integrated quantities to get averages
+  static const int n_int_steps = 100;
   static const int r_int_scale = 1e8;
   vector<Real> log_r_int;
   vector<Real> nH_int;
@@ -88,18 +91,17 @@ struct chamb_diff_1d : atmosphere {
   
   Real nCO2(const Real &r) const;
   Real nCO2avg(const Real &r0, const Real &r1) const;
-  //child chamb_diff_1d_asymmetric needs to override these
-  virtual Real nCO2(const atmo_point &pt) const; 
-  virtual void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  Real nCO2(const atmo_point &pt) const; 
+  void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
   Real nH(const Real &r) const;
   Real nHavg(const Real &r0, const Real &r1) const;
-  //child chamb_diff_1d_asymmetric needs to override these
-  virtual Real nH(const atmo_point &pt) const;
-  virtual void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  Real nH(const atmo_point &pt) const;
+  void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
   Real n_species(const Real &r) const;
   
   Real Tavg(const Real &r0, const Real &r1) const;
+  void H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
   Real sH_lya(const Real &r) const;
   Real sH_lya(const atmo_point &pt) const;

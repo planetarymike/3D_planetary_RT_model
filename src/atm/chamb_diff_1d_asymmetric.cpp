@@ -68,3 +68,12 @@ void chamb_diff_1d_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &re
   ret_pt  =      chamb_diff_1d::nH(vox.pt.r)*(nslope*vox.pt.t+n0);
 }
 
+void chamb_diff_1d_asymmetric::H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  chamb_diff_1d::H_Temp(vox,ret_avg,ret_pt);
+}
+void chamb_diff_1d_asymmetric::sCO2_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  chamb_diff_1d::sCO2_lya(vox,ret_avg,ret_pt);
+}
+void chamb_diff_1d_asymmetric::sCO2_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  chamb_diff_1d::sCO2_lyb(vox,ret_avg,ret_pt);
+}
