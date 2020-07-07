@@ -11,12 +11,14 @@
 typedef float Real;
 #define ABS 1e-3
 #define STRICTABS 1e-5
+#define CONEABS 1e-2
 
 #else //default to double
 
 typedef double Real;
 #define ABS 1e-6
 #define STRICTABS 1e-10
+#define CONEABS ABS
 
 #endif
 
