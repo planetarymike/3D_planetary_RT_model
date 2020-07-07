@@ -97,9 +97,9 @@ $(OBJDIR)/%.cuda.debug.o: %.cu
 
 clean_gpu:
 	rm -f generate_source_function_gpu.x
-	find ./bin/ -type f -name '*cuda*' -delete
+	test -d ./bin && find ./bin/ -type f -name '*cuda*' -delete 2>/dev/null
 
 clean_all:
 	rm -f generate_source_function.x
 	rm -f generate_source_function_gpu.x
-	rm -r bin
+	rm -rf bin
