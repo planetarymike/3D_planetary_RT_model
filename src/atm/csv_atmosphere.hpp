@@ -35,20 +35,20 @@ public:
   void scale_CO2(Real scale);
   void scale_densities(Real scale);
 
-  Real get_T(const Real &r);
+  Real get_T(const Real &r) const;
 
-  Real nCO2(const Real &r);
-  Real nCO2(const atmo_point pt);
-  void nCO2(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
+  Real nCO2(const Real &r) const;
+  Real nCO2(const atmo_point pt) const;
 
-  Real nH(const Real &r);
-  Real nH(const atmo_point pt);
-  void nH(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
+  Real nH(const Real &r) const;
+  Real nH(const atmo_point pt) const;
+  Real n_species(const Real &r) const;
 
-  Real r_from_nH(Real nHtarget);
+  Real r_from_nH(const Real &nHtarget) const;
+  Real r_from_n_species(const Real &n_species_target) const;
 
-  Real sH_lya(const atmo_point pt);//not implemented
-  void sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
-  Real sCO2_lya(const atmo_point pt);//not implemented
-  void sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt);//not implemented
+  Real sH_lya(const atmo_point pt) const;//not implemented
+  void sH_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) const;//not implemented
+  Real sCO2_lya(const atmo_point pt) const;//not implemented
+  void sCO2_lya(const atmo_voxel vox, Real &ret_avg, Real &ret_pt) const;//not implemented
 };

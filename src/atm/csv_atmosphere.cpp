@@ -87,56 +87,30 @@ void csv_atmosphere::scale_densities(Real scale) {
   scale_CO2(scale);
 }
 
-Real csv_atmosphere::get_T(const Real &r) {
+Real csv_atmosphere::get_T(const Real &r) const {
   return T_spline((r-rMars)/1e5);
 }
 
-Real csv_atmosphere::nCO2(const Real &r) {
+Real csv_atmosphere::nCO2(const Real &r) const {
   return exp(lognCO2_spline((r-rMars)/1e5));
 }
-Real csv_atmosphere::nCO2(const atmo_point pt) {
+Real csv_atmosphere::nCO2(const atmo_point pt) const {
   return nCO2(pt.r);
 }
-void csv_atmosphere::nCO2(__attribute__((unused)) const atmo_voxel vox,
-			  __attribute__((unused)) Real &ret_avg,
-			  __attribute__((unused)) Real &ret_pt) {
-  assert(false && "not implemented in this class");
-}
 
-Real csv_atmosphere::nH(const Real &r) {
+Real csv_atmosphere::nH(const Real &r) const {
   return exp(lognH_spline((r-rMars)/1e5));
 }
-Real csv_atmosphere::nH(const atmo_point pt) {
+Real csv_atmosphere::nH(const atmo_point pt) const {
   return nH(pt.r);
 }
-void csv_atmosphere::nH(__attribute__((unused)) const atmo_voxel vox,
-			__attribute__((unused)) Real &ret_avg,
-			__attribute__((unused)) Real &ret_pt) {
-  assert(false && "not implemented in this class");
+Real csv_atmosphere::n_species(const Real &r) const {
+  return nH(r);
 }
 
-Real csv_atmosphere::r_from_nH(Real nHtarget) {
+Real csv_atmosphere::r_from_nH(const Real &nHtarget) const {
   return inv_lognH_spline(log(nHtarget))*1e5 + rMars;
 }
-
-
-
-Real csv_atmosphere::sH_lya(__attribute__((unused)) const atmo_point pt) {
-  assert(false && "not implemented in this class");
-  return 0;
-}
-void csv_atmosphere::sH_lya(__attribute__((unused)) const atmo_voxel vox,
-			    __attribute__((unused)) Real &ret_avg,
-			    __attribute__((unused)) Real &ret_pt) {
-  assert(false && "not implemented in this class");
-}
-
-Real csv_atmosphere::sCO2_lya(__attribute__((unused)) const atmo_point pt) {
-  assert(false && "not implemented in this class");
-  return 0;
-}
-void csv_atmosphere::sCO2_lya(__attribute__((unused)) const atmo_voxel vox,
-			      __attribute__((unused)) Real &ret_avg,
-			      __attribute__((unused)) Real &ret_pt) {
-  assert(false && "not implemented in this class");
+Real csv_atmosphere::r_from_n_species(const Real &n_species_target) const {
+  return r_from_nH(n_species_target);
 }
