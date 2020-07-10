@@ -71,7 +71,6 @@ struct chamb_diff_1d : atmosphere {
   //  cardinal_cubic_b_spline<Real> Tint_spline;
 
   bool spherical;//whether to compute averages in spherical geometry
-		 //or not
   
   chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
 		Real nCO2exoo, //a good number is 10^9 (?)
