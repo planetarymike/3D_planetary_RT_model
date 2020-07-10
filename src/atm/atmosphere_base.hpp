@@ -9,10 +9,12 @@ struct atmosphere {
   Real rexo;// cm, minimum altitude in model atmosphere
   Real rmax;// cm, max altitude in model atmosphere
 
-  virtual Real n_species(const Real &r) const = 0;
   //function to return species density at a given radius (either subsolar or average)
-  virtual Real r_from_n_species(const Real &n_species) const = 0;
+  virtual Real n_species(const Real &r) const = 0;
+
   //function to return radius (at subsolar point, or average) from species density
+  virtual Real r_from_n_species(const Real &n_species) const = 0;
+  
 
   atmosphere(Real rminn, Real rexoo, Real rmaxx);
 };
