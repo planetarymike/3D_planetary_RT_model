@@ -183,7 +183,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
   }
 
   
-  void save_S(const string fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
+  void save_S(const string &fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
     std::ofstream file(fname.c_str());
     if (file.is_open())
       {
@@ -200,13 +200,28 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
        	
 	for (int i_emission=0;i_emission<n_emissions;i_emission++)
 	  file << "For " << emissions[i_emission].name << ",\n"
-	       << "Species density [cm-3]: " <<	emissions[i_emission].species_density.transpose() << "\n"
-	       << "Species single scattering tau: " <<	emissions[i_emission].tau_species_single_scattering.transpose() << "\n"
-	       << "Species cross section [cm2]: " << emissions[i_emission].species_sigma.transpose() << "\n"
-	       << "Absorber density [cm-3]: " << emissions[i_emission].absorber_density.transpose() << "\n"
-	       << "Absorber single scattering tau: " <<	emissions[i_emission].tau_absorber_single_scattering.transpose() << "\n"
-	       << "Species single scattering source function S0: " <<	emissions[i_emission].singlescat.transpose() << "\n"
-	       << "Source function: " << emissions[i_emission].sourcefn.transpose() << "\n\n";
+	       << "Species density [cm-3]: "
+	       <<	emissions[i_emission].species_density.transpose() << "\n"
+
+	       << "Species single scattering tau: "
+	       <<	emissions[i_emission].tau_species_single_scattering.transpose() << "\n"
+
+	       << "Species cross section [cm2]: "
+	       << (emissions[i_emission].species_sigma_T_ref
+		   *std::sqrt(emissions[i_emission].species_T_ref)
+		   /emissions[i_emission].species_T.array().sqrt()).transpose() << "\n"
+
+	       << "Absorber density [cm-3]: "
+	       << emissions[i_emission].absorber_density.transpose() << "\n"
+
+	       << "Absorber single scattering tau: "
+	       <<	emissions[i_emission].tau_absorber_single_scattering.transpose() << "\n"
+
+	       << "Species single scattering source function S0: "
+	       <<	emissions[i_emission].singlescat.transpose() << "\n"
+
+	       << "Source function: "
+	       << emissions[i_emission].sourcefn.transpose() << "\n\n";
       }
   }
 
