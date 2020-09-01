@@ -9,6 +9,7 @@
 #include "atmo_vec.hpp"
 #include "cuda_compatibility.hpp"
 #include "voxel_vector.hpp"
+#include <boost/type_traits/type_identity.hpp> //for type deduction in define
 
 using std::string;
 using std::isnan;
@@ -74,10 +75,10 @@ struct emission {
   void define(const Real &emission_branching_ratio,
 	      const Real &species_T_reff, const Real &species_sigma_T_reff,
 	      const C &atmosphere,
-	      void (C::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-	      void (C::*species_T_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-	      void (C::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-	      void (C::*absorber_sigma_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      void (boost::type_identity<C>::type::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      void (boost::type_identity<C>::type::*species_T_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      void (boost::type_identity<C>::type::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+	      Real (boost::type_identity<C>::type::*absorber_sigma_function)(const Real &T) const,
 	      const atmo_voxel (&voxels)[n_voxels]) {
     
     branching_ratio     = emission_branching_ratio;
@@ -115,15 +116,15 @@ struct emission {
 	     && absorber_density_pt[i_voxel] >= 0
 	     && "densities must be real and positive");
       
-      (atmosphere.*absorber_sigma_function)(voxels[i_voxel],
-					    absorber_sigma[i_voxel],
-					    absorber_sigma_pt[i_voxel]);
+
+      absorber_sigma[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T[i_voxel]);
+      absorber_sigma_pt[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T_pt[i_voxel]);
       assert(!isnan(absorber_sigma[i_voxel])
 	     && absorber_sigma[i_voxel] >= 0
-	     && "densities must be real and positive");
-	assert(!isnan(absorber_sigma_pt[i_voxel])
+	     && "cross sections must be real and positive");
+      assert(!isnan(absorber_sigma_pt[i_voxel])
 	     && absorber_sigma_pt[i_voxel] >= 0
-	     && "densities must be real and positive");
+	     && "cross sections must be real and positive");
     }
     
     //define differential optical depths by coefficientwise multiplication

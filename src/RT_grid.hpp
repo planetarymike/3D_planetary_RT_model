@@ -20,6 +20,7 @@
 #include <Eigen/StdVector>
 #include <string>
 #include <cassert>
+#include <boost/type_traits/type_identity.hpp> //for type deduction in define_emission
 
 //structure to hold the atmosphere grid
 template<int N_EMISSIONS, typename grid_type, typename influence_type>
@@ -65,16 +66,15 @@ struct RT_grid {
       emissions[i_emission].name = emission_names[i_emission];
   }
 
-  
   template<typename C>
   void define_emission(const string &emission_name,
 		       const Real &emission_branching_ratio,
 		       const Real &species_T_ref, const Real &species_sigma_T_ref,
 		       const C &atmosphere,
-		       void (C::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-		       void (C::*species_T_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-		       void (C::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-		       void (C::*absorber_sigma_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const) {
+		       void (boost::type_identity<C>::type::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+		       void (boost::type_identity<C>::type::*species_T_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+		       void (boost::type_identity<C>::type::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
+		       Real (boost::type_identity<C>::type::*absorber_sigma_function)(const Real &T) const) {
 
     //find emission name (dumb search but n_emissions is small and these are called infrequently)
     int n;
