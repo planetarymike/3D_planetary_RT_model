@@ -16,7 +16,6 @@
 #include <cmath>
 #include <string>
 
-//convert all vectors to arrays via templates
 template <int N_RADIAL_BOUNDARIES, int N_SZA_BOUNDARIES, int N_RAY_THETA, int N_RAY_PHI>
 struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid 
 						   (N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),//nvoxels
@@ -24,9 +23,10 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 						   2*N_RADIAL_BOUNDARIES+N_SZA_BOUNDARIES>//max_boundary_crossings
 {
 
-  typedef grid<2,(N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1),
-	       N_RAY_THETA*N_RAY_PHI,
-	       2*N_RADIAL_BOUNDARIES+N_SZA_BOUNDARIES> parent_grid;
+  typedef grid<2/*N_DIM*/,
+	       (N_RADIAL_BOUNDARIES-1)*(N_SZA_BOUNDARIES-1)/*N_VOXELS*/,
+	       N_RAY_THETA*N_RAY_PHI/*N_RAYS*/,
+	       2*N_RADIAL_BOUNDARIES+N_SZA_BOUNDARIES/*N_MAX_INTERSECTIONS*/> parent_grid;
 
   static const int r_dimension = 0;
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
@@ -67,7 +67,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     szamethod = szamethod_uniform;
   }
 
-  void setup_voxels(atmosphere &atm) {
+  void setup_voxels(const atmosphere &atm) {
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
     
