@@ -29,14 +29,14 @@ struct emission {
 
   //these store physical atmospheric parameters on the grid (dimension n_voxels)
   //dynamic arrays are required for dim>~32 for Eigen
-  //the vectors point to the Eigen objects so that these can be used interchangably
+  //the vectors point to Eigen objects so that these can be used interchangably
   typedef voxel_vector<N_VOXELS> vv;
   typedef voxel_matrix<N_VOXELS> vm;
   vv species_density; //average and point densities of species on the grid
   vv species_density_pt;
   vv species_T; //average and point temperature of species on the grid
   vv species_T_pt;
-  vv dtau_species; // species density * species_sigma_T_ref (NOT species_T)
+  vv dtau_species; // species density * species_sigma_T_ref * sqrt(species_T_ref/species_T) 
   vv dtau_species_pt;
   vv log_dtau_species; //in case we want to do interpolation in log space
   vv log_dtau_species_pt; 
@@ -101,10 +101,10 @@ struct emission {
 				       species_T_pt[i_voxel]);
       assert(!isnan(species_T[i_voxel])
 	     && species_T[i_voxel] >= 0
-	     && "densities must be real and positive");
+	     && "temperatures must be real and positive");
       assert(!isnan(species_T_pt[i_voxel])
 	     && species_T_pt[i_voxel] >= 0
-	     && "densities must be real and positive");
+	     && "temperatures must be real and positive");
       
       (atmosphere.*absorber_density_function)(voxels[i_voxel],
 					      absorber_density[i_voxel],
@@ -128,8 +128,8 @@ struct emission {
     }
     
     //define differential optical depths by coefficientwise multiplication
-    dtau_species = species_density.array() * species_sigma_T_ref;
-    dtau_species_pt = species_density_pt.array() * species_sigma_T_ref;
+    dtau_species = species_density.array() * species_sigma_T_ref * sqrt(species_T_ref)/species_T.array().sqrt();
+    dtau_species_pt = species_density_pt.array() * species_sigma_T_ref * sqrt(species_T_ref)/species_T_pt.array().sqrt();;
     dtau_absorber = absorber_density.array() * absorber_sigma.array();
     dtau_absorber_pt = absorber_density_pt.array() * absorber_sigma_pt.array();
     abs = dtau_absorber.array() / dtau_species.array();

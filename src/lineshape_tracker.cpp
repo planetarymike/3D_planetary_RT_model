@@ -1,8 +1,6 @@
 //lineshape_tracker.cpp --- holstein integrals computed JIT as lines of sight are traversed
 #include "lineshape_tracker.hpp"
 
-#define LAMBDA_MAX 5.0
-
 CUDA_CALLABLE_MEMBER
 lineshape_tracker::lineshape_tracker()
 {
@@ -19,7 +17,7 @@ lineshape_tracker::lineshape_tracker()
       weight[i_lambda] *= 0.5;
 
     lambda2[i_lambda]            = lambda[i_lambda]*lambda[i_lambda];
-    weightfn[i_lambda]           = 1.0;//exp(-lambda2[i_lambda]);
+    weightfn[i_lambda]           = 1.0;//exp(-lambda2[i_lambda]); //Shizgal weight function
     tau_species_lambda_initial[i_lambda] = 0.0;
   }
 
@@ -36,7 +34,7 @@ lineshape_tracker::lineshape_tracker(const lineshape_tracker &copy)
 {
   //lambda = {SHIZGAL_LAMBDAS};
   //weight = {SHIZGAL_WEIGHTS};
-  lambda_max = lambda_max;
+  lambda_max = copy.lambda_max;
   
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
     lambda[i_lambda]   = copy.lambda[i_lambda];
@@ -105,7 +103,7 @@ void lineshape_tracker::reset(const Real &T, const Real &T_ref) {
   holstein_T_initial=1.0;
 
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
-    lineshape_at_origin[i_lambda] = std::sqrt(T_ref/T)*exp(-lambda2[i_lambda]*T/T_ref);
+    lineshape_at_origin[i_lambda] = std::sqrt(T_ref/T)*exp(-lambda2[i_lambda]*T_ref/T);
     assert(!std::isnan(lineshape_at_origin[i_lambda])
 	   && lineshape_at_origin[i_lambda]>0 && "lineshape must be real and positive");
 
@@ -117,8 +115,8 @@ void lineshape_tracker::reset(const Real &T, const Real &T_ref) {
 
 CUDA_CALLABLE_MEMBER
 void lineshape_tracker::check_max_tau() {
+  //we only need to check the line center where the optical depth is greatest
   if (tau_species_final > max_tau_species)
-    //we only need to check the line center where the optical depth is greatest
     max_tau_species = tau_species_final;
 }
   
@@ -130,7 +128,7 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
 				     const Real &pathlength)
 {
   tau_species_final = (tau_species_initial
-		       + dtau_species * pathlength * std::sqrt(T_ref/T));
+		       + dtau_species * pathlength);
   assert(!std::isnan(tau_species_final)
 	 && tau_species_final>=0
 	 && "optical depths must be real numbers");
@@ -140,7 +138,7 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
 	 && tau_absorber_final>=0
 	 && "optical depths must be real numbers");
     
-
+  //
   holstein_T_final = 0;
   holstein_T_int = 0;
   holstein_G_int = 0;
@@ -148,28 +146,39 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
   Real holstein_T_int_coef;
 
   for (int i_lambda=0; i_lambda < n_lambda; i_lambda++) {
-    lineshape[i_lambda] = std::sqrt(T_ref/T)*exp(-lambda2[i_lambda]*T/T_ref);
+    lineshape[i_lambda] = std::exp(-lambda2[i_lambda]*T_ref/T);
+
     assert(!std::isnan(lineshape[i_lambda])
 	   && lineshape[i_lambda]>0 && "lineshape must be real and positive");
 
     tau_species_lambda_final[i_lambda] = (tau_species_lambda_initial[i_lambda]
-					  + dtau_species * pathlength * lineshape[i_lambda]);
+					  + (dtau_species
+					     * pathlength
+					     * lineshape[i_lambda]));
     assert(!std::isnan(tau_species_lambda_final[i_lambda])
 	   && tau_species_lambda_final[i_lambda]>0 && "optical depth must be real and positive");
 
 
     holTcoef = (M_2_SQRTPI
 		* weight[i_lambda]
-		* lineshape_at_origin[i_lambda]
 		/ weightfn[i_lambda]);
-    
-    holstein_T_final += holTcoef * std::exp(-(tau_absorber_final
-					      + tau_species_lambda_final[i_lambda]));
+
+    //holstein T final represents a frequency-averaged absorption and
+    //uses lineshape_at_origin
+    holstein_T_final += (holTcoef
+			 * lineshape_at_origin[i_lambda]
+			 * std::exp(-(tau_absorber_final
+				      + tau_species_lambda_final[i_lambda])));
     assert(!std::isnan(holstein_T_final)
-	   && holstein_T_final>=0 && "holstein function represents a probability");
+	   && holstein_T_final>=0
+	   && holstein_T_final<=1
+	   && "holstein function represents a probability");
     
     
-    holstein_T_int_coef = (holTcoef					  
+    //holstein_T_int represents a frequency averaged emission and
+    //therefore uses lineshape in this voxel
+    holstein_T_int_coef = (holTcoef
+			   * lineshape[i_lambda]				  
 			   *std::exp(-(tau_absorber_initial
 				       + tau_species_lambda_initial[i_lambda]))
 			   *(1.0 - std::exp(-(dtau_absorber
@@ -177,15 +186,27 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
 			   /(abs + lineshape[i_lambda]));
     holstein_T_int += holstein_T_int_coef;
     assert(!std::isnan(holstein_T_int)
-	   && holstein_T_int>=0 && "holstein integral must be real and positive");
-    
-    holstein_G_int += holstein_T_int_coef * lineshape[i_lambda];
+	   && holstein_T_int>=0
+	   && (holstein_T_int<=tau_species_final-tau_species_initial
+	       || std::abs(holstein_T_int-(tau_species_final-tau_species_initial)) < ABS)
+	   //  ^^ this allows for small rounding errors
+	   && "holstein integral must be between 0 and Delta tau b/c 0<=HolT<=1");
+
+    //holstein_G_int represents the frequency averaged emission
+    //followed by absorption and uses both lineshape in this voxel
+    //(via holstein_T_int_coef) and the lineshape at origin
+    holstein_G_int += holstein_T_int_coef * lineshape_at_origin[i_lambda];
     assert(!std::isnan(holstein_G_int)
-	   && holstein_G_int>=0 && "holstein integral must be real and positive");
+	   && holstein_G_int>=0
+	   && holstein_G_int<=1
+	   && "holstein G integral represents a probability");
   }
   //check that the last element is not contributing too much to the integral
   assert(!((holstein_T_int > STRICTABS) && (holstein_T_int_coef/holstein_T_int > 1e-2))
 	 && "wings of line contribute too much to transmission. Increase lambda_max in lineshape_tracker.");
+  //if holstein T is larger than physically possible due to rounding errors, reduce it to the physical limit
+  if (holstein_T_int > tau_species_final-tau_species_initial)
+      holstein_T_int = tau_species_final-tau_species_initial;
 }
 
 CUDA_CALLABLE_MEMBER
