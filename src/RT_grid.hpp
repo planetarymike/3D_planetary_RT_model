@@ -147,7 +147,7 @@ struct RT_grid {
       coef *= temp_influence.line[i_emission].holstein_G_int;
 
       assert(!isnan(coef) && "influence coefficients must be real numbers");
-      assert(coef>=0 && "influence coefficients must be positive");
+      assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
       
       temp_influence.influence[i_emission][stepper.current_voxel] += coef;
     
@@ -264,9 +264,14 @@ struct RT_grid {
 
 	temp_influence.reset(emissions, i_vox);
 	voxel_traverse(vec, &RT_grid::influence_update, temp_influence);
-	for (int i_emission=0;i_emission<n_emissions;i_emission++)
-	  for (int j_vox = 0; j_vox < grid.n_voxels; j_vox++)
+	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	  double rowsum = 0.0;
+	  for (int j_vox = 0; j_vox < grid.n_voxels; j_vox++) {
 	    emissions[i_emission].influence_matrix(i_vox,j_vox) += temp_influence.influence[i_emission][j_vox];
+	    rowsum += emissions[i_emission].influence_matrix(i_vox,j_vox);
+	  }
+	  assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this voxel");
+	}
 	
 	if (temp_influence.max_tau_species > max_tau_species)
 	  max_tau_species = temp_influence.max_tau_species;
@@ -346,7 +351,7 @@ struct RT_grid {
   CUDA_CALLABLE_MEMBER
   void brightness(const atmo_vector &vec, const Real (&g)[n_emissions],
 		  brightness_tracker<n_emissions> &los,
-		  const int n_subsamples=5) const {
+		  const int n_subsamples=20) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
     
     boundary_intersection_stepper<grid_type::n_dimensions,
@@ -367,6 +372,7 @@ struct RT_grid {
       n_subsamples_distance=2;
     
     for(unsigned int i_bound=1;i_bound<stepper.boundaries.size();i_bound++) {
+      //add option to step in increments of optical depth here?
       Real d_start=stepper.boundaries[i_bound-1].distance;
       Real d_step=(stepper.boundaries[i_bound].distance-d_start)/(n_subsamples_distance-1);
 
@@ -444,7 +450,7 @@ struct RT_grid {
     }
   }
 
-  void brightness(observation<n_emissions> &obs, const int n_subsamples=5) const {
+  void brightness(observation<n_emissions> &obs, const int n_subsamples=20) const {
     assert(obs.size()>0 && "there must be at least one observation to simulate!");
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");
@@ -469,7 +475,7 @@ struct RT_grid {
   }
 
   //hooks for porting to gpu
-  void brightness_gpu(observation<n_emissions> &obs, const int n_subsamples=5);
+  void brightness_gpu(observation<n_emissions> &obs, const int n_subsamples=20);
   
 };
 
