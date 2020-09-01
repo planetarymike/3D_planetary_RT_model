@@ -37,11 +37,6 @@ struct chamb_diff_1d_asymmetric : public chamb_diff_1d {
 
   Real nH(const atmo_point &pt) const;
   void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-
-  //explicit overloads so template deduction doesn't fail
-  void H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-  void sCO2_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-  void sCO2_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 };
 
 #endif

@@ -3,7 +3,13 @@
 chamb_diff_1d_asymmetric::chamb_diff_1d_asymmetric(Real nHexoo, // a good number is 10^5-6
 						   Real nCO2exoo, //a good number is 10^9 (?)
 						   temperature &tempp)
-  : chamb_diff_1d(nHexoo,nCO2exoo,tempp), asymmetry(1.0)
+  : chamb_diff_1d_asymmetric(/*          rmin = */rMars + 80e5,
+			     /*          rexo = */rexo_typical,
+			     /*         nHmin = */10,
+			     /* rmindiffusion = */rMars + 120e5,
+			     nHexoo,
+			     nCO2exoo,
+			     tempp)
 { }
 
 chamb_diff_1d_asymmetric::chamb_diff_1d_asymmetric(Real rminn,
@@ -13,7 +19,8 @@ chamb_diff_1d_asymmetric::chamb_diff_1d_asymmetric(Real rminn,
 						   Real nHexoo, // a good number is 10^5-6
 						   Real nCO2exoo, //a good number is 10^9 (?)
 						   temperature &tempp)
-  : chamb_diff_1d(rminn,rexoo,nHmin,rmindiffusionn,nHexoo,nCO2exoo,tempp),
+  : atmosphere(rminn, rexoo, -1),
+    chamb_diff_1d(rminn,rexoo,nHmin,rmindiffusionn,nHexoo,nCO2exoo,tempp),
     asymmetry(1.0)
 { }
 
@@ -41,39 +48,29 @@ Real chamb_diff_1d_asymmetric::theta_average_factor(const Real &t0, const Real &
 }
 
 Real chamb_diff_1d_asymmetric::nCO2(const atmo_point &pt) const {
-  //return chamb_diff_1d::nCO2(pt.r)*(pt.t*nslope+n0);
+  //return chamb_diff_1d::thermosphere_exospherez::nCO2(pt.r)*(pt.t*nslope+n0);
 
   //assume no CO2 asymmetry
-  return chamb_diff_1d::nCO2(pt.r);
+  return chamb_diff_1d::thermosphere_exosphere::nCO2(pt.r);
 }
 void chamb_diff_1d_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   //Real tint=theta_average_factor(vox.tbounds[0],vox.tbounds[1]);
   
-  //ret_avg = tint*chamb_diff_1d::nCO2avg(vox.rbounds[0],vox.rbounds[1]);
-  //ret_pt  =      chamb_diff_1d::nCO2(vox.pt.r)*(nslope*vox.pt.t+n0);
+  //ret_avg = tint*chamb_diff_1d::atmosphere_average_1d::n_absorber_avg(vox.rbounds[0],vox.rbounds[1]);
+  //ret_pt  =      chamb_diff_1d::thermosphere_exosphere::nCO2(vox.pt.r)*(nslope*vox.pt.t+n0);
 
   //assume no CO2 asymmetry
-  ret_avg = chamb_diff_1d::nCO2avg(vox.rbounds[0],vox.rbounds[1]);
-  ret_pt  = chamb_diff_1d::nCO2(vox.pt.r);
+  ret_avg = chamb_diff_1d::atmosphere_average_1d::n_absorber_avg(vox.rbounds[0],vox.rbounds[1]);
+  ret_pt  = chamb_diff_1d::thermosphere_exosphere::nCO2(vox.pt.r);
 }
 
 
 Real chamb_diff_1d_asymmetric::nH(const atmo_point &pt) const {
-  return chamb_diff_1d::nH(pt.r)*(pt.t*nslope+n0);
+  return chamb_diff_1d::thermosphere_exosphere::nH(pt.r)*(pt.t*nslope+n0);
 }
 void chamb_diff_1d_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   Real tint=theta_average_factor(vox.tbounds[0],vox.tbounds[1]);
 
-  ret_avg = tint*chamb_diff_1d::nHavg(vox.rbounds[0],vox.rbounds[1]);
-  ret_pt  =      chamb_diff_1d::nH(vox.pt.r)*(nslope*vox.pt.t+n0);
-}
-
-void chamb_diff_1d_asymmetric::H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  chamb_diff_1d::H_Temp(vox,ret_avg,ret_pt);
-}
-void chamb_diff_1d_asymmetric::sCO2_lya(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  chamb_diff_1d::sCO2_lya(vox,ret_avg,ret_pt);
-}
-void chamb_diff_1d_asymmetric::sCO2_lyb(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  chamb_diff_1d::sCO2_lyb(vox,ret_avg,ret_pt);
+  ret_avg = tint*chamb_diff_1d::atmosphere_average_1d::n_species_avg(vox.rbounds[0],vox.rbounds[1]);
+  ret_pt  =      chamb_diff_1d::thermosphere_exosphere::nH(vox.pt.r)*(nslope*vox.pt.t+n0);
 }
