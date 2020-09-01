@@ -12,17 +12,17 @@
 #include <cmath>
 #include "intersections.hpp"
 
-template <int N_RADIAL_BOUNDARIES, int N_RAYS_THETA, int N_RAYS_PHI>
+template <int N_RADIAL_BOUNDARIES, int N_RAYS_THETA>
 struct plane_parallel_grid : grid<1,//this is a 1d grid
 				  N_RADIAL_BOUNDARIES-1,
-				  N_RAYS_THETA*N_RAYS_PHI,
+				  N_RAYS_THETA,
 				  N_RADIAL_BOUNDARIES> 
 {
 
-  using parent_grid = grid<1,
-			   N_RADIAL_BOUNDARIES-1,
-			   N_RAYS_THETA*N_RAYS_PHI,
-			   N_RADIAL_BOUNDARIES>;
+  using parent_grid = grid<1,//N_DIMENSIONS
+			   N_RADIAL_BOUNDARIES-1,//N_VOXELS
+			   N_RAYS_THETA,//N_RAYS
+			   N_RADIAL_BOUNDARIES>;//N_MAX_INTERSECTIONS
 
   int rmethod;
   static const int rmethod_altitude = 0;
@@ -35,7 +35,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
   
   plane_parallel_grid() { }
   
-  void setup_voxels(atmosphere &atm)
+  void setup_voxels(const atmosphere &atm)
   {
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
@@ -177,8 +177,9 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
   }
 
   CUDA_CALLABLE_MEMBER 
-  void interp_weights(const int &ivoxel, const atmo_point &ptt,
-		      int (&indices)[parent_grid::n_interp_points], Real (&weights)[parent_grid::n_interp_points]) const {
+  void interp_weights(__attribute__((unused)) const int &ivoxel, __attribute__((unused)) const atmo_point &ptt,
+		      __attribute__((unused)) int (&indices)[parent_grid::n_interp_points],
+		      __attribute__((unused)) Real (&weights)[parent_grid::n_interp_points]) const {
     assert(false && "interp_weights not implemented in grid_plane_parallel");
   }
 
