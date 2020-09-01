@@ -18,3 +18,4 @@ python/model_fit/*
 python/__pycache__
 *nvvp*
 bin/
+.ccls*
