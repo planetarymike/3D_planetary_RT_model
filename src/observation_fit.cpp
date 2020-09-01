@@ -1,14 +1,17 @@
 //observation_fit.cpp -- routines to fit an atmosphere observation
 
+#include "constants.hpp"
 #include "observation_fit.hpp"
 using std::vector;
 using std::string;
 
 observation_fit::observation_fit()
-  : emission_names({"H Lyman alpha","H Lyman beta"}),
+  : emission_names{"H Lyman alpha","H Lyman beta"},
     obs(emission_names),
-    atm(/*nHexo = */5e5, /*nCO2exo = */1e9, temp), //these dummy values are overwritten later
-    atm_asym(/*nHexo = */5e5, /*nCO2exo = */1e9, temp),
+    atm(/*nHexo = */5e5, /*nCO2exo = */2e8, temp), //these dummy values are overwritten later
+    atm_asym(/*nHexo = */5e5, /*nCO2exo = */2e8, temp), //these dummy values are overwritten later
+    atm_tabular(),
+    RT_pp(emission_names),
     RT(emission_names)
 {
 
@@ -30,6 +33,8 @@ observation_fit::observation_fit()
   obs_deriv.set_names(simulate_names);
   RT_deriv.set_names(simulate_names);
 
+  RT_pp.grid.rmethod = RT.grid.rmethod_log_n_species;
+  
   RT.grid.rmethod = RT.grid.rmethod_log_n_species;
   RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
 
@@ -46,27 +51,114 @@ void observation_fit::set_g_factor(vector<Real> &g) {
     obs.emission_g_factors[i_emission] = g[i_emission];
 }
 
-void observation_fit::generate_source_function(const Real &nHexo, const Real &Texo) {
 
+void observation_fit::generate_source_function(const Real &nHexo, const Real &Texo,
+					       const string atmosphere_fname/* = ""*/,
+					       const string sourcefn_fname/* = ""*/,
+					       bool plane_parallel/* = false*/)
+{
   temp = krasnopolsky_temperature(Texo);
-  atm = chamb_diff_1d(nHexo,CO2_exobase_density,temp);
+  chamb_diff_1d new_atm(nHexo,CO2_exobase_density,temp);
+  new_atm.copy_H_options(atm);
+  atm = new_atm;
 
-  RT.grid.setup_voxels(atm);
+  if (atmosphere_fname !="")
+    atm.save(atmosphere_fname);
+
+  if (plane_parallel) {
+    generate_source_function_plane_parallel(atm,Texo,
+					    sourcefn_fname);
+  } else {
+    generate_source_function_sph_azi_sym(atm,Texo,
+					 sourcefn_fname);
+  }
+}
+
+void observation_fit::generate_source_function_effv(const Real &nHexo, const Real &effv_exo,
+						    const string atmosphere_fname/* = ""*/,
+						    const string sourcefn_fname/* = ""*/,
+						    bool plane_parallel/* = false*/)
+{
+  Real Texo = Tconv.T_from_eff(effv_exo);
+  
+  generate_source_function(nHexo,Texo,
+			   atmosphere_fname,
+			   sourcefn_fname,
+			   plane_parallel);
+}
+
+void observation_fit::generate_source_function_lc(const Real &nHexo, const Real &lc_exo,
+						  const string atmosphere_fname/* = ""*/,
+						  const string sourcefn_fname/* = ""*/,
+						  bool plane_parallel/* = false*/)
+{
+  Real Texo = Tconv.T_from_lc(lc_exo);
+  
+  generate_source_function(nHexo,Texo,
+			   atmosphere_fname,
+			   sourcefn_fname,
+			   plane_parallel);
+}
+
+template <typename A>
+void observation_fit::generate_source_function_plane_parallel(const A &atmm, const Real &Texo,
+							      const string sourcefn_fname/* = ""*/)
+{
+  A temp_atm(atmm);
+  temp_atm.spherical = false;
+  
+  RT_pp.grid.setup_voxels(temp_atm);
+  RT_pp.grid.setup_rays();
+
+  //update the RT_pp grid values
+  RT_pp.define_emission("H Lyman alpha",
+		     1.0,
+		     Texo, temp_atm.sH_lya(Texo),
+		     temp_atm,
+		     &A::nH,   &A::H_Temp,
+		     &A::nCO2, &A::sCO2_lya);
+  RT_pp.define_emission("H Lyman beta",
+		     lyman_beta_branching_ratio,
+		     Texo, temp_atm.sH_lyb(Texo),
+		     temp_atm,
+		     &A::nH,   &A::H_Temp,
+		     &A::nCO2, &A::sCO2_lyb);
+  
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  RT_pp.generate_S_gpu();
+#else
+  RT_pp.generate_S();
+#endif
+
+  if (sourcefn_fname!="")
+    RT_pp.save_S(sourcefn_fname);
+}
+
+template <typename A>
+void observation_fit::generate_source_function_sph_azi_sym(const A &atmm, const Real &Texo,
+							   const string sourcefn_fname/* = ""*/)
+{
+  A temp_atm(atmm);
+  temp_atm.spherical = true;
+
+  RT.grid.setup_voxels(temp_atm);
   RT.grid.setup_rays();
+
 
   //update the RT grid values
   RT.define_emission("H Lyman alpha",
 		     1.0,
-		     Texo, lyman_alpha_line_center_cross_section_coef/std::sqrt(Texo),
-		     atm,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
-		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+		     Texo, temp_atm.sH_lya(Texo),
+		     temp_atm,
+		     &A::nH,   &A::H_Temp,
+		     &A::nCO2, &A::sCO2_lya);
   RT.define_emission("H Lyman beta",
 		     lyman_beta_branching_ratio,
-		     Texo, lyman_beta_line_center_cross_section_coef/std::sqrt(Texo),
-		     atm,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
-		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+		     Texo, temp_atm.sH_lyb(Texo),
+		     temp_atm,
+		     &A::nH,   &A::H_Temp,
+		     &A::nCO2, &A::sCO2_lyb);
   
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
@@ -74,55 +166,102 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
 #else
   RT.generate_S();
 #endif
-}
 
-void observation_fit::generate_source_function_effv(const Real &nHexo, const Real &effv_exo) {
-  Real Texo = Tconv.T_from_eff(effv_exo);
-  
-  generate_source_function(nHexo,Texo);
-}
-
-void observation_fit::generate_source_function_lc(const Real &nHexo, const Real &lc_exo) {
-  Real Texo = Tconv.T_from_lc(lc_exo);
-  
-  generate_source_function(nHexo,Texo);
+  if (sourcefn_fname!="")
+    RT.save_S(sourcefn_fname);
 }
 
 
 void observation_fit::generate_source_function_asym(const Real &nHexo, const Real &Texo,
-						    const Real &asym) {
+						    const Real &asym,
+						    const string sourcefn_fname/* = ""*/) {
 
   temp = krasnopolsky_temperature(Texo);
-  atm = chamb_diff_1d(nHexo,CO2_exobase_density,temp);
-  atm_asym = chamb_diff_1d_asymmetric(nHexo,CO2_exobase_density,temp);
+  chamb_diff_1d new_atm(nHexo,CO2_exobase_density,temp);
+  new_atm.copy_H_options(atm);
+  atm = new_atm;
+
+  chamb_diff_1d_asymmetric new_atm_asym(nHexo,CO2_exobase_density,temp);
+  new_atm_asym.copy_H_options(atm);
+  atm_asym = new_atm_asym;
   atm_asym.set_asymmetry(asym);
 
-  
-  RT.grid.setup_voxels(atm);
-  RT.grid.setup_rays();
+  generate_source_function_sph_azi_sym(atm,Texo,
+				       sourcefn_fname);
 
-  //update the RT grid values
-  RT.define_emission("H Lyman alpha",
-		     1.0,
-		     Texo, lyman_alpha_line_center_cross_section_coef/std::sqrt(Texo),
-		     atm_asym,
-		     &chamb_diff_1d_asymmetric::nH,   &chamb_diff_1d_asymmetric::H_Temp,
-		     &chamb_diff_1d_asymmetric::nCO2, &chamb_diff_1d_asymmetric::sCO2_lya);
-  RT.define_emission("H Lyman beta",
-		     lyman_beta_branching_ratio,
-		     Texo, lyman_beta_line_center_cross_section_coef/std::sqrt(Texo),
-		     atm_asym,
-		     &chamb_diff_1d_asymmetric::nH,   &chamb_diff_1d_asymmetric::H_Temp,
-		     &chamb_diff_1d_asymmetric::nCO2, &chamb_diff_1d_asymmetric::sCO2_lyb);
-  
-  //compute source function on the GPU if compiled with NVCC
-#ifdef __CUDACC__
-  RT.generate_S_gpu();
-#else
-  RT.generate_S();
-#endif
 }
 
+void observation_fit::generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
+								  const std::vector<Real> &alt_nH, const std::vector<Real> &log_nH,
+								  const std::vector<Real> &alt_nCO2, const std::vector<Real> &log_nCO2,
+								  const std::vector<Real> &alt_temp, const std::vector<Real> &temp,
+								  const bool compute_exosphere/* = false*/,
+								  const bool plane_parallel/*= false*/,
+								  const string sourcefn_fname/* = ""*/) {
+
+  tabular_1d new_atm_tabular(rmin,rexo,rmax,compute_exosphere);
+  new_atm_tabular.copy_H_options(atm_tabular);
+  atm_tabular = new_atm_tabular;
+
+  atm_tabular.load_log_species_density(alt_nH, log_nH);
+  atm_tabular.load_log_absorber_density(alt_nCO2, log_nCO2);
+  atm_tabular.load_temperature(alt_temp, temp);
+
+  Real Texo = atm_tabular.Temp(rexo);
+
+  if (plane_parallel) {
+    generate_source_function_plane_parallel(atm_tabular, Texo,
+					    sourcefn_fname);
+  } else {
+    generate_source_function_sph_azi_sym(atm_tabular, Texo,
+					 sourcefn_fname);
+  }
+}
+
+void observation_fit::set_use_CO2_absorption(const bool use_CO2_absorption/* = true*/) {
+  atm.no_CO2_absorption = !use_CO2_absorption;
+  atm_asym.no_CO2_absorption = !use_CO2_absorption;
+  atm_tabular.no_CO2_absorption = !use_CO2_absorption;
+}
+void observation_fit::set_use_temp_dependent_sH(const bool use_temp_dependent_sH/* = true*/, const Real constant_temp_sH/* = -1*/) {
+  atm.temp_dependent_sH = use_temp_dependent_sH;
+  atm_asym.temp_dependent_sH = use_temp_dependent_sH;
+  atm_tabular.temp_dependent_sH = use_temp_dependent_sH;
+  
+  atm.constant_temp_sH = constant_temp_sH;
+  atm_asym.constant_temp_sH = constant_temp_sH;
+  atm_tabular.constant_temp_sH = constant_temp_sH;
+}
+
+void observation_fit::set_sza_method_uniform() {
+  RT.grid.szamethod = RT.grid.szamethod_uniform;
+  RT_deriv.grid.szamethod = RT_deriv.grid.szamethod_uniform;
+}
+void observation_fit::set_sza_method_uniform_cos() {
+  RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
+  RT_deriv.grid.szamethod = RT_deriv.grid.szamethod_uniform_cos;
+}
+
+void observation_fit::reset_H_lya_xsec_coef(const Real xsec_coef/* = lyman_alpha_line_center_cross_secion_coef*/) {
+  atm.H_lya_xsec_coef = xsec_coef;
+  atm_asym.H_lya_xsec_coef = xsec_coef;
+  atm_tabular.H_lya_xsec_coef = xsec_coef;
+}
+void observation_fit::reset_H_lyb_xsec_coef(const Real xsec_coef/* = lyman_beta_line_center_cross_section_coef*/) {
+  atm.H_lyb_xsec_coef = xsec_coef;
+  atm_asym.H_lyb_xsec_coef = xsec_coef;
+  atm_tabular.H_lyb_xsec_coef = xsec_coef;
+}
+void observation_fit::reset_CO2_lya_xsec(const Real xsec/* = CO2_lyman_alpha_absorption_cross_section*/) {
+  atm.CO2_lya_xsec = xsec;
+  atm_asym.CO2_lya_xsec = xsec;
+  atm_tabular.CO2_lya_xsec = xsec;
+}
+void observation_fit::reset_CO2_lyb_xsec(const Real xsec/* = CO2_lyman_beta_absorption_cross_section*/) {
+  atm.CO2_lyb_xsec = xsec;
+  atm_asym.CO2_lyb_xsec = xsec;
+  atm_tabular.CO2_lyb_xsec = xsec;
+}
 
 
 vector<vector<Real>> observation_fit::brightness() {
@@ -147,6 +286,37 @@ vector<vector<Real>> observation_fit::brightness() {
   
   return brightness;
 }
+
+vector<vector<Real>> observation_fit::tau_species_final() {
+  vector<vector<Real>> tau_species;
+  tau_species.resize(n_emissions);
+  
+  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+    tau_species[i_emission].resize(obs.size());
+    
+    for (int i=0;i<obs.size();i++)
+      tau_species[i_emission][i] = obs.los[i].line[i_emission].tau_species_final;
+  }
+  
+  return tau_species;
+}
+
+
+vector<vector<Real>> observation_fit::tau_absorber_final() {
+  vector<vector<Real>> tau_absorber;
+  tau_absorber.resize(n_emissions);
+  
+  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+    tau_absorber[i_emission].resize(obs.size());
+    
+    for (int i=0;i<obs.size();i++)
+      tau_absorber[i_emission][i] = obs.los[i].line[i_emission].tau_absorber_final;
+  }
+  
+  return tau_absorber;
+}
+
+
 
 void observation_fit::add_observed_brightness(const std::vector<Real> &brightness,
 					      const std::vector<Real> &brightness_unc,
