@@ -230,12 +230,13 @@ atmo_vector::atmo_vector(atmo_point ptt, atmo_ray rayy)
 
   //Product of four rotation matrices.
   //probably worth refactoring to make this obvious
-  line_x = cos(pt.p)*cos(ray.p)*cos(pt.t)*ray.sint
-    +cos(pt.p)*ray.cost*sin(pt.t)
-    -ray.sint*sin(ray.p)*sin(pt.p);
-  line_y = ray.cost*sin(pt.p)*sin(pt.t)
-    +ray.sint*cos(ray.p)*sin(pt.p)*cos(pt.t)
-    +ray.sint*sin(ray.p)*cos(pt.p);
+  //refactoring needs to be independent of Eigen
+  line_x = (cos(pt.p)*cos(ray.p)*cos(pt.t)*ray.sint
+	    +cos(pt.p)*ray.cost*sin(pt.t)
+	    -ray.sint*sin(ray.p)*sin(pt.p));
+  line_y = (ray.cost*sin(pt.p)*sin(pt.t)
+	    +ray.sint*cos(ray.p)*sin(pt.p)*cos(pt.t)
+	    +ray.sint*sin(ray.p)*cos(pt.p));
   line_z = ray.cost*cos(pt.t)-cos(ray.p)*ray.sint*sin(pt.t);
 
   init = true;
