@@ -1,5 +1,20 @@
 // things to improve/change in code
 
+--fix CUDA implementaiton
+  --matrix solution on GPU wasn't working at one point, fix this
+--fast exp calculation
+--32 bit vs 64 bit differences in code output?
+--comparison with anderson
+--comparison with chaufray
+--problems with asym_calc
+--any analytic test case? Maybe something asymptotic from Holstein?
+--add alternate ray method to ensure rays populate the entire source function matrix
+
+UIUC collaboration:
+--compare with pratik brightness values
+--think more about normalizaion effects on degeneracy
+
+
 Near term:
 --python fitting routine (get it running fast)
 --move finite-difference derivative calculation inside observation_fit
@@ -15,10 +30,8 @@ Small code improvements
     (needs 2d holstein interps with absorption)
   --improve treatment of planetary shadow by doubling up voxels on the shadow boundary, with one treating the inside of the shadow and the other the outside.
   --use monotone cubic interpolation in brightness calculation
-  --fix illumination of zones that straddle the planetary shadow (following Bishop)
-  --switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
-    (smells like frequency redistribution;
-     should be relatively easy, add line profile to tau_tracker)
+  --move emission tracker inside of emission, specific to emissions
+
 
 longer-term:
 --more realistic exosphere (Vidal-Madjar or similar)
@@ -27,3 +40,6 @@ longer-term:
 
 done:
 xx--compute voxel densities as average over zone rather than typical value
+xx--switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
+    (smells like frequency redistribution;
+     should be relatively easy, add line profile to tau_tracker)
