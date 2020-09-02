@@ -57,6 +57,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   RT.grid.rmethod = RT.grid.rmethod_log_n_species;
   //RT.grid.szamethod = RT.grid.szamethod_uniform; //requires CONEABS = 1e-2 in Real.hpp
   RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
+
+  RT.grid.raymethod_theta = RT.grid.raymethod_theta_uniform;
   
   RT.grid.setup_voxels(atm);
   RT.grid.setup_rays();
