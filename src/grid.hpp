@@ -7,6 +7,7 @@
 #include "cuda_compatibility.hpp"
 #include "emission.hpp"
 #include "boundaries.hpp"
+#include "atm/atmosphere_base.hpp"
 
 template <int NDIM, int NVOXELS, int NRAYS, int N_MAX_INTERSECTIONS>
 struct grid {
@@ -28,7 +29,7 @@ struct grid {
   //CUDA_CALLABLE_MEMBER virtual void voxel_to_indices(const int /*i_voxel*/, int (&/*indices*/)[n_dimensions]) const { };
   //CUDA_CALLABLE_MEMBER virtual void point_to_indices(const atmo_point &/*pt*/, int (&/*indices*/)[n_dimensions]) const = 0;
   
-  virtual void setup_voxels() {};
+  virtual void setup_voxels(const atmosphere& atm) = 0;
   Real rmax,rmin;//max and min altitudes in the atmosphere
   
   //points inside the voxels to shoot rays from
@@ -37,7 +38,7 @@ struct grid {
   //ray info
   static const int n_rays = NRAYS;
   atmo_ray rays[NRAYS];
-  virtual void setup_rays() { }; 
+  virtual void setup_rays() = 0; 
   
   //how to intersect rays with voxel boundaries
   static const int n_max_intersections = N_MAX_INTERSECTIONS;
