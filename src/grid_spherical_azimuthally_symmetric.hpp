@@ -60,11 +60,15 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   static const int n_phi = N_RAY_PHI;
   Real ray_phi[n_phi];
 
-   
+  int raymethod_theta;
+  static const int raymethod_theta_gauss = 0;
+  static const int raymethod_theta_uniform = 1;
+     
   spherical_azimuthally_symmetric_grid()
   {
     rmethod = rmethod_altitude;
     szamethod = szamethod_uniform;
+    raymethod_theta = raymethod_theta_gauss;
   }
 
   void setup_voxels(const atmosphere &atm) {
@@ -161,7 +165,25 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   {
     vector<Real> ray_theta_vector;
     vector<Real> ray_weights_theta;
-    gauss_quadrature_points(ray_theta_vector,ray_weights_theta,0,pi,n_theta);
+
+    if (raymethod_theta == raymethod_theta_gauss) {
+      gauss_quadrature_points(ray_theta_vector,ray_weights_theta,0,pi,n_theta);
+      for (int i=0;i<n_theta;i++)
+	ray_weights_theta[i]*=std::sin(ray_theta_vector[i]);
+    } else if (raymethod_theta == raymethod_theta_uniform) {
+      ray_theta_vector.resize(n_theta);
+      ray_weights_theta.resize(n_theta);
+      Real theta_spacing = pi/(n_theta-1);
+      for (int i=0;i<n_theta;i++) {
+	ray_theta_vector[i]  = i*theta_spacing;
+	if (i==0 || i==n_theta-1)
+	  ray_weights_theta[i] = 1-std::cos(theta_spacing/2);
+	else
+	  ray_weights_theta[i] = (std::cos(ray_theta_vector[i]-theta_spacing/2) -
+				  std::cos(ray_theta_vector[i]+theta_spacing/2));
+      }
+    } else
+      assert(false && "raymethod_theta must be raymethod_theta_gauss or raymethod_theta_uniform.");
 
     for (int i=0;i<n_theta;i++)
       ray_theta[i] = ray_theta_vector[i];
@@ -169,15 +191,18 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     Real phi_spacing = 2*pi/n_phi;
     for (int i=0;i<n_phi;i++)
       ray_phi[i] = (i+0.5)*phi_spacing;
-    
+
+    Real omega = 0.0; // make sure sum(domega) = 4*pi
     int iray;
     for (int i=0;i<n_theta;i++) {
       for (int j=0;j<n_phi;j++) {
 	iray = i * n_phi + j;
 	this->rays[iray].tp(ray_theta[i],ray_phi[j]);
 	this->rays[iray].set_ray_index(iray, ray_weights_theta[i], phi_spacing);
+	omega += this->rays[iray].domega;
       }
     }
+    assert(std::abs(omega - 1.0) < ABS && "omega must = 4*pi\n");
   }
 
   CUDA_CALLABLE_MEMBER 

@@ -277,10 +277,7 @@ struct RT_grid {
 	  max_tau_species = temp_influence.max_tau_species;
       }
 
-      if ((omega - 1.0 > ABS) || (omega - 1.0 < -ABS)) {
-	std::cout << "omega != 4*pi\n";
-	throw(10);
-      }
+    assert(std::abs(omega - 1.0) < ABS && "omega must = 4*pi\n");
     
       //now compute the single scattering function:
       temp_influence.reset(emissions, i_vox);

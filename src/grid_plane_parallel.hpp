@@ -90,6 +90,8 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
     vector<Real> ray_weights;
 
     gauss_quadrature_points(ray_theta,ray_weights,0,pi,parent_grid::n_rays);
+    for (int i=0;i<parent_grid::n_rays;i++)
+      ray_weights[i]*=std::sin(ray_theta[i]);
     
     for (int i=0;i<parent_grid::n_rays;i++) {
       this->rays[i].tp(ray_theta[i],0.0);

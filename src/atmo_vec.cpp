@@ -181,7 +181,7 @@ CUDA_CALLABLE_MEMBER
 void atmo_ray::set_ray_index(const int &ii, const Real &twt, const Real &pwt) {
   if (init) {
     i_ray = ii;
-    domega = sint*twt*pwt/4/M_PI;
+    domega = twt*pwt/4/M_PI;
   }
 }
 
