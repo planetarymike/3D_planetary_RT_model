@@ -92,6 +92,14 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   //now print out the output
   RT.save_S("test/test_source_function.dat");
 
+  string sfn_name = "test/test_source_function_";
+  sfn_name += std::to_string(n_radial_boundaries) + "x";
+  sfn_name += std::to_string(n_sza_boundaries) + "x";
+  sfn_name += std::to_string(n_rays_phi) + "x";
+  sfn_name += std::to_string(n_rays_theta) + ".dat";
+  RT.save_S(sfn_name);
+
+
   //simulate a fake observation
   observation<n_emissions> obs(emission_names);
 
