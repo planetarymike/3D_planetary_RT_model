@@ -38,7 +38,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   // static const int n_rays_theta = 6;
   // static const int n_rays_phi = 12;
   // typedef plane_parallel_grid<n_radial_boundaries,
-  // 		                 n_rays_phi,
   // 		                 n_rays_theta> grid_type;
   // atm.spherical = false;
 
