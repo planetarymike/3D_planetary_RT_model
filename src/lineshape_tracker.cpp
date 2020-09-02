@@ -108,6 +108,7 @@ void lineshape_tracker::reset(const Real &T, const Real &T_ref) {
 	   && lineshape_at_origin[i_lambda]>0 && "lineshape must be real and positive");
 
     tau_species_lambda_initial[i_lambda] = 0.0;
+    transfer_probability_lambda_initial[i_lambda] = 1.0;
   }
   //max_tau_species not reset because we want to track this across
   //all lines of sight
@@ -147,7 +148,6 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
 
   for (int i_lambda=0; i_lambda < n_lambda; i_lambda++) {
     lineshape[i_lambda] = std::exp(-lambda2[i_lambda]*T_ref/T);
-
     assert(!std::isnan(lineshape[i_lambda])
 	   && lineshape[i_lambda]>0 && "lineshape must be real and positive");
 
@@ -156,8 +156,18 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
 					     * pathlength
 					     * lineshape[i_lambda]));
     assert(!std::isnan(tau_species_lambda_final[i_lambda])
-	   && tau_species_lambda_final[i_lambda]>0 && "optical depth must be real and positive");
+	   && tau_species_lambda_final[i_lambda]>=0 && "optical depth must be real and positive");
 
+    transfer_probability_lambda_voxel[i_lambda] = std::exp(-(dtau_absorber
+							     + dtau_species * lineshape[i_lambda])
+							   *pathlength);
+    assert(!std::isnan(transfer_probability_lambda_voxel[i_lambda])
+	   && transfer_probability_lambda_voxel[i_lambda]>=0
+	   && transfer_probability_lambda_voxel[i_lambda]<=1
+	   && "transfer probability is a probability.");
+
+    transfer_probability_lambda_final[i_lambda] = (transfer_probability_lambda_initial[i_lambda]
+						   *transfer_probability_lambda_voxel[i_lambda]);
 
     holTcoef = (M_2_SQRTPI
 		* weight[i_lambda]
@@ -167,8 +177,7 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
     //uses lineshape_at_origin
     holstein_T_final += (holTcoef
 			 * lineshape_at_origin[i_lambda]
-			 * std::exp(-(tau_absorber_final
-				      + tau_species_lambda_final[i_lambda])));
+			 * transfer_probability_lambda_final[i_lambda]);
     assert(!std::isnan(holstein_T_final)
 	   && holstein_T_final>=0
 	   && holstein_T_final<=1
@@ -179,10 +188,8 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
     //therefore uses lineshape in this voxel
     holstein_T_int_coef = (holTcoef
 			   * lineshape[i_lambda]				  
-			   *std::exp(-(tau_absorber_initial
-				       + tau_species_lambda_initial[i_lambda]))
-			   *(1.0 - std::exp(-(dtau_absorber
-					      + dtau_species * lineshape[i_lambda])*pathlength))
+			   * transfer_probability_lambda_initial[i_lambda]
+			   *(1.0 - transfer_probability_lambda_voxel[i_lambda])
 			   /(abs + lineshape[i_lambda]));
     holstein_T_int += holstein_T_int_coef;
     assert(!std::isnan(holstein_T_int)
@@ -215,9 +222,11 @@ void lineshape_tracker::update_end() {
   tau_absorber_initial=tau_absorber_final;
   holstein_T_initial=holstein_T_final;
   
-  for (int i_lambda=0; i_lambda < n_lambda; i_lambda++)
+  for (int i_lambda=0; i_lambda < n_lambda; i_lambda++) {
     tau_species_lambda_initial[i_lambda] = tau_species_lambda_final[i_lambda];
-
+    transfer_probability_lambda_initial[i_lambda] = transfer_probability_lambda_final[i_lambda];
+  }
+  
   check_max_tau();
 }
 
