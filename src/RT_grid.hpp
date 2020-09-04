@@ -108,7 +108,7 @@ struct RT_grid {
   CUDA_CALLABLE_MEMBER
   void voxel_traverse(const atmo_vector &v,
 		      void (RT_grid::*function)(boundary_intersection_stepper<grid_type::n_dimensions,
-						                              grid_type::n_max_intersections>& ,R& ),
+						                              grid_type::n_max_intersections>& , R& ),
 		      R &retval)
   {
     assert(all_emissions_init && "!nitialize grid and influence function before calling voxel_traverse.");
