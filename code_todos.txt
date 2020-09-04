@@ -8,12 +8,11 @@
 --comparison with chaufray
 --problems with asym_calc
 --any analytic test case? Maybe something asymptotic from Holstein?
---add alternate ray method to ensure rays populate the entire source function matrix
+--alternate source function calculation guaranteed to populate all elements of matrix?
 
 UIUC collaboration:
 --compare with pratik brightness values
 --think more about normalizaion effects on degeneracy
-
 
 Near term:
 --python fitting routine (get it running fast)
@@ -30,7 +29,9 @@ Small code improvements
     (needs 2d holstein interps with absorption)
   --improve treatment of planetary shadow by doubling up voxels on the shadow boundary, with one treating the inside of the shadow and the other the outside.
   --use monotone cubic interpolation in brightness calculation
-  --move emission tracker inside of emission, specific to emissions
+  --move emission tracker inside of emission, specific to emissions (allowing different rules for each line)
+    --not clear how to do this: a catchall call with a switch for each mode is possible, but this could have a significant performance overhead.
+    --pointers are problematic because of CUDA; host/device pointer handling is tricky.
 
 
 longer-term:
@@ -43,3 +44,4 @@ xx--compute voxel densities as average over zone rather than typical value
 xx--switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
     (smells like frequency redistribution;
      should be relatively easy, add line profile to tau_tracker)
+xx--add uniform ray method
