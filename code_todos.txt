@@ -1,8 +1,8 @@
 // things to improve/change in code
 
---fix CUDA implementaiton
+--fix CUDA implementation
   --matrix solution on GPU wasn't working at one point, fix this
---fast exp calculation
+--fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
 --32 bit vs 64 bit differences in code output?
 --comparison with anderson
 --comparison with chaufray
@@ -11,8 +11,7 @@
 --alternate source function calculation guaranteed to populate all elements of matrix?
 
 UIUC collaboration:
---compare with pratik brightness values
---think more about normalizaion effects on degeneracy
+--think more about normalization effects on degeneracy
 
 Near term:
 --python fitting routine (get it running fast)
@@ -25,10 +24,12 @@ Needed next 6 months:
 --IPH background (for IUVS apoapse images)
 
 Small code improvements
-  --incoroporate CO2 absorption in holstein function instead of midpoint approximation 
-    (needs 2d holstein interps with absorption)
   --improve treatment of planetary shadow by doubling up voxels on the shadow boundary, with one treating the inside of the shadow and the other the outside.
-  --use monotone cubic interpolation in brightness calculation
+
+  --use monotone cubic interpolation in brightness calculation: 
+    --implement this: http://articles.adsabs.harvard.edu/pdf/1990A%26A...239..443S
+    -- or switch to GSL: https://www.gnu.org/software/gsl/doc/html/interp.html#d-higher-level-interface
+
   --move emission tracker inside of emission, specific to emissions (allowing different rules for each line)
     --not clear how to do this: a catchall call with a switch for each mode is possible, but this could have a significant performance overhead.
     --pointers are problematic because of CUDA; host/device pointer handling is tricky.
@@ -38,10 +39,28 @@ longer-term:
 --more realistic exosphere (Vidal-Madjar or similar)
 --frequency redistribution (needs some refactoring of emission object)
 --RT anisotropy??
-
+--new scheme for ray distribution: https://www.sciencedirect.com/science/article/pii/S0097849312000568
+  --computing solid angle associated with each ray may be difficult with this scheme
+--Efficient Voigt line functions: https://yorkspace.library.yorku.ca/xmlui/bitstream/handle/10315/10172/The%20Voigt%20and%20complex%20error%20functions.pdf;jsessionid=E049E45AB37B74D487ADC7DEAB691A2F?sequence=1
+--Fast Multipole method for Source Function calculation?
+  --A short course on fast multipole methods: https://math.nyu.edu/faculty/greengar/shortcourse_fmm.pdf
+  --A kernel-independent adaptive fast multipole algorithm in two and three dimensions: https://web.stanford.edu/~lexing/fmm.pdf
+--Some other potential solution methods to employ:
+  --A fast algorithm for radiative transport in isotropic media: https://arxiv.org/pdf/1610.00835.pdf
+  --Fast algorithms for integral formulations of steady-state radiative transfer equation: https://arxiv.org/pdf/1802.03061.pdf
+  --Fast direct solvers for integral equations in complex three-dimensional domains: https://amath.colorado.edu/faculty/martinss/2014_CBMS/Biblio/2009_acta.pdf
+  --A FAST DIRECT SOLVER FOR STRUCTURED LINEAR SYSTEMS BY RECURSIVE SKELETONIZATION: https://arxiv.org/pdf/1110.3105.pdf
+  --Solving Inverse Problems with Deep Learning: https://drive.google.com/file/d/1uVZ_obbchNWGV50qNTZXwbAymDuLLaWF/view
+  --RESONANCE LINE TRANSFER CALCULATIONS BY DOUBLING THIN LAYERS: http://articles.adsabs.harvard.edu/pdf/1989ApJ...346..481Y
+  
+  
 done:
 xx--compute voxel densities as average over zone rather than typical value
 xx--switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
     (smells like frequency redistribution;
      should be relatively easy, add line profile to tau_tracker)
 xx--add uniform ray method
+xx--OBSOLETE due to line profile calculation
+    incoroporate CO2 absorption in holstein function instead of midpoint approximation 
+    (needs 2d holstein interps with absorption)
+xx--compare with pratik brightness values (they match!)
