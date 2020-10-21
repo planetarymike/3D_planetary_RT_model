@@ -15,12 +15,12 @@
 struct lineshape_tracker {
   //holstein function tracker with absorption
 
-  static const int n_lambda=16;// = N_SHIZGAL_LAMBDA;
-  Real lambda_max;//=5.0, assigned in constructor (not const for CUDA reasons)
+  static const int n_lambda=12;// = N_SHIZGAL_LAMBDA;
+  static constexpr Real lambda_max=5.0;
   Real lambda[n_lambda];// assigned in constructor
   Real weight[n_lambda];// ^
-  Real lambda2[n_lambda];//square of points
-  Real weightfn[n_lambda];//weighting function for this integration rule exp(-l**2)
+  Real lambda2[n_lambda];//square of lambda points
+  Real weightfn[n_lambda];//weighting function for this integration rule ( exp(-l**2) for shizgal )
 
   Real lineshape_at_origin[n_lambda];//line shape at integral origin
   Real lineshape[n_lambda];//lineshape in current voxel

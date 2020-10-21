@@ -8,16 +8,16 @@ lineshape_tracker::lineshape_tracker()
   //lambda = {SHIZGAL_LAMBDAS};
   //weight = {SHIZGAL_WEIGHTS};
 
-  lambda_max = 5.0;
-
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
+
+    //CUDA throws an error here if -lineinfo is absent from compiler options???
     lambda[i_lambda] = i_lambda*lambda_max/(n_lambda-1);
     weight[i_lambda] = lambda_max/(n_lambda-1);
     if (i_lambda==0 || i_lambda==n_lambda-1)
       weight[i_lambda] *= 0.5;
 
-    lambda2[i_lambda]            = lambda[i_lambda]*lambda[i_lambda];
-    weightfn[i_lambda]           = 1.0;//exp(-lambda2[i_lambda]); //Shizgal weight function
+    lambda2[i_lambda]  = lambda[i_lambda]*lambda[i_lambda];
+    weightfn[i_lambda] = 1.0;//exp(-lambda2[i_lambda]); //Shizgal weight function
     tau_species_lambda_initial[i_lambda] = 0.0;
   }
 
@@ -34,7 +34,6 @@ lineshape_tracker::lineshape_tracker(const lineshape_tracker &copy)
 {
   //lambda = {SHIZGAL_LAMBDAS};
   //weight = {SHIZGAL_WEIGHTS};
-  lambda_max = copy.lambda_max;
   
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
     lambda[i_lambda]   = copy.lambda[i_lambda];
@@ -66,8 +65,6 @@ lineshape_tracker::lineshape_tracker(const lineshape_tracker &copy)
 CUDA_CALLABLE_MEMBER
 lineshape_tracker& lineshape_tracker::operator=(const lineshape_tracker &rhs) {
   if(this == &rhs) return *this;
-
-  assert(n_lambda == rhs.n_lambda);
 
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
     lambda2[i_lambda]  = rhs.lambda2[i_lambda];
