@@ -1,7 +1,7 @@
 // things to improve/change in code
 
---fix CUDA implementation
-  --matrix solution on GPU wasn't working at one point, fix this
+--fix matrix solution on GPU
+--profile GPU code
 --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
 --32 bit vs 64 bit differences in code output?
 --comparison with anderson
@@ -17,7 +17,7 @@ Near term:
 --python fitting routine (get it running fast)
 --move finite-difference derivative calculation inside observation_fit
 --deuterium and hot H physical densities
---O I 102.6 nm radiance calculation (probably requires frequency redistribution)
+--O I 102.6 nm radiance calculation (may require frequency redistribution)
 --include single-scattering anisotropy
 
 Needed next 6 months:
