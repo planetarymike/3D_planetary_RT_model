@@ -5,7 +5,6 @@
 
 #include <cmath>
 #include <vector>
-#include <Eigen/Dense>
 #include "Real.hpp"
 
 using std::pow;
