@@ -16,8 +16,6 @@
 #include "emission.hpp"
 #include "observation.hpp"
 #include "los_tracker.hpp"
-#include <Eigen/Dense> //matrix solvers
-#include <Eigen/StdVector>
 #include <string>
 #include <cassert>
 #include <boost/type_traits/type_identity.hpp> //for type deduction in define_emission
