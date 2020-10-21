@@ -298,9 +298,10 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     stepper.boundaries.propagate_indices();
     stepper.boundaries.assign_voxel_indices(this);
     stepper.boundaries.trim();
+#if !defined(NDEBUG)
     int tnvoxels = this->n_voxels;
     assert(stepper.boundaries.check(n_pts, tnvoxels) && "boundary checks must pass");
-    
+#endif
     // if (save_intersections)
     //   saver.append_intersections(vec,stepper.boundaries);
 
