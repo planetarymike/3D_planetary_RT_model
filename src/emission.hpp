@@ -5,7 +5,6 @@
 
 #include "Real.hpp"
 #include <string>
-#include <Eigen/Dense>
 #include "atmo_vec.hpp"
 #include "cuda_compatibility.hpp"
 #include "voxel_vector.hpp"
@@ -66,10 +65,7 @@ struct emission {
   vv sourcefn; //have dimensions (n_voxels)  
   vv log_sourcefn; 
 
-  CUDA_CALLABLE_MEMBER
-  emission() :
-    init(false)
-  { }
+  emission() { init=false; }
 
   template<typename C>
   void define(const Real &emission_branching_ratio,
