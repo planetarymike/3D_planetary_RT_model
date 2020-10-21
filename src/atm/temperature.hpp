@@ -15,6 +15,8 @@ protected:
   virtual void get(const Real &r) = 0;
 
 public:
+  temperature();
+  
   Real T_exo;
 
   Real T(const Real &r);

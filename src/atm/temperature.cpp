@@ -3,6 +3,11 @@
 
 using std::exp;
 
+temperature::temperature() : T_internal(0.0),
+			     Tprime_internal(0.0),
+			     last_r(0.0)
+{}
+
 Real temperature::T(const Real &r) {
   if (r != last_r)
     get(r);
