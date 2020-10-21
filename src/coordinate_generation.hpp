@@ -6,8 +6,6 @@
 #include "Real.hpp"
 #include <vector>
 #include <cmath>
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
 #include "constants.hpp"
 #include "atmo_vec.hpp"
 #include "atm/atmosphere_base.hpp"
