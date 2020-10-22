@@ -29,17 +29,20 @@ OFLAGS=-O3 -march=native -DNDEBUG
 NCC=nvcc -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
 #            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
-#                                                                           (added this flag by hand as a wrapper
-#                                                                            around BOOST_GPU_ENABLED in
-#                                                                            boost/config/compiler/nvcc.hpp)
+#                                           (some modifications to    (added this flag by hand as a wrapper
+#                                            Eigen were needed to      around BOOST_GPU_ENABLED in
+#                                            get this to work)         boost/config/compiler/nvcc.hpp)
 NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
       -I$(CUDA_HOME)/samples/common/inc/
 NLIBS=-lm -lcudart -lcusolver -lcublas
-NOFLAGS= -O3 -DNDEBUG
+NOBASEFLAGS= -O3 -DNDEBUG #--maxrregcount 64 -lineinfo -arch sm_61 --use_fast_math 
 # if we are CUDA 11, link time optimization is possible
-ifeq (`cat $$CUDA_HOME/version.txt | awk '{split($$3,a,"."); print a[1]}'`,11)
-NOFLAGS=$(NOFLAGS) -dlto
+ifeq ($(shell cat $$CUDA_HOME/version.txt | awk '{split($$3,a,"."); print a[1]}'),11)
+#$(info Using CUDA 11 link time optimization)
+NOFLAGS=$(NOBASEFLAGS) -dlto
+else
+NOFLAGS=$(NOBASEFLAGS)
 endif
 NDBGFLAGS=-O0 -g -lineinfo
 
