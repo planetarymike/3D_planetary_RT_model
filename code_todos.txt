@@ -1,7 +1,7 @@
 // things to improve/change in code
 
 --fix matrix solution on GPU
---profile GPU code
+--profile+optimize GPU code
 --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
 --32 bit vs 64 bit differences in code output?
 --comparison with anderson
