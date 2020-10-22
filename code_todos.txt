@@ -1,7 +1,6 @@
 // things to improve/change in code
 
---fix matrix solution on GPU
---profile+optimize GPU code
+--profile+optimize GPU code (still lots to improve)
 --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
 --32 bit vs 64 bit differences in code output?
 --comparison with anderson
@@ -64,3 +63,4 @@ xx--OBSOLETE due to line profile calculation
     incoroporate CO2 absorption in holstein function instead of midpoint approximation 
     (needs 2d holstein interps with absorption)
 xx--compare with pratik brightness values (they match!)
+xx----fix CUDA implementation, brightness + matrix

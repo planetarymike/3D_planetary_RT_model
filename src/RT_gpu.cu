@@ -193,14 +193,14 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::generate_S_gpu() {
   kernel_clk.stop();
   kernel_clk.print_elapsed("influence matrix generation takes ");
 
-  //solve on CPU with Eigen
-  emissions_influence_to_host();
-  solve();
+  // //solve on CPU with Eigen
+  // emissions_influence_to_host();
+  // solve();
 
-  // //solve on GPU (~2.5x slower for first call)
-  // //much faster than CPU on subsequent calls
-  // solve_gpu();
-  // emissions_solved_to_host();
+  //solve on GPU (~2.5x slower for first call)
+  //much faster than CPU on subsequent calls
+  solve_gpu();
+  emissions_solved_to_host();
 
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
