@@ -15,28 +15,31 @@
 struct lineshape_tracker {
   //holstein function tracker with absorption
 
+protected:
   static const int n_lambda=12;// = N_SHIZGAL_LAMBDA;
   static constexpr Real lambda_max=5.0;
-  Real lambda[n_lambda];// assigned in constructor
-  Real weight[n_lambda];// ^
-  Real lambda2[n_lambda];//square of lambda points
-  Real weightfn[n_lambda];//weighting function for this integration rule ( exp(-l**2) for shizgal )
+  //Real lambda[n_lambda];// assigned in constructor
+  //Real weight[n_lambda];// ^
+  //Real lambda2[n_lambda];//square of lambda points
+  //Real weightfn[n_lambda];//weighting function for this integration rule ( exp(-l**2) for shizgal )
 
   Real lineshape_at_origin[n_lambda];//line shape at integral origin
-  Real lineshape[n_lambda];//lineshape in current voxel
 
+  Real tau_species_lambda_initial[n_lambda];//tau_species at each lambda
+
+  Real transfer_probability_lambda_initial[n_lambda];//exp(-(tau_species_initial+tau_absorber_initial)) at each lambda
+
+  CUDA_CALLABLE_MEMBER
+  Real lambda(int i_lambda);
+  CUDA_CALLABLE_MEMBER
+  Real weight(int i_lambda);
+  
+public:
   Real tau_species_initial;//line center species optical depth
   Real tau_species_final;
 
-  Real tau_species_lambda_initial[n_lambda];//tau_species at each lambda
-  Real tau_species_lambda_final[n_lambda];
-
   Real tau_absorber_initial;
   Real tau_absorber_final;
-
-  Real transfer_probability_lambda_initial[n_lambda];//exp(-(tau_species_initial+tau_absorber_initial)) at each lambda
-  Real transfer_probability_lambda_voxel[n_lambda];//above for just the optical depth across the voxel
-  Real transfer_probability_lambda_final[n_lambda];//above for just the final optical depth in this cell
 
   Real max_tau_species;
 

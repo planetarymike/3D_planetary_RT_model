@@ -11,13 +11,13 @@ lineshape_tracker::lineshape_tracker()
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
 
     //CUDA throws an error here if -lineinfo is absent from compiler options???
-    lambda[i_lambda] = i_lambda*lambda_max/(n_lambda-1);
-    weight[i_lambda] = lambda_max/(n_lambda-1);
-    if (i_lambda==0 || i_lambda==n_lambda-1)
-      weight[i_lambda] *= 0.5;
+    //lambda[i_lambda] = i_lambda*lambda_max/(n_lambda-1);
+    // weight[i_lambda] = lambda_max/(n_lambda-1);
+    // if (i_lambda==0 || i_lambda==n_lambda-1)
+    //   weight[i_lambda] *= 0.5;
 
-    lambda2[i_lambda]  = lambda[i_lambda]*lambda[i_lambda];
-    weightfn[i_lambda] = 1.0;//exp(-lambda2[i_lambda]); //Shizgal weight function
+    //lambda2[i_lambda]  = lambda[i_lambda]*lambda[i_lambda];
+    //weightfn[i_lambda] = 1.0;//exp(-lambda2[i_lambda]); //Shizgal weight function
     tau_species_lambda_initial[i_lambda] = 0.0;
   }
 
@@ -36,17 +36,21 @@ lineshape_tracker::lineshape_tracker(const lineshape_tracker &copy)
   //weight = {SHIZGAL_WEIGHTS};
   
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
-    lambda[i_lambda]   = copy.lambda[i_lambda];
-    weight[i_lambda]   = copy.weight[i_lambda];
+    // lambda[i_lambda]   = copy.lambda[i_lambda];
+    // weight[i_lambda]   = copy.weight[i_lambda];
 
-    lambda2[i_lambda]  = copy.lambda2[i_lambda];
-    weightfn[i_lambda] = copy.weightfn[i_lambda];
+    //lambda2[i_lambda]  = copy.lambda2[i_lambda];
+    //weightfn[i_lambda] = copy.weightfn[i_lambda];
 
     lineshape_at_origin[i_lambda] = copy.lineshape_at_origin[i_lambda];
-    lineshape[i_lambda] = copy.lineshape[i_lambda];
+    //lineshape[i_lambda] = copy.lineshape[i_lambda];
 
     tau_species_lambda_initial[i_lambda] = copy.tau_species_lambda_initial[i_lambda];
-    tau_species_lambda_final[i_lambda] = copy.tau_species_lambda_final[i_lambda];
+    //tau_species_lambda_final[i_lambda] = copy.tau_species_lambda_final[i_lambda];
+
+    transfer_probability_lambda_initial[i_lambda] = copy.transfer_probability_lambda_initial[i_lambda];
+    // transfer_probability_lambda_voxel[i_lambda] = copy.transfer_probability_lambda_voxel[i_lambda];
+    // transfer_probability_lambda_final[i_lambda] = copy.transfer_probability_lambda_final[i_lambda];
   }
 
   tau_species_initial=copy.tau_species_initial;
@@ -67,14 +71,18 @@ lineshape_tracker& lineshape_tracker::operator=(const lineshape_tracker &rhs) {
   if(this == &rhs) return *this;
 
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
-    lambda2[i_lambda]  = rhs.lambda2[i_lambda];
-    weightfn[i_lambda] = rhs.weightfn[i_lambda];
+    //lambda2[i_lambda]  = rhs.lambda2[i_lambda];
+    //weightfn[i_lambda] = rhs.weightfn[i_lambda];
 
     lineshape_at_origin[i_lambda] = rhs.lineshape_at_origin[i_lambda];
-    lineshape[i_lambda] = rhs.lineshape[i_lambda];
+    //lineshape[i_lambda] = rhs.lineshape[i_lambda];
 
     tau_species_lambda_initial[i_lambda] = rhs.tau_species_lambda_initial[i_lambda];
-    tau_species_lambda_final[i_lambda] = rhs.tau_species_lambda_final[i_lambda];
+    //tau_species_lambda_final[i_lambda] = rhs.tau_species_lambda_final[i_lambda];
+
+    transfer_probability_lambda_initial[i_lambda] = rhs.transfer_probability_lambda_initial[i_lambda];
+    // transfer_probability_lambda_voxel[i_lambda] = rhs.transfer_probability_lambda_voxel[i_lambda];
+    // transfer_probability_lambda_final[i_lambda] = rhs.transfer_probability_lambda_final[i_lambda];
   }
 
   tau_species_initial=rhs.tau_species_initial;
@@ -94,13 +102,25 @@ lineshape_tracker& lineshape_tracker::operator=(const lineshape_tracker &rhs) {
 }
 
 CUDA_CALLABLE_MEMBER
+Real lineshape_tracker::lambda(int i_lambda) {
+  return i_lambda*lambda_max/(n_lambda-1);
+}
+CUDA_CALLABLE_MEMBER
+Real lineshape_tracker::weight(int i_lambda) {
+  Real thisweight = lambda_max/(n_lambda-1);
+  if (i_lambda==0 || i_lambda==n_lambda-1)
+    thisweight *= 0.5;
+  return thisweight;
+}
+
+CUDA_CALLABLE_MEMBER
 void lineshape_tracker::reset(const Real &T, const Real &T_ref) {
   tau_species_initial=0;
   tau_absorber_initial=0;
   holstein_T_initial=1.0;
 
   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
-    lineshape_at_origin[i_lambda] = std::sqrt(T_ref/T)*exp(-lambda2[i_lambda]*T_ref/T);
+    lineshape_at_origin[i_lambda] = std::sqrt(T_ref/T)*exp(-lambda(i_lambda)*lambda(i_lambda)*T_ref/T);
     assert(!std::isnan(lineshape_at_origin[i_lambda])
 	   && lineshape_at_origin[i_lambda]>0 && "lineshape must be real and positive");
 
@@ -143,67 +163,63 @@ void lineshape_tracker::update_start(const Real &T, const Real &T_ref,
   Real holTcoef;
   Real holstein_T_int_coef;
 
-  for (int i_lambda=0; i_lambda < n_lambda; i_lambda++) {
-    lineshape[i_lambda] = std::exp(-lambda2[i_lambda]*T_ref/T);
-    assert(!std::isnan(lineshape[i_lambda])
-	   && lineshape[i_lambda]>0 && "lineshape must be real and positive");
+  for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
+    Real lineshape = std::exp(-lambda(i_lambda) * lambda(i_lambda) * T_ref / T);
+    assert(!std::isnan(lineshape) && lineshape > 0 &&
+           "lineshape must be real and positive");
 
-    tau_species_lambda_final[i_lambda] = (tau_species_lambda_initial[i_lambda]
-					  + (dtau_species
-					     * pathlength
-					     * lineshape[i_lambda]));
-    assert(!std::isnan(tau_species_lambda_final[i_lambda])
-	   && tau_species_lambda_final[i_lambda]>=0 && "optical depth must be real and positive");
+    Real tau_species_lambda_final = (tau_species_lambda_initial[i_lambda] +
+                                     (dtau_species * pathlength * lineshape));
+    assert(!std::isnan(tau_species_lambda_final) &&
+           tau_species_lambda_final >= 0 &&
+           "optical depth must be real and positive");
 
-    transfer_probability_lambda_voxel[i_lambda] = std::exp(-(dtau_absorber
-							     + dtau_species * lineshape[i_lambda])
-							   *pathlength);
-    assert(!std::isnan(transfer_probability_lambda_voxel[i_lambda])
-	   && transfer_probability_lambda_voxel[i_lambda]>=0
-	   && transfer_probability_lambda_voxel[i_lambda]<=1
-	   && "transfer probability is a probability.");
+    Real transfer_probability_lambda_voxel = std::exp(-(dtau_absorber + dtau_species * lineshape)
+						      * pathlength);
+    assert(!std::isnan(transfer_probability_lambda_voxel) &&
+           transfer_probability_lambda_voxel >= 0 &&
+           transfer_probability_lambda_voxel <= 1 &&
+           "transfer probability is a probability.");
 
-    transfer_probability_lambda_final[i_lambda] = (transfer_probability_lambda_initial[i_lambda]
-						   *transfer_probability_lambda_voxel[i_lambda]);
+    Real transfer_probability_lambda_final = (transfer_probability_lambda_initial[i_lambda]
+					      * transfer_probability_lambda_voxel);
 
-    holTcoef = (M_2_SQRTPI
-		* weight[i_lambda]
-		/ weightfn[i_lambda]);
+    holTcoef = (M_2_SQRTPI * weight(i_lambda));
+    //		/ weightfn[i_lambda]);
 
-    //holstein T final represents a frequency-averaged absorption and
-    //uses lineshape_at_origin
-    holstein_T_final += (holTcoef
-			 * lineshape_at_origin[i_lambda]
-			 * transfer_probability_lambda_final[i_lambda]);
-    assert(!std::isnan(holstein_T_final)
-	   && holstein_T_final>=0
-	   && holstein_T_final<=1
-	   && "holstein function represents a probability");
-    
-    
-    //holstein_T_int represents a frequency averaged emission and
-    //therefore uses lineshape in this voxel
+    // holstein T final represents a frequency-averaged absorption and
+    // uses lineshape_at_origin
+    holstein_T_final += (holTcoef * lineshape_at_origin[i_lambda] *
+                         transfer_probability_lambda_final);
+    assert(!std::isnan(holstein_T_final) && holstein_T_final >= 0 &&
+           holstein_T_final <= 1 &&
+           "holstein function represents a probability");
+
+    // holstein_T_int represents a frequency averaged emission and
+    // therefore uses lineshape in this voxel
     holstein_T_int_coef = (holTcoef
-			   * lineshape[i_lambda]				  
+			   * lineshape
 			   * transfer_probability_lambda_initial[i_lambda]
-			   *(1.0 - transfer_probability_lambda_voxel[i_lambda])
-			   /(abs + lineshape[i_lambda]));
+			   * (1.0 - transfer_probability_lambda_voxel)
+			   / (abs + lineshape));
     holstein_T_int += holstein_T_int_coef;
-    assert(!std::isnan(holstein_T_int)
-	   && holstein_T_int>=0
-	   && (holstein_T_int<=tau_species_final-tau_species_initial
-	       || std::abs(holstein_T_int-(tau_species_final-tau_species_initial)) < ABS)
-	   //  ^^ this allows for small rounding errors
-	   && "holstein integral must be between 0 and Delta tau b/c 0<=HolT<=1");
+    assert(!std::isnan(holstein_T_int) && holstein_T_int >= 0 &&
+           (holstein_T_int <= tau_species_final - tau_species_initial ||
+            std::abs(holstein_T_int - (tau_species_final - tau_species_initial)) < ABS)
+           //  ^^ this allows for small rounding errors
+           &&
+           "holstein integral must be between 0 and Delta tau b/c 0<=HolT<=1");
 
-    //holstein_G_int represents the frequency averaged emission
-    //followed by absorption and uses both lineshape in this voxel
+    // holstein_G_int represents the frequency averaged emission
+    // followed by absorption and uses both lineshape in this voxel
     //(via holstein_T_int_coef) and the lineshape at origin
     holstein_G_int += holstein_T_int_coef * lineshape_at_origin[i_lambda];
-    assert(!std::isnan(holstein_G_int)
-	   && holstein_G_int>=0
-	   && holstein_G_int<=1
-	   && "holstein G integral represents a probability");
+    assert(!std::isnan(holstein_G_int) && holstein_G_int >= 0 && holstein_G_int <= 1 &&
+           "holstein G integral represents a probability");
+
+    //update the initial values
+    tau_species_lambda_initial[i_lambda] = tau_species_lambda_final;
+    transfer_probability_lambda_initial[i_lambda] = transfer_probability_lambda_final;
   }
   //check that the last element is not contributing too much to the integral
   assert(!((holstein_T_int > STRICTABS) && (holstein_T_int_coef/holstein_T_int > 1e-2))
@@ -219,10 +235,10 @@ void lineshape_tracker::update_end() {
   tau_absorber_initial=tau_absorber_final;
   holstein_T_initial=holstein_T_final;
   
-  for (int i_lambda=0; i_lambda < n_lambda; i_lambda++) {
-    tau_species_lambda_initial[i_lambda] = tau_species_lambda_final[i_lambda];
-    transfer_probability_lambda_initial[i_lambda] = transfer_probability_lambda_final[i_lambda];
-  }
+  // for (int i_lambda=0; i_lambda < n_lambda; i_lambda++) {
+  //   tau_species_lambda_initial[i_lambda] = tau_species_lambda_final[i_lambda];
+  //   transfer_probability_lambda_initial[i_lambda] = transfer_probability_lambda_final[i_lambda];
+  // }
   
   check_max_tau();
 }
