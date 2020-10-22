@@ -24,10 +24,14 @@ protected:
   //Real weightfn[n_lambda];//weighting function for this integration rule ( exp(-l**2) for shizgal )
 
   Real lineshape_at_origin[n_lambda];//line shape at integral origin
+  //Real lineshape[n_lambda];//lineshape in current voxel
 
   Real tau_species_lambda_initial[n_lambda];//tau_species at each lambda
+  //Real tau_species_lambda_final[n_lambda];
 
   Real transfer_probability_lambda_initial[n_lambda];//exp(-(tau_species_initial+tau_absorber_initial)) at each lambda
+  //Real transfer_probability_lambda_voxel[n_lambda];//above for just the optical depth across the voxel
+  //Real transfer_probability_lambda_final[n_lambda];//above for just the final optical depth in this cell
 
   CUDA_CALLABLE_MEMBER
   Real lambda(int i_lambda);
