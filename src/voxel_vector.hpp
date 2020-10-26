@@ -26,10 +26,7 @@ public:
   }
 
   ~voxel_vector() {
-#ifdef __CUDACC__
-    if(d_vec!=NULL)
-      checkCudaErrors(cudaFree(d_vec));
-#endif
+    free_d_vec();
   }
 
   
@@ -39,11 +36,22 @@ public:
     assert(n_voxels == VectorX::size());
     vec = VectorX::data();
   }
-  template <typename T>
-  voxel_vector& operator=(T &rhs) {
+  voxel_vector& operator=(const VectorX &rhs) {
     assert(n_voxels == VectorX::size());
     VectorX::operator=(rhs);
     vec = VectorX::data();
+    return *this;
+  }
+  CUDA_CALLABLE_MEMBER
+  voxel_vector& operator=(const voxel_vector<N_VOXELS> &rhs) {
+#ifdef __CUDA_ARCH__
+    for (int i=0;i<n_voxels;i++)
+      vec[i] = rhs.vec[i];
+#else
+    assert(n_voxels == VectorX::size());
+    VectorX::operator=(rhs.VectorX);
+    vec = VectorX::data();
+#endif
     return *this;
   }
 
@@ -57,7 +65,7 @@ public:
     return vec[n];
   }
   CUDA_CALLABLE_MEMBER
-  const Real & operator[](const int n) const {
+  Real operator[](const int n) const {
     return vec[n];
   }
   CUDA_CALLABLE_MEMBER
@@ -65,10 +73,19 @@ public:
     return vec[n];
   }
   CUDA_CALLABLE_MEMBER
-  const Real & operator()(const int n) const {
+  Real operator()(const int n) const {
     return vec[n];
   }
 
+  void free_d_vec() {
+#ifdef __CUDACC__
+    if(d_vec!=NULL) {
+      checkCudaErrors(cudaFree(d_vec));
+      d_vec = NULL;
+    }
+#endif
+  }
+  
 #ifdef __CUDACC__  
   void to_device(bool transfer = true) {
     if (d_vec == NULL)
@@ -94,7 +111,29 @@ public:
 			       cudaMemcpyDeviceToHost)
 		    );
   }
+
+  __device__
+  void to_shared() {
+    //declare shared array
+    __shared__ Real s_vec[n_voxels];
+
+    //move to shared array using all threads in this block
+    for (int i = threadIdx.x; i < n_voxels; i+=blockDim.x)
+      s_vec[i] = vec[i];
+    __syncthreads();
+
+    d_vec = vec;
+    vec = s_vec;    
+  }
+  __device__
+  void from_shared() {
+    vec = d_vec;
+    d_vec = NULL;
+    //shared memory is automatically deallocated
+  }
+
 #endif
+
 };
 
 template<int N_VOXELS> //template prevents allocation errors with CUDA pointers
@@ -109,10 +148,7 @@ public:
   }
 
   ~voxel_matrix() {
-#ifdef __CUDACC__
-    if(d_mat!=NULL)
-      checkCudaErrors(cudaFree(d_mat));
-#endif
+    free_dmat();
   }
   
   
@@ -124,13 +160,23 @@ public:
     assert(n_voxels == MatrixX::rows());
     mat = MatrixX::data();
   }
-  template <typename T>
-  voxel_matrix& operator=(T &rhs) {
+
+  voxel_matrix& operator=(const MatrixX &rhs) {
+    assert(n_voxels == MatrixX::size());
     MatrixX::operator=(rhs);
-    assert(MatrixX::rows() == MatrixX::cols()
-	   && "voxel_matrix must be square");
-    assert(n_voxels == MatrixX::rows());
     mat = MatrixX::data();
+    return *this;
+  }
+  CUDA_CALLABLE_MEMBER
+  voxel_matrix& operator=(const voxel_matrix<N_VOXELS> &rhs) {
+#ifdef __CUDA_ARCH__
+    for (int i=0;i<n_voxels*n_voxels;i++)
+      mat[i] = rhs.mat[i];
+#else
+    assert(n_voxels == MatrixX::size());
+    MatrixX::operator=(rhs.MatrixX);
+    mat = MatrixX::data();
+#endif
     return *this;
   }
 
@@ -157,6 +203,15 @@ public:
     const int i = m*n_voxels + n;//column major
 #endif
     return mat[i];
+  }
+
+  void free_dmat() {
+#ifdef __CUDACC__
+    if(d_mat!=NULL) {
+      checkCudaErrors(cudaFree(d_mat));
+      d_mat = NULL;
+    }
+#endif
   }
 
 #ifdef __CUDACC__

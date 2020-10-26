@@ -37,8 +37,8 @@ struct emission {
   vv species_T_pt;
   vv dtau_species; // species density * species_sigma_T_ref * sqrt(species_T_ref/species_T) 
   vv dtau_species_pt;
-  vv log_dtau_species; //in case we want to do interpolation in log space
-  vv log_dtau_species_pt; 
+  //  vv log_dtau_species; //in case we want to do interpolation in log space
+  //  vv log_dtau_species_pt; 
 
   vv absorber_density; //same as above for absorber
   vv absorber_density_pt; 
@@ -46,13 +46,13 @@ struct emission {
   vv absorber_sigma_pt;
   vv dtau_absorber; // absorber_density * absorber_sigma for each voxel independently
   vv dtau_absorber_pt;
-  vv log_dtau_absorber;
-  vv log_dtau_absorber_pt; 
+  //  vv log_dtau_absorber;
+  //  vv log_dtau_absorber_pt; 
 
   vv abs; //ratio (dtau_absorber / dtau_species)
   vv abs_pt; 
-  vv log_abs; 
-  vv log_abs_pt; 
+  //  vv log_abs; 
+  //  vv log_abs_pt; 
 
   //Radiative transfer parameters
   vm influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
@@ -63,9 +63,57 @@ struct emission {
   vv singlescat; 
 
   vv sourcefn; //have dimensions (n_voxels)  
-  vv log_sourcefn; 
+  //  vv log_sourcefn; 
 
   emission() { init=false; }
+
+
+  // CUDA_CALLABLE_MEMBER
+  // emission& operator=(const emission<N_VOXELS> &rhs) {
+  //   if(this == &rhs) return *this;
+
+  //   //    name = rhs.name;
+  //   init = rhs.init;
+  //   solved = rhs.solved;
+  
+  //   branching_ratio = rhs.branching_ratio;
+  //   species_T_ref = rhs.species_T_ref;
+  //   species_sigma_T_ref = rhs.species_sigma_T_ref;
+
+  //   species_density = rhs.species_density;
+  //   species_density_pt = rhs.species_density_pt;
+  //   species_T = rhs.species_T;
+  //   species_T_pt = rhs.species_T_pt;
+  //   dtau_species = rhs.dtau_species;
+  //   dtau_species_pt = rhs.dtau_species_pt;
+  //   // log_dtau_species = rhs.log_dtau_species;
+  //   // log_dtau_species_pt = rhs. log_dtau_species_pt; 
+
+  //   absorber_density = rhs.absorber_density;
+  //   absorber_density_pt = rhs. absorber_density_pt; 
+  //   absorber_sigma = rhs.absorber_sigma;
+  //   absorber_sigma_pt = rhs.absorber_sigma_pt;
+  //   dtau_absorber = rhs.dtau_absorber;
+  //   dtau_absorber_pt = rhs.dtau_absorber_pt;
+  //   // log_dtau_absorber = rhs.log_dtau_absorber;
+  //   // log_dtau_absorber_pt = rhs. log_dtau_absorber_pt; 
+
+  //   abs = rhs.abs;
+  //   abs_pt = rhs. abs_pt; 
+  //   // log_abs = rhs. log_abs; 
+  //   // log_abs_pt = rhs. log_abs_pt; 
+
+  //   influence_matrix = rhs.influence_matrix;
+
+  //   tau_species_single_scattering = rhs.tau_species_single_scattering;
+  //   tau_absorber_single_scattering = rhs.tau_absorber_single_scattering;
+  //   singlescat = rhs. singlescat; 
+
+  //   sourcefn = rhs.sourcefn;
+  //   //    log_sourcefn = rhs.log_sourcefn; 
+  // return *this;
+  // }
+
 
   template<typename C>
   void define(const Real &emission_branching_ratio,
@@ -131,14 +179,14 @@ struct emission {
     abs = dtau_absorber.array() / dtau_species.array();
     abs_pt = dtau_absorber_pt.array() / dtau_species_pt.array();
     
-    for (unsigned int i=0;i<log_dtau_species.size();i++) {
-      log_dtau_species(i) = dtau_species(i) == 0 ? -1e5 : log(dtau_species(i));
-      log_dtau_species_pt(i) = dtau_species_pt(i) == 0 ? -1e5 : log(dtau_species_pt(i));
-      log_dtau_absorber(i) = dtau_absorber(i) == 0 ? -1e5 : log(dtau_species(i));
-      log_dtau_absorber_pt(i) = dtau_absorber_pt(i) == 0 ? -1e5 : log(dtau_species_pt(i));
-      log_abs(i) = abs(i) == 0 ? -1e5 : log(abs(i));
-      log_abs_pt(i) = abs_pt(i) == 0 ? -1e5 : log(abs_pt(i));
-    }
+    // for (unsigned int i=0;i<log_dtau_species.size();i++) {
+    //   log_dtau_species(i) = dtau_species(i) == 0 ? -1e5 : log(dtau_species(i));
+    //   log_dtau_species_pt(i) = dtau_species_pt(i) == 0 ? -1e5 : log(dtau_species_pt(i));
+    //   log_dtau_absorber(i) = dtau_absorber(i) == 0 ? -1e5 : log(dtau_species(i));
+    //   log_dtau_absorber_pt(i) = dtau_absorber_pt(i) == 0 ? -1e5 : log(dtau_species_pt(i));
+    //   log_abs(i) = abs(i) == 0 ? -1e5 : log(abs(i));
+    //   log_abs_pt(i) = abs_pt(i) == 0 ? -1e5 : log(abs_pt(i));
+    // }
     
     init=true;
   }
@@ -147,6 +195,12 @@ struct emission {
   //methods to transfer objects to device
   void copy_to_device_influence(emission<N_VOXELS> *device_emission);
   void copy_to_device_brightness(emission<N_VOXELS> *device_emission);
+#ifdef __CUDACC__
+  __device__ void copy_to_shared_brightness();
+  __device__ void from_shared_brightness();
+#endif
+
+
   void vector_to_device(vv & device_vec, vv & host_vec, bool transfer = true);
   void matrix_to_device(vm & device_vec, vm & host_vec, bool transfer = true);
 

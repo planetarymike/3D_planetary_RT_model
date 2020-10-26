@@ -1,6 +1,15 @@
 // things to improve/change in code
 
+
 --profile+optimize GPU code (still lots to improve)
+  --replacing atmospheric variables (density, cross section, source function) with texture units on device may help
+    --these objects would pre-fecth in a volume around the current index, 
+    --would need to rewrite device-side voxel_vector interface, adding a texture object
+    --texture objects need to know about the grid structure, which is currently not known to emission objects.
+    --this would replace linear interpolation with hardware interpolation
+    --need fast coordinate point finders (right now this is done brute force)
+--remove transmission object; this is superseded by lineshape_tracker
+--fix transmission so that it is specified inside emission;
 --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
 --32 bit vs 64 bit differences in code output?
 --comparison with anderson

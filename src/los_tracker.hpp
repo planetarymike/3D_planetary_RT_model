@@ -15,25 +15,33 @@ struct tau_tracker {
   lineshape_tracker line[N_EMISS];
   Real max_tau_species;
 
+  // CUDA_CALLABLE_MEMBER
+  // tau_tracker() { }
+  // CUDA_CALLABLE_MEMBER
+  // ~tau_tracker() { }
+  // CUDA_CALLABLE_MEMBER
+  // tau_tracker(const tau_tracker<N_EMISS> &copy) {
+  //   max_tau_species = copy.max_tau_species;
+  //   for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+  //     line[i_emission] = copy.line[i_emission];
+  // }
+  // CUDA_CALLABLE_MEMBER
+  // tau_tracker& operator=(const tau_tracker<N_EMISS> &rhs) {
+  //   if(this == &rhs) return *this;
+  //   max_tau_species = rhs.max_tau_species;
+  //   for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+  //     line[i_emission] = rhs.line[i_emission];
+  //   return *this;
+  // }
+
   CUDA_CALLABLE_MEMBER
-  tau_tracker()
-    : max_tau_species(0.0)
-  { }
-  CUDA_CALLABLE_MEMBER
-  ~tau_tracker() { }
-  CUDA_CALLABLE_MEMBER
-  tau_tracker(const tau_tracker<N_EMISS> &copy) {
-    max_tau_species = copy.max_tau_species;
-    for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
-      line[i_emission] = copy.line[i_emission];
-  }
-  CUDA_CALLABLE_MEMBER
-  tau_tracker& operator=(const tau_tracker<N_EMISS> &rhs) {
-    if(this == &rhs) return *this;
-    max_tau_species = rhs.max_tau_species;
-    for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
-      line[i_emission] = rhs.line[i_emission];
-    return *this;
+  void init() {
+    //this is not in the constructor so that this object can be
+    //declared in CUDA shared memory, which requires an empty
+    //constructor
+    max_tau_species = 0.0;
+    for (int i_emiss=0;i_emiss<N_EMISS;i_emiss++)
+      line[i_emiss].init();
   }
 
   template <typename E>
@@ -73,30 +81,37 @@ template <int N_EMISS, int N_VOXELS>
 struct influence_tracker : tau_tracker<N_EMISS> {
   Real influence[N_EMISS][N_VOXELS];
 
+  // CUDA_CALLABLE_MEMBER
+  // influence_tracker() { }
+  // CUDA_CALLABLE_MEMBER
+  // ~influence_tracker() { }
+  // CUDA_CALLABLE_MEMBER
+  // influence_tracker(const influence_tracker<N_EMISS,N_VOXELS> &copy)
+  //   : tau_tracker<N_EMISS>(copy) 
+  // {
+  //   for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+  //     for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+  // 	influence[i_emission][j_pt]=copy.influence[i_emission][j_pt];
+  // }
+  // CUDA_CALLABLE_MEMBER
+  // influence_tracker& operator=(const influence_tracker<N_EMISS,N_VOXELS> &rhs) {
+  //   if(this == &rhs) return *this;
+  //   tau_tracker<N_EMISS>::operator=(rhs);
+  //   for (int i_emission=0; i_emission < N_EMISS; i_emission++)
+  //     for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
+  // 	influence[i_emission][j_pt]=rhs.influence[i_emission][j_pt];
+  //   return *this;
+  // }
+
   CUDA_CALLABLE_MEMBER
-  influence_tracker() : tau_tracker<N_EMISS>() {
+  void init() {
+    //this is not in the constructor so that this object can be
+    //declared in CUDA shared memory, which requires an empty
+    //constructor
+    tau_tracker<N_EMISS>::init();
     for (int i_emission=0; i_emission < N_EMISS; i_emission++)
       for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
 	influence[i_emission][j_pt] = 0.0;
-  }
-  CUDA_CALLABLE_MEMBER
-  ~influence_tracker() { }
-  CUDA_CALLABLE_MEMBER
-  influence_tracker(const influence_tracker<N_EMISS,N_VOXELS> &copy)
-    : tau_tracker<N_EMISS>(copy) 
-  {
-    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
-      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
-	influence[i_emission][j_pt]=copy.influence[i_emission][j_pt];
-  }
-  CUDA_CALLABLE_MEMBER
-  influence_tracker& operator=(const influence_tracker<N_EMISS,N_VOXELS> &rhs) {
-    if(this == &rhs) return *this;
-    tau_tracker<N_EMISS>::operator=(rhs);
-    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
-      for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
-	influence[i_emission][j_pt]=rhs.influence[i_emission][j_pt];
-    return *this;
   }
 
   template <typename E>
@@ -141,35 +156,36 @@ template <int N_EMISS>
 struct brightness_tracker : tau_tracker<N_EMISS> {
   Real brightness[N_EMISS];
 
+  // CUDA_CALLABLE_MEMBER
+  // brightness_tracker() { }
+  // CUDA_CALLABLE_MEMBER
+  // ~brightness_tracker() { }
+  // CUDA_CALLABLE_MEMBER
+  // brightness_tracker(const brightness_tracker<N_EMISS> &copy)
+  //   : tau_tracker<N_EMISS>(copy) 
+  // {
+  //   for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+  //     brightness[i_emission]=copy.brightness[i_emission];
+  // }
+  // CUDA_CALLABLE_MEMBER
+  // brightness_tracker& operator=(const brightness_tracker<N_EMISS> &rhs) {
+  //   if(this == &rhs) return *this;
+  //   tau_tracker<N_EMISS>::operator=(rhs);
+  //   for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
+  //     brightness[i_emission]=rhs.brightness[i_emission];
+  //   return *this;
+  // }
+
   CUDA_CALLABLE_MEMBER
-  brightness_tracker() : tau_tracker<N_EMISS>() {
-    for (int i_emission=0; i_emission < N_EMISS; i_emission++)
-       brightness[i_emission]=0;
-  }
-  CUDA_CALLABLE_MEMBER
-  ~brightness_tracker() { }
-  CUDA_CALLABLE_MEMBER
-  brightness_tracker(const brightness_tracker<N_EMISS> &copy)
-    : tau_tracker<N_EMISS>(copy) 
-  {
+  void init() {
+    //this is not in the constructor so that this object can be
+    //declared in CUDA shared memory, which requires an empty
+    //constructor
+    tau_tracker<N_EMISS>::init();
     for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
-      brightness[i_emission]=copy.brightness[i_emission];
-  }
-  CUDA_CALLABLE_MEMBER
-  brightness_tracker& operator=(const brightness_tracker<N_EMISS> &rhs) {
-    if(this == &rhs) return *this;
-    tau_tracker<N_EMISS>::operator=(rhs);
-    for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
-      brightness[i_emission]=rhs.brightness[i_emission];
-    return *this;
+      brightness[i_emission]=0;
   }
 
-  // CUDA_CALLABLE_MEMBER
-  // void reset(emission (&emissions)[N_EMISS], int i_voxel) {
-  //   tau_tracker<N_EMISS>::reset(emissions, i_voxel);
-  //   for (int i_emission=0; i_emission < N_EMISS; i_emission++)
-  //     brightness[i_emission]=0;
-  // }
   template <typename E>
   CUDA_CALLABLE_MEMBER
   void reset(const E (&emissions)[N_EMISS]) {
@@ -177,6 +193,7 @@ struct brightness_tracker : tau_tracker<N_EMISS> {
     for (int i_emission=0; i_emission < N_EMISS; i_emission++)
       brightness[i_emission]=0;
   }
+
 };
 
 //interpolation support

@@ -1,105 +1,81 @@
 //lineshape_tracker.cpp --- holstein integrals computed JIT as lines of sight are traversed
 #include "lineshape_tracker.hpp"
 
-CUDA_CALLABLE_MEMBER
-lineshape_tracker::lineshape_tracker()
-{
-  //for compatibility with Bishop (1999) --- worse than trapezoidal quadrature
-  //lambda = {SHIZGAL_LAMBDAS};
-  //weight = {SHIZGAL_WEIGHTS};
-
-  for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
-
-    //CUDA throws an error here if -lineinfo is absent from compiler options???
-    //lambda[i_lambda] = i_lambda*lambda_max/(n_lambda-1);
-    // weight[i_lambda] = lambda_max/(n_lambda-1);
-    // if (i_lambda==0 || i_lambda==n_lambda-1)
-    //   weight[i_lambda] *= 0.5;
-
-    //lambda2[i_lambda]  = lambda[i_lambda]*lambda[i_lambda];
-    //weightfn[i_lambda] = 1.0;//exp(-lambda2[i_lambda]); //Shizgal weight function
-    tau_species_lambda_initial[i_lambda] = 0.0;
-  }
-
-  tau_species_initial=0;
-  tau_absorber_initial=0;
-  holstein_T_initial=1.0;
-
-  max_tau_species = 0;
-}
-CUDA_CALLABLE_MEMBER
-lineshape_tracker::~lineshape_tracker() { }
-CUDA_CALLABLE_MEMBER
-lineshape_tracker::lineshape_tracker(const lineshape_tracker &copy)
-{
-  //lambda = {SHIZGAL_LAMBDAS};
-  //weight = {SHIZGAL_WEIGHTS};
+// CUDA_CALLABLE_MEMBER
+// lineshape_tracker::lineshape_tracker() { }
+// CUDA_CALLABLE_MEMBER
+// lineshape_tracker::~lineshape_tracker() { }
+// CUDA_CALLABLE_MEMBER
+// lineshape_tracker::lineshape_tracker(const lineshape_tracker &copy)
+// {
+//   //lambda = {SHIZGAL_LAMBDAS};
+//   //weight = {SHIZGAL_WEIGHTS};
   
-  for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
-    // lambda[i_lambda]   = copy.lambda[i_lambda];
-    // weight[i_lambda]   = copy.weight[i_lambda];
+//   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
+//     // lambda[i_lambda]   = copy.lambda[i_lambda];
+//     // weight[i_lambda]   = copy.weight[i_lambda];
 
-    //lambda2[i_lambda]  = copy.lambda2[i_lambda];
-    //weightfn[i_lambda] = copy.weightfn[i_lambda];
+//     //lambda2[i_lambda]  = copy.lambda2[i_lambda];
+//     //weightfn[i_lambda] = copy.weightfn[i_lambda];
 
-    lineshape_at_origin[i_lambda] = copy.lineshape_at_origin[i_lambda];
-    //lineshape[i_lambda] = copy.lineshape[i_lambda];
+//     lineshape_at_origin[i_lambda] = copy.lineshape_at_origin[i_lambda];
+//     //lineshape[i_lambda] = copy.lineshape[i_lambda];
 
-    tau_species_lambda_initial[i_lambda] = copy.tau_species_lambda_initial[i_lambda];
-    //tau_species_lambda_final[i_lambda] = copy.tau_species_lambda_final[i_lambda];
+//     tau_species_lambda_initial[i_lambda] = copy.tau_species_lambda_initial[i_lambda];
+//     //tau_species_lambda_final[i_lambda] = copy.tau_species_lambda_final[i_lambda];
 
-    transfer_probability_lambda_initial[i_lambda] = copy.transfer_probability_lambda_initial[i_lambda];
-    // transfer_probability_lambda_voxel[i_lambda] = copy.transfer_probability_lambda_voxel[i_lambda];
-    // transfer_probability_lambda_final[i_lambda] = copy.transfer_probability_lambda_final[i_lambda];
-  }
+//     transfer_probability_lambda_initial[i_lambda] = copy.transfer_probability_lambda_initial[i_lambda];
+//     // transfer_probability_lambda_voxel[i_lambda] = copy.transfer_probability_lambda_voxel[i_lambda];
+//     // transfer_probability_lambda_final[i_lambda] = copy.transfer_probability_lambda_final[i_lambda];
+//   }
 
-  tau_species_initial=copy.tau_species_initial;
-  tau_species_final=copy.tau_species_final;
+//   tau_species_initial=copy.tau_species_initial;
+//   tau_species_final=copy.tau_species_final;
 
-  tau_absorber_initial=copy.tau_absorber_initial;
-  tau_absorber_final=copy.tau_absorber_final;
+//   tau_absorber_initial=copy.tau_absorber_initial;
+//   tau_absorber_final=copy.tau_absorber_final;
 
-  max_tau_species=copy.max_tau_species;
+//   max_tau_species=copy.max_tau_species;
 
-  holstein_T_initial = copy.holstein_T_final;
-  holstein_T_final = copy.holstein_T_final;
-  holstein_T_int = copy.holstein_T_int;
-  holstein_G_int = copy.holstein_G_int;
-}
-CUDA_CALLABLE_MEMBER
-lineshape_tracker& lineshape_tracker::operator=(const lineshape_tracker &rhs) {
-  if(this == &rhs) return *this;
+//   holstein_T_initial = copy.holstein_T_final;
+//   holstein_T_final = copy.holstein_T_final;
+//   holstein_T_int = copy.holstein_T_int;
+//   holstein_G_int = copy.holstein_G_int;
+// }
+// CUDA_CALLABLE_MEMBER
+// lineshape_tracker& lineshape_tracker::operator=(const lineshape_tracker &rhs) {
+//   if(this == &rhs) return *this;
 
-  for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
-    //lambda2[i_lambda]  = rhs.lambda2[i_lambda];
-    //weightfn[i_lambda] = rhs.weightfn[i_lambda];
+//   for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++) {
+//     //lambda2[i_lambda]  = rhs.lambda2[i_lambda];
+//     //weightfn[i_lambda] = rhs.weightfn[i_lambda];
 
-    lineshape_at_origin[i_lambda] = rhs.lineshape_at_origin[i_lambda];
-    //lineshape[i_lambda] = rhs.lineshape[i_lambda];
+//     lineshape_at_origin[i_lambda] = rhs.lineshape_at_origin[i_lambda];
+//     //lineshape[i_lambda] = rhs.lineshape[i_lambda];
 
-    tau_species_lambda_initial[i_lambda] = rhs.tau_species_lambda_initial[i_lambda];
-    //tau_species_lambda_final[i_lambda] = rhs.tau_species_lambda_final[i_lambda];
+//     tau_species_lambda_initial[i_lambda] = rhs.tau_species_lambda_initial[i_lambda];
+//     //tau_species_lambda_final[i_lambda] = rhs.tau_species_lambda_final[i_lambda];
 
-    transfer_probability_lambda_initial[i_lambda] = rhs.transfer_probability_lambda_initial[i_lambda];
-    // transfer_probability_lambda_voxel[i_lambda] = rhs.transfer_probability_lambda_voxel[i_lambda];
-    // transfer_probability_lambda_final[i_lambda] = rhs.transfer_probability_lambda_final[i_lambda];
-  }
+//     transfer_probability_lambda_initial[i_lambda] = rhs.transfer_probability_lambda_initial[i_lambda];
+//     // transfer_probability_lambda_voxel[i_lambda] = rhs.transfer_probability_lambda_voxel[i_lambda];
+//     // transfer_probability_lambda_final[i_lambda] = rhs.transfer_probability_lambda_final[i_lambda];
+//   }
 
-  tau_species_initial=rhs.tau_species_initial;
-  tau_species_final=rhs.tau_species_final;
+//   tau_species_initial=rhs.tau_species_initial;
+//   tau_species_final=rhs.tau_species_final;
 
-  tau_absorber_initial=rhs.tau_absorber_initial;
-  tau_absorber_final=rhs.tau_absorber_final;
+//   tau_absorber_initial=rhs.tau_absorber_initial;
+//   tau_absorber_final=rhs.tau_absorber_final;
 
-  max_tau_species=rhs.max_tau_species;
+//   max_tau_species=rhs.max_tau_species;
 
-  holstein_T_initial = rhs.holstein_T_final;
-  holstein_T_final = rhs.holstein_T_final;
-  holstein_T_int = rhs.holstein_T_int;
-  holstein_G_int = rhs.holstein_G_int;
+//   holstein_T_initial = rhs.holstein_T_final;
+//   holstein_T_final = rhs.holstein_T_final;
+//   holstein_T_int = rhs.holstein_T_int;
+//   holstein_G_int = rhs.holstein_G_int;
 
-  return *this;
-}
+//   return *this;
+// }
 
 CUDA_CALLABLE_MEMBER
 Real lineshape_tracker::lambda(int i_lambda) {
@@ -111,6 +87,11 @@ Real lineshape_tracker::weight(int i_lambda) {
   if (i_lambda==0 || i_lambda==n_lambda-1)
     thisweight *= 0.5;
   return thisweight;
+}
+
+CUDA_CALLABLE_MEMBER
+void lineshape_tracker::init() {
+  max_tau_species = 0;
 }
 
 CUDA_CALLABLE_MEMBER

@@ -71,7 +71,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
       this->voxels[i].pbounds[0] = 0;
       this->voxels[i].pbounds[1] = 2*pi;
       this->voxels[i].i_voxel = i;
-      this->voxels[i].init = true;
+      // this->voxels[i].init = true;
 
       pts_radii[i]=sqrt(radial_boundaries[i]*radial_boundaries[i+1]);
       // Real frac = 0.5;

@@ -52,23 +52,46 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_solved_to_host() {
     emissions[i_emission].copy_solved_to_host();
 }
 
+static const int brightness_blockSize = 32;
+
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 __global__
-void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *RT, 
+void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *__restrict__ RT, 
 		       observation<N_EMISSIONS> *obs,
 		       const int n_subsamples = 5)
 {
+
+  if (threadIdx.x==0 && blockIdx.x==0)
+    printf("size of RT grid: %i\n",(int) sizeof(*RT));
+    
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
-  
+
+  //shared objects for each thread to do the calculation with lower
+  //memory latency
+  __shared__ Real emission_g_factors[N_EMISSIONS];
+  if (threadIdx.x < N_EMISSIONS)   
+    emission_g_factors[threadIdx.x] = obs->emission_g_factors[threadIdx.x];
+  __syncthreads();
+  __shared__ atmo_vector obs_vecs[brightness_blockSize];
+  __shared__ brightness_tracker<N_EMISSIONS> los[brightness_blockSize];
+  los[threadIdx.x].init();
+
   for (int i_obs = index; i_obs < obs->size(); i_obs += stride) {
     // if (blockIdx.x==0 && threadIdx.x==0) {
     //   printf("Hello from block %d, thread %d: i_obs = %d, RT->emissions[0].species_density[0] = %d\n",
     // 	     blockIdx.x, threadIdx.x, i_obs, RT->emissions[0].species_density.vec[0]);
     // }
-    RT->brightness(obs->get_vec(i_obs),obs->emission_g_factors,
-    		   obs->los[i_obs],
-    		   n_subsamples);
+
+    obs_vecs[threadIdx.x] = obs->get_vec(i_obs);
+    los[threadIdx.x] = obs->los[i_obs];
+
+    RT->brightness(obs_vecs[threadIdx.x],
+		   emission_g_factors,
+		   los[threadIdx.x],
+		   n_subsamples);
+
+    obs->los[i_obs] = los[threadIdx.x];
   }
 }
 
@@ -87,17 +110,17 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n
   obs.to_device();
 
   //run kernel on GPU
-  int blockSize = 32;
-  int numBlocks = (obs.size() + blockSize - 1) / blockSize;
+  int numBlocks = (obs.size() + brightness_blockSize - 1) / brightness_blockSize;
   
   my_clock kernel_clk;
   kernel_clk.start();
   
   brightness_kernel<N_EMISSIONS,
   		    grid_type,
-  		    influence_type><<<numBlocks,blockSize>>>(d_RT,
-							     obs.d_obs,
-  							     n_subsamples);
+  		    influence_type><<<numBlocks,
+                                      brightness_blockSize>>>(d_RT,
+							      obs.d_obs,
+							      n_subsamples);
   
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
@@ -134,12 +157,15 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
 
   __syncthreads();
 
-  //initialize objects
+  //initialize objects 
   atmo_vector vec;
   influence_tracker<N_EMISSIONS,grid_type::n_voxels> temp_influence;
+  temp_influence.init();
+  //placing these in shared memory may speed up the calculation, but
+  //temp_influence is large and a 40x20x6x12 grid won't fit in the 48kB shared buffer
 
   //integrate
-  vec = atmo_vector(RT->grid.voxels[i_vox].pt, RT->grid.rays[i_ray]);
+  vec.ptray(RT->grid.voxels[i_vox].pt, RT->grid.rays[i_ray]);
   temp_influence.reset(RT->emissions, i_vox);
   RT->voxel_traverse(vec,
   		     &RT_grid<N_EMISSIONS,grid_type,influence_type>::influence_update,
@@ -150,6 +176,11 @@ void influence_kernel(RT_grid<N_EMISSIONS,grid_type,influence_type> *RT)
   // reduce temp_influence across the thread block
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
     for (int j_vox_index = threadIdx.x; j_vox_index < grid_type::n_voxels+threadIdx.x; j_vox_index++) {
+      //explanation for the iteration above: we need to add all
+      //computed influence coefficients in each column for each
+      //thread. This starts each thread off at a different column to
+      //prevent collisions and wraps around at the end to make sure
+      //everything is caught
       int j_vox = j_vox_index % grid_type::n_voxels;
       RT->emissions[i_emission].influence_matrix(i_vox,j_vox) += temp_influence.influence[i_emission][j_vox];
       __syncthreads();
@@ -228,7 +259,7 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::solve_emission_gpu(emission<
   // 1) emiss.influence_matrix represents the kernel, not the influence matrix
   // 2) emiss.influence_matrix is in COLUMN-MAJOR order
   // 3) emiss.sourcefn = emiss.singlescat (solution is found in-place)
-  
+
   cusolverDnHandle_t cusolverH = NULL;
 
   cudaStream_t stream = NULL;
@@ -310,6 +341,14 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::solve_emission_gpu(emission<
   assert(CUSOLVER_STATUS_SUCCESS == status);
   assert(cudaSuccess == cudaStat1);
 
+#ifdef NDEBUG
+  //check errors since the assert statements are missing
+  if (status != CUSOLVER_STATUS_SUCCESS)
+    printf("status not successful in CUDA solve\n");
+  checkCudaErrors(cudaStat1);
+  checkCudaErrors(cudaStat2);
+#endif
+  
   /* free resources */
   if (d_Ipiv ) cudaFree(d_Ipiv);
   if (d_info ) cudaFree(d_info);
@@ -434,12 +473,12 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::solve_gpu() {
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
 
-  //define log_sourcefn
-  get_log_sourcefn<N_EMISSIONS,
-		   grid_type,
-		   influence_type><<<numBlocks,blockSize>>>(d_RT);
+  // //define log_sourcefn
+  // get_log_sourcefn<N_EMISSIONS,
+  // 		   grid_type,
+  // 		   influence_type><<<numBlocks,blockSize>>>(d_RT);
 
-  checkCudaErrors( cudaPeekAtLastError() );
-  checkCudaErrors( cudaDeviceSynchronize() );
+  // checkCudaErrors( cudaPeekAtLastError() );
+  // checkCudaErrors( cudaDeviceSynchronize() );
 
 }

@@ -55,21 +55,97 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
   int n_pts[parent_grid::n_dimensions] = {n_radial_boundaries-1,n_sza_boundaries-1};
 
-  static const int n_theta = N_RAY_THETA;
-  Real ray_theta[n_theta];
-  static const int n_phi = N_RAY_PHI;
-  Real ray_phi[n_phi];
 
   int raymethod_theta;
   static const int raymethod_theta_gauss = 0;
   static const int raymethod_theta_uniform = 1;
      
+  static const int n_theta = N_RAY_THETA;
+  Real ray_theta[n_theta];
+  static const int n_phi = N_RAY_PHI;
+  Real ray_phi[n_phi];
+
   spherical_azimuthally_symmetric_grid()
   {
     rmethod = rmethod_altitude;
     szamethod = szamethod_uniform;
     raymethod_theta = raymethod_theta_gauss;
   }
+
+  // spherical_azimuthally_symmetric_grid
+  // (const spherical_azimuthally_symmetric_grid<N_RADIAL_BOUNDARIES,
+  //                                             N_SZA_BOUNDARIES,
+  // 				              N_RAY_THETA,
+  // 				              N_RAY_PHI> &copy) {
+  //   rmethod = copy.rmethod;
+  //   for (int ir=0; ir<n_radial_boundaries-1; ir++) {
+  //     pts_radii[ir] = copy.pts_radii[ir];
+  //     log_pts_radii[ir] = copy.log_pts_radii[ir];
+  //     radial_boundaries[ir] = copy.radial_boundaries[ir];
+  //     radial_boundary_spheres[ir] = copy.radial_boundary_spheres[ir];
+  //   }
+  //   radial_boundaries[n_radial_boundaries-1] = copy.radial_boundaries[n_radial_boundaries-1];
+  //   radial_boundary_spheres[n_radial_boundaries-1] = copy.radial_boundary_spheres[n_radial_boundaries-1];
+
+  //   szamethod = copy.szamethod;
+  //   for (int isza=0; isza<n_sza_boundaries-1; isza++) {
+  //     pts_sza[isza] = copy.pts_sza[isza];
+  //     sza_boundaries[isza] = copy.sza_boundaries[isza];
+  //     sza_boundary_cones[isza] = copy.sza_boundary_cones[isza];
+  //   }
+  //   sza_boundaries[n_sza_boundaries-1] = copy.sza_boundaries[n_sza_boundaries-1];
+  //   sza_boundary_cones[n_sza_boundaries-1] = copy.sza_boundary_cones[n_sza_boundaries-1];
+
+  //   n_pts[0] = copy.n_pts[0];
+  //   n_pts[1] = copy.n_pts[1];
+
+  //   for (int it=0;it<n_theta;it++)
+  //     ray_theta[it] = copy.ray_theta[it];
+  //   raymethod_theta = copy.raymethod_theta;
+    
+  //   for (int ip=0;ip<n_phi;ip++)
+  //     ray_phi[ip] = copy.ray_phi[ip];
+  // }
+  // CUDA_CALLABLE_MEMBER
+  // spherical_azimuthally_symmetric_grid& operator=
+  // (const spherical_azimuthally_symmetric_grid<N_RADIAL_BOUNDARIES,
+  //                                             N_SZA_BOUNDARIES,
+  // 				              N_RAY_THETA,
+  // 				              N_RAY_PHI> &rhs) {
+  //   if(this == &rhs) return *this;
+
+  //   rmethod = rhs.rmethod;
+  //   for (int ir=0; ir<n_radial_boundaries-1; ir++) {
+  //     pts_radii[ir] = rhs.pts_radii[ir];
+  //     log_pts_radii[ir] = rhs.log_pts_radii[ir];
+  //     radial_boundaries[ir] = rhs.radial_boundaries[ir];
+  //     radial_boundary_spheres[ir] = rhs.radial_boundary_spheres[ir];
+  //   }
+  //   radial_boundaries[n_radial_boundaries-1] = rhs.radial_boundaries[n_radial_boundaries-1];
+  //   radial_boundary_spheres[n_radial_boundaries-1] = rhs.radial_boundary_spheres[n_radial_boundaries-1];
+
+  //   szamethod = rhs.szamethod;
+  //   for (int isza=0; isza<n_sza_boundaries-1; isza++) {
+  //     pts_sza[isza] = rhs.pts_sza[isza];
+  //     sza_boundaries[isza] = rhs.sza_boundaries[isza];
+  //     sza_boundary_cones[isza] = rhs.sza_boundary_cones[isza];
+  //   }
+  //   sza_boundaries[n_sza_boundaries-1] = rhs.sza_boundaries[n_sza_boundaries-1];
+  //   sza_boundary_cones[n_sza_boundaries-1] = rhs.sza_boundary_cones[n_sza_boundaries-1];
+
+  //   n_pts[0] = rhs.n_pts[0];
+  //   n_pts[1] = rhs.n_pts[1];
+
+  //   for (int it=0;it<n_theta;it++)
+  //     ray_theta[it] = rhs.ray_theta[it];
+  //   raymethod_theta = rhs.raymethod_theta;
+    
+  //   for (int ip=0;ip<n_phi;ip++)
+  //     ray_phi[ip] = rhs.ray_phi[ip];
+
+  //   return *this;
+  // }
+  
 
   void setup_voxels(const atmosphere &atm) {
     this->rmin = atm.rmin;
@@ -152,7 +228,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 	this->voxels[i_voxel].pbounds[0] = 0;
 	this->voxels[i_voxel].pbounds[1] = 2*pi;
 	this->voxels[i_voxel].i_voxel = i_voxel;
-	this->voxels[i_voxel].init = true;
+	// this->voxels[i_voxel].init = true;
 
 	this->voxels[i_voxel].pt.rtp(pts_radii[i], pts_sza[j],0.);
 	this->voxels[i_voxel].pt.set_voxel_index(i_voxel);
@@ -310,7 +386,8 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
   CUDA_CALLABLE_MEMBER 
   void interp_weights(const int &ivoxel, const atmo_point &ptt,
-		      int (&indices)[parent_grid::n_interp_points], Real (&weights)[parent_grid::n_interp_points]) const {
+		      int (&indices)[parent_grid::n_interp_points],
+		      Real (&weights)[parent_grid::n_interp_points]) const {
     // n_interp_points = 4, because this is a 2d grid with linear interpolation
 
     atmo_point pt = ptt;

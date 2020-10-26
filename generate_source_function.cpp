@@ -52,6 +52,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   RT_grid<n_emissions,
 	  grid_type,
 	  influence_function> RT(emission_names);
+  std::cout << "size of RT grid: " << sizeof(RT) << "\n";
 
   //RT.grid.rmethod = RT.grid.rmethod_altitude;
   RT.grid.rmethod = RT.grid.rmethod_log_n_species;

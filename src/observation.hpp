@@ -49,7 +49,7 @@ protected:
 
     atmo_point pt;
     pt.xyz(loc_model[0],loc_model[1],loc_model[2]);
-    obs_vecs[i] = atmo_vector(pt, dir_model[0], dir_model[1], dir_model[2]);
+    obs_vecs[i].ptxyz(pt, dir_model[0], dir_model[1], dir_model[2]);
   }
 
   void resize_input(int n_obss) {
@@ -105,6 +105,8 @@ public:
   
   void reset_output() {
     los.resize(n_obs,brightness_tracker<n_emissions>());
+    for (int i_obs=0;i_obs<n_obs;i_obs++)
+      los[i_obs].init();
   }
 
   void add_MSO_observation(const vector<vector<Real>> &locations, const vector<vector<Real>> &directions) {
@@ -167,7 +169,7 @@ public:
 	int iobs = i*nsamples+j;
 	
 	//direction_model[iobs] = {dir[0], dir[1], dir[2]};
-	obs_vecs[iobs] = atmo_vector(pt, dir[0], dir[1], dir[2]);
+	obs_vecs[iobs].ptxyz(pt, dir[0], dir[1], dir[2]);
       }
     }
 

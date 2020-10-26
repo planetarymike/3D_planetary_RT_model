@@ -52,15 +52,18 @@ public:
   Real holstein_T_int;//integral across current voxel
   Real holstein_G_int;//integral across current voxel
   
-  CUDA_CALLABLE_MEMBER
-  lineshape_tracker();
-  CUDA_CALLABLE_MEMBER
-  ~lineshape_tracker();
-  CUDA_CALLABLE_MEMBER
-  lineshape_tracker(const lineshape_tracker &copy);
-  CUDA_CALLABLE_MEMBER
-  lineshape_tracker& operator=(const lineshape_tracker &rhs);
+  // CUDA_CALLABLE_MEMBER
+  // lineshape_tracker();
+  // CUDA_CALLABLE_MEMBER
+  // ~lineshape_tracker();
+  // CUDA_CALLABLE_MEMBER
+  // lineshape_tracker(const lineshape_tracker &copy);
+  // CUDA_CALLABLE_MEMBER
+  // lineshape_tracker& operator=(const lineshape_tracker &rhs);
 
+  CUDA_CALLABLE_MEMBER
+  void init();
+  
   CUDA_CALLABLE_MEMBER
   void reset(const Real &T, const Real &T_ref);
 

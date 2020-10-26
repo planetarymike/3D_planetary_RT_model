@@ -30,7 +30,7 @@ struct RT_grid {
 
   //need to refactor so this lives inside each emission
   //the influence function
-  influence_type transmission;
+  //influence_type transmission;
 
   //initialization parameters
   bool all_emissions_init;
@@ -47,6 +47,25 @@ struct RT_grid {
   void emissions_solved_to_host();
   
   RT_grid() : all_emissions_init(false) { }
+
+  // RT_grid(const RT_grid<N_EMISSIONS,grid_type,influence_type> &copy) {
+  //   for (int i_emission=0;i_emission<n_emissions;i_emission++)
+  //     emissions[i_emission] = copy.emissions[i_emission];
+  //   grid = copy.grid;
+  //   all_emissions_init = copy.all_emissions_init;
+  // }
+  // CUDA_CALLABLE_MEMBER
+  // RT_grid& operator=(const RT_grid<N_EMISSIONS,grid_type,influence_type> &rhs) {
+  //   if(this == &rhs) return *this;
+
+  //   for (int i_emission=0;i_emission<n_emissions;i_emission++)
+  //     emissions[i_emission] = rhs.emissions[i_emission];
+  //   grid = rhs.grid;
+  //   all_emissions_init = rhs.all_emissions_init;
+
+  //   return *this;
+  // }
+
   
   RT_grid(const string (&emission_names)[n_emissions]) : RT_grid()
   {
@@ -175,7 +194,8 @@ struct RT_grid {
 	emissions[i_emission].singlescat(pt.i_voxel)=0.0;
       }
     } else {
-      atmo_vector vec = atmo_vector(pt, grid.sun_direction);
+      atmo_vector vec;
+      vec.ptvec(pt, grid.sun_direction);
       voxel_traverse(vec,
 		     &RT_grid::get_single_scattering_optical_depths,
 		     temp_influence);
@@ -226,8 +246,8 @@ struct RT_grid {
       // std::cout << "  Scattering up to order: " << it << " included.\n";
       // std::cout << "  Error at final order is: " << err << " .\n";
       
-      for (int i=0;i<grid.n_voxels;i++)
-	emissions[i_emission].log_sourcefn(i) = emissions[i_emission].sourcefn(i) == 0 ? -1e5 : log(emissions[i_emission].sourcefn(i));
+      // for (int i=0;i<grid.n_voxels;i++)
+      // 	emissions[i_emission].log_sourcefn(i) = emissions[i_emission].sourcefn(i) == 0 ? -1e5 : log(emissions[i_emission].sourcefn(i));
       emissions[i_emission].solved=true;
     }
   }
@@ -249,6 +269,7 @@ struct RT_grid {
     
     atmo_vector vec;
     influence_tracker<n_emissions,grid_type::n_voxels> temp_influence;
+    temp_influence.init();
     Real max_tau_species = 0;
   
 #pragma omp parallel for firstprivate(vec,temp_influence) shared(max_tau_species,std::cout) default(none)
@@ -257,7 +278,7 @@ struct RT_grid {
     
       //now integrate outward along the ray grid:
       for (int i_ray=0; i_ray < grid.n_rays; i_ray++) {
-	vec = atmo_vector(grid.voxels[i_vox].pt, grid.rays[i_ray]);
+	vec.ptray(grid.voxels[i_vox].pt, grid.rays[i_ray]);
 	omega += vec.ray.domega;
 
 	temp_influence.reset(emissions, i_vox);

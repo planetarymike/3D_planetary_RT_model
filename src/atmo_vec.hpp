@@ -12,16 +12,16 @@ struct atmo_point {
   Real x, y, z;
   Real r, t, p;
   int i_voxel; //voxel index to which this point belongs
-  bool init;
+  // bool init;
 
-  CUDA_CALLABLE_MEMBER
-  atmo_point();
-  CUDA_CALLABLE_MEMBER
-  ~atmo_point();
-  CUDA_CALLABLE_MEMBER
-  atmo_point(const atmo_point &copy);
-  CUDA_CALLABLE_MEMBER
-  atmo_point & operator=(const atmo_point &rhs);
+  // CUDA_CALLABLE_MEMBER
+  // atmo_point();
+  // CUDA_CALLABLE_MEMBER
+  // ~atmo_point();
+  // CUDA_CALLABLE_MEMBER
+  // atmo_point(const atmo_point &copy);
+  // CUDA_CALLABLE_MEMBER
+  // atmo_point & operator=(const atmo_point &rhs);
 
   CUDA_CALLABLE_MEMBER
   void rtp(const Real &rr, const Real &tt, const Real &pp);
@@ -43,7 +43,7 @@ struct atmo_voxel {
   Real pbounds[2];
 
   int i_voxel; //voxel index to which this point belongs
-  bool init;
+  // bool init;
 
   atmo_point pt;
   //atmo_point influence_pt;
@@ -67,16 +67,16 @@ struct atmo_ray {
   int i_ray; //ray index, if the ray comes from the grid
   Real domega; //solid angle belonging to this ray, if on grid; if not on a grid, 1.0 
 
-  bool init;
+  // bool init;
 
-  CUDA_CALLABLE_MEMBER
-  atmo_ray();
-  CUDA_CALLABLE_MEMBER
-  ~atmo_ray();
-  CUDA_CALLABLE_MEMBER
-  atmo_ray(const atmo_ray &copy);
-  CUDA_CALLABLE_MEMBER
-  atmo_ray & operator=(const atmo_ray &rhs);
+  // CUDA_CALLABLE_MEMBER
+  // atmo_ray();
+  // CUDA_CALLABLE_MEMBER
+  // ~atmo_ray();
+  // CUDA_CALLABLE_MEMBER
+  // atmo_ray(const atmo_ray &copy);
+  // CUDA_CALLABLE_MEMBER
+  // atmo_ray & operator=(const atmo_ray &rhs);
 
   CUDA_CALLABLE_MEMBER
   void tp(const Real &tt, const Real &pp);
@@ -92,23 +92,23 @@ struct atmo_vector {
   atmo_ray ray;
   
   Real line_x, line_y, line_z;//cartesian vector elements 
-  bool init;
+  // bool init;
+
+  // CUDA_CALLABLE_MEMBER
+  // atmo_vector(); 
+  // CUDA_CALLABLE_MEMBER
+  // ~atmo_vector();
+  // CUDA_CALLABLE_MEMBER
+  // atmo_vector(const atmo_vector &copy);
+  // CUDA_CALLABLE_MEMBER
+  // atmo_vector & operator=(const atmo_vector &rhs);
 
   CUDA_CALLABLE_MEMBER
-  atmo_vector(); 
+  void ptray(atmo_point &ptt, atmo_ray &rayy);
   CUDA_CALLABLE_MEMBER
-  ~atmo_vector();
+  void ptvec(const atmo_point &ptt, const Real (&vec)[3]);
   CUDA_CALLABLE_MEMBER
-  atmo_vector(const atmo_vector &copy);
-  CUDA_CALLABLE_MEMBER
-  atmo_vector & operator=(const atmo_vector &rhs);
-
-  CUDA_CALLABLE_MEMBER
-  atmo_vector(atmo_point ptt, atmo_ray rayy);
-  CUDA_CALLABLE_MEMBER
-  atmo_vector(const atmo_point &ptt, const Real (&vec)[3]);
-  CUDA_CALLABLE_MEMBER
-  atmo_vector(const atmo_point &ptt, const Real &line_xx, const Real &line_yy, const Real &line_zz);
+  void ptxyz(const atmo_point &ptt, const Real &line_xx, const Real &line_yy, const Real &line_zz);
 
   CUDA_CALLABLE_MEMBER
   atmo_point extend(const Real &dist) const;
