@@ -530,8 +530,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 		 <<      sza_slice(
 
 				   emissions[i_emission].species_sigma_T_ref
-				   *std::sqrt(emissions[i_emission].species_T_ref)
-				   /emissions[i_emission].species_T.array().sqrt()
+				   *emissions[i_emission].species_T_ratio.array().sqrt()
 				   
 				   ,j).transpose() << "\n"
 

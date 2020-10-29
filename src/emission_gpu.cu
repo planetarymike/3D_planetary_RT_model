@@ -38,7 +38,7 @@ void emission<N_VOXELS>::matrix_to_device(voxel_matrix<N_VOXELS> & device_mat,
 
 template <int N_VOXELS>
 void emission<N_VOXELS>::copy_to_device_influence(emission<N_VOXELS> *device_emission) {
-  vector_to_device(device_emission->species_T, species_T);
+  vector_to_device(device_emission->species_T_ratio, species_T_ratio);
 
   vector_to_device(device_emission->dtau_species, dtau_species);
   vector_to_device(device_emission->dtau_absorber, dtau_absorber);
@@ -56,7 +56,7 @@ void emission<N_VOXELS>::copy_to_device_influence(emission<N_VOXELS> *device_emi
 template <int N_VOXELS>
 void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_emission) {
   //free some of the influnce stuff if we used it
-  species_T.free_d_vec();
+  species_T_ratio.free_d_vec();
   dtau_species.free_d_vec();
   dtau_absorber.free_d_vec();
   abs.free_d_vec();
@@ -69,7 +69,7 @@ void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_em
   //  vector_to_device(device_emission->log_dtau_species, log_dtau_species);
   vector_to_device(device_emission->dtau_species_pt, dtau_species_pt);
   //  vector_to_device(device_emission->log_dtau_species_pt, log_dtau_species_pt);
-  vector_to_device(device_emission->species_T_pt, species_T_pt);  
+  vector_to_device(device_emission->species_T_ratio_pt, species_T_ratio_pt);  
 
 
   //  vector_to_device(device_emission->dtau_absorber, dtau_absorber);
@@ -82,31 +82,6 @@ void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_em
   vector_to_device(device_emission->sourcefn, sourcefn); 
   //  vector_to_device(device_emission->log_sourcefn, log_sourcefn); 
 }
-
-#ifdef __CUDACC__
-template <int N_VOXELS>
-__device__
-void emission<N_VOXELS>::copy_to_shared_brightness() {
-  //move important parameters to shared memory
-  dtau_species.to_shared();
-  dtau_species_pt.to_shared();
-  species_T_pt.to_shared();
-  abs_pt.to_shared();
-  sourcefn.to_shared();
-}
-
-template <int N_VOXELS>
-__device__
-void emission<N_VOXELS>::from_shared_brightness() {
-  //move important parameters to shared memory
-  dtau_species.from_shared();
-  dtau_species_pt.from_shared();
-  species_T_pt.from_shared();
-  abs_pt.from_shared();
-  sourcefn.from_shared();
-}
-#endif
-
 
 template <int N_VOXELS>
 void emission<N_VOXELS>::copy_influence_to_host() {

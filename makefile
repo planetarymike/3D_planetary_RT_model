@@ -36,7 +36,7 @@ NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
       -I$(CUDA_HOME)/samples/common/inc/
 NLIBS=-lm -lcudart -lcusolver -lcublas
-NOBASEFLAGS= -O3 -DNDEBUG -lineinfo #--maxrregcount 64 -arch sm_61 --use_fast_math 
+NOBASEFLAGS= -O3 -DNDEBUG -lineinfo -arch sm_61 --use_fast_math #--maxrregcount 64 
 # if we are CUDA 11, link time optimization is possible
 ifeq ($(shell cat $$CUDA_HOME/version.txt | awk '{split($$3,a,"."); print a[1]}'),11)
 #$(info Using CUDA 11 link time optimization)

@@ -60,7 +60,6 @@ void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *__re
 		       observation<N_EMISSIONS> *obs,
 		       const int n_subsamples = 5)
 {
-
   if (threadIdx.x==0 && blockIdx.x==0)
     printf("size of RT grid: %i\n",(int) sizeof(*RT));
     
@@ -99,7 +98,8 @@ template<int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n_emissions> &obs, const int n_subsamples/*=5*/) {
   cudaSetDevice(0);
   cudaFree(0);
-
+  //  checkCudaErrors(cudaDeviceSetCacheConfig(cudaFuncCachePreferShared));//doesn't help speed things up
+  
   my_clock clk;
   clk.start();
 

@@ -284,7 +284,7 @@ struct RT_grid {
 	temp_influence.reset(emissions, i_vox);
 	voxel_traverse(vec, &RT_grid::influence_update, temp_influence);
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	  double rowsum = 0.0;
+	  Real rowsum = 0.0;
 	  for (int j_vox = 0; j_vox < grid.n_voxels; j_vox++) {
 	    emissions[i_emission].influence_matrix(i_vox,j_vox) += temp_influence.influence[i_emission][j_vox];
 	    rowsum += emissions[i_emission].influence_matrix(i_vox,j_vox);
@@ -349,17 +349,16 @@ struct RT_grid {
     grid.interp_weights(ivoxel,pt,indices,weights);
     
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      retval.dtau_species_interp[i_emission]  = interp_array(indices, weights,
-							     emissions[i_emission].dtau_species_pt);
-      retval.species_T_interp[i_emission]     = interp_array(indices, weights,
-							     emissions[i_emission].species_T_pt);
-      retval.dtau_absorber_interp[i_emission] = interp_array(indices, weights,
-							     emissions[i_emission].dtau_absorber_pt);
-      retval.abs_interp[i_emission]           = interp_array(indices, weights,
-							     emissions[i_emission].abs_pt);
-      
-      retval.sourcefn_interp[i_emission]      = interp_array(indices, weights,
-							     emissions[i_emission].sourcefn);
+      retval.dtau_species_interp[i_emission]    = interp_array(indices, weights,
+							       emissions[i_emission].dtau_species_pt);
+      retval.species_T_ratio_interp[i_emission] = interp_array(indices, weights,
+							       emissions[i_emission].species_T_ratio_pt);
+      retval.dtau_absorber_interp[i_emission]   = interp_array(indices, weights,
+							       emissions[i_emission].dtau_absorber_pt);
+      retval.abs_interp[i_emission]             = interp_array(indices, weights,
+							       emissions[i_emission].abs_pt);
+      retval.sourcefn_interp[i_emission]        = interp_array(indices, weights,
+							       emissions[i_emission].sourcefn);
     }
   }
   
@@ -374,7 +373,7 @@ struct RT_grid {
 				  grid_type::n_max_intersections> stepper;
     grid.ray_voxel_intersections(vec, stepper);
 
-    los.reset(emissions);
+    los.reset();
 
     atmo_point pt;
     interpolated_values<n_emissions> interp_vals;
@@ -409,27 +408,27 @@ struct RT_grid {
 	}
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 
-	  Real dtau_species_temp, species_T_temp;
+	  Real dtau_species_temp, species_T_ratio_temp;
 	  Real dtau_absorber_temp, abs_temp;
 	  Real sourcefn_temp;
 	  
 	  if (n_subsamples == 0) {
-	    dtau_species_temp  = emissions[i_emission].dtau_species[current_voxel];
-	    species_T_temp     = emissions[i_emission].species_T[current_voxel];
-	    dtau_absorber_temp = emissions[i_emission].dtau_absorber[current_voxel];
-	    abs_temp           = emissions[i_emission].abs[current_voxel];
-	    sourcefn_temp      = emissions[i_emission].sourcefn[current_voxel];
+	    dtau_species_temp    = emissions[i_emission].dtau_species[current_voxel];
+	    species_T_ratio_temp = emissions[i_emission].species_T_ratio[current_voxel];
+	    dtau_absorber_temp   = emissions[i_emission].dtau_absorber[current_voxel];
+	    abs_temp             = emissions[i_emission].abs[current_voxel];
+	    sourcefn_temp        = emissions[i_emission].sourcefn[current_voxel];
 	  } else {
-	    dtau_species_temp  = interp_vals.dtau_species_interp[i_emission];
-	    species_T_temp     = interp_vals.species_T_interp[i_emission];
-	    dtau_absorber_temp = interp_vals.dtau_absorber_interp[i_emission];
-	    abs_temp           = interp_vals.abs_interp[i_emission];
-	    sourcefn_temp      = interp_vals.sourcefn_interp[i_emission];
+	    dtau_species_temp    = interp_vals.dtau_species_interp[i_emission];
+	    species_T_ratio_temp = interp_vals.species_T_ratio_interp[i_emission];
+	    dtau_absorber_temp   = interp_vals.dtau_absorber_interp[i_emission];
+	    abs_temp             = interp_vals.abs_interp[i_emission];
+	    sourcefn_temp        = interp_vals.sourcefn_interp[i_emission];
 	  } 
 
 	  //should really rewrite this whole function to make changes
 	  //to stepper (?) to capture interpolation and use voxel traverse
-	  los.line[i_emission].update_start(species_T_temp, emissions[i_emission].species_T_ref,
+	  los.line[i_emission].update_start(species_T_ratio_temp,
 					    dtau_species_temp,
 					    dtau_absorber_temp,
 					    abs_temp,

@@ -33,8 +33,8 @@ struct emission {
   typedef voxel_matrix<N_VOXELS> vm;
   vv species_density; //average and point densities of species on the grid
   vv species_density_pt;
-  vv species_T; //average and point temperature of species on the grid
-  vv species_T_pt;
+  vv species_T_ratio; //average and point T_ref/T of species on the grid
+  vv species_T_ratio_pt;
   vv dtau_species; // species density * species_sigma_T_ref * sqrt(species_T_ref/species_T) 
   vv dtau_species_pt;
   //  vv log_dtau_species; //in case we want to do interpolation in log space
@@ -140,14 +140,18 @@ struct emission {
 	     && species_density_pt[i_voxel] >= 0
 	     && "densities must be real and positive");
       
+      Real species_T;
+      Real species_T_pt;
       (atmosphere.*species_T_function)(voxels[i_voxel],
-				       species_T[i_voxel],
-				       species_T_pt[i_voxel]);
-      assert(!isnan(species_T[i_voxel])
-	     && species_T[i_voxel] >= 0
+				       species_T,
+				       species_T_pt);
+      species_T_ratio[i_voxel] = species_T_ref/species_T;
+      species_T_ratio_pt[i_voxel] = species_T_ref/species_T_pt;
+      assert(!isnan(species_T_ratio[i_voxel])
+	     && species_T_ratio[i_voxel] >= 0
 	     && "temperatures must be real and positive");
-      assert(!isnan(species_T_pt[i_voxel])
-	     && species_T_pt[i_voxel] >= 0
+      assert(!isnan(species_T_ratio_pt[i_voxel])
+	     && species_T_ratio_pt[i_voxel] >= 0
 	     && "temperatures must be real and positive");
       
       (atmosphere.*absorber_density_function)(voxels[i_voxel],
@@ -161,8 +165,8 @@ struct emission {
 	     && "densities must be real and positive");
       
 
-      absorber_sigma[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T[i_voxel]);
-      absorber_sigma_pt[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T_pt[i_voxel]);
+      absorber_sigma[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T);
+      absorber_sigma_pt[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T_pt);
       assert(!isnan(absorber_sigma[i_voxel])
 	     && absorber_sigma[i_voxel] >= 0
 	     && "cross sections must be real and positive");
@@ -172,8 +176,8 @@ struct emission {
     }
     
     //define differential optical depths by coefficientwise multiplication
-    dtau_species = species_density.array() * species_sigma_T_ref * sqrt(species_T_ref)/species_T.array().sqrt();
-    dtau_species_pt = species_density_pt.array() * species_sigma_T_ref * sqrt(species_T_ref)/species_T_pt.array().sqrt();;
+    dtau_species = species_density.array() * species_sigma_T_ref * species_T_ratio.array().sqrt();
+    dtau_species_pt = species_density_pt.array() * species_sigma_T_ref * species_T_ratio_pt.array().sqrt();;
     dtau_absorber = absorber_density.array() * absorber_sigma.array();
     dtau_absorber_pt = absorber_density_pt.array() * absorber_sigma_pt.array();
     abs = dtau_absorber.array() / dtau_species.array();
@@ -195,11 +199,6 @@ struct emission {
   //methods to transfer objects to device
   void copy_to_device_influence(emission<N_VOXELS> *device_emission);
   void copy_to_device_brightness(emission<N_VOXELS> *device_emission);
-#ifdef __CUDACC__
-  __device__ void copy_to_shared_brightness();
-  __device__ void from_shared_brightness();
-#endif
-
 
   void vector_to_device(vv & device_vec, vv & host_vec, bool transfer = true);
   void matrix_to_device(vm & device_vec, vm & host_vec, bool transfer = true);

@@ -47,16 +47,17 @@ struct tau_tracker {
   template <typename E>
   CUDA_CALLABLE_MEMBER
   void reset(const E (&emissions)[N_EMISS], const int i_voxel) {
+    //set T_ratio_at_origin to the appropriate value for this voxel
+    //used to compute scattering
     for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
-      line[i_emission].reset(emissions[i_emission].species_T[i_voxel],
-			     emissions[i_emission].species_T_ref);
+      line[i_emission].reset(emissions[i_emission].species_T_ratio[i_voxel]);
   }
-  template <typename E>
   CUDA_CALLABLE_MEMBER
-  void reset(const E (&emissions)[N_EMISS]) {
+  void reset() {
+    //used when computing observations, T_at_origin doesn't matter
+    //because we observe the entire line across all wavelengths
     for (int i_emission = 0; i_emission<N_EMISS; i_emission++)
-      line[i_emission].reset(emissions[i_emission].species_T_ref,
-			     emissions[i_emission].species_T_ref);
+      line[i_emission].reset(1.0);
   }
   
   template <typename S, typename E>
@@ -186,10 +187,9 @@ struct brightness_tracker : tau_tracker<N_EMISS> {
       brightness[i_emission]=0;
   }
 
-  template <typename E>
   CUDA_CALLABLE_MEMBER
-  void reset(const E (&emissions)[N_EMISS]) {
-    tau_tracker<N_EMISS>::reset(emissions);
+  void reset() {
+    tau_tracker<N_EMISS>::reset();
     for (int i_emission=0; i_emission < N_EMISS; i_emission++)
       brightness[i_emission]=0;
   }
@@ -201,7 +201,7 @@ template <int N>
 class interpolated_values {
 public:
   Real dtau_species_interp[N];
-  Real species_T_interp[N];
+  Real species_T_ratio_interp[N];
   Real dtau_absorber_interp[N];
   Real abs_interp[N];
   Real sourcefn_interp[N];

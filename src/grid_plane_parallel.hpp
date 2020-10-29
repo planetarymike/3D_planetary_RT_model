@@ -211,8 +211,7 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
 
 	       << "Species cross section [cm2]: "
 	       << (emissions[i_emission].species_sigma_T_ref
-		   *std::sqrt(emissions[i_emission].species_T_ref)
-		   /emissions[i_emission].species_T.array().sqrt()).transpose() << "\n"
+		   *emissions[i_emission].species_T_ratio.array().sqrt()).transpose() << "\n"
 
 	       << "Absorber density [cm-3]: "
 	       << emissions[i_emission].absorber_density.transpose() << "\n"

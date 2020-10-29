@@ -9,6 +9,7 @@
 #ifdef RT_FLOAT
 
 typedef float Real;
+#define REAL(N) (N##f)
 #define ABS 1e-3
 #define STRICTABS 1e-5
 #define CONEABS 1e-2
@@ -16,6 +17,7 @@ typedef float Real;
 #else //default to double
 
 typedef double Real;
+#define REAL(N) (N)
 #define ABS 1e-6
 #define STRICTABS 1e-10
 #define CONEABS ABS
