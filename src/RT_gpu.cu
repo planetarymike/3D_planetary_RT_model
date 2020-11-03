@@ -444,8 +444,10 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::transpose_influence_gpu() {
 
     checkCudaErrors( cudaPeekAtLastError() );
     checkCudaErrors( cudaDeviceSynchronize() );
+
   }
 
+  if (d_transpose) cudaFree(d_transpose);
   cublasDestroy(handle);
 }
 
