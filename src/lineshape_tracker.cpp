@@ -1,4 +1,5 @@
 //lineshape_tracker.cpp --- holstein integrals computed JIT as lines of sight are traversed
+#include "constants.hpp"
 #include "lineshape_tracker.hpp"
 
 // CUDA_CALLABLE_MEMBER
@@ -85,7 +86,7 @@ CUDA_CALLABLE_MEMBER
 Real lineshape_tracker::weight(const int &i_lambda) const {
   Real thisweight = LAMBDA_MAX/(N_LAMBDA-1);
   if (i_lambda==0 || i_lambda==N_LAMBDA-1)
-    thisweight *= 0.5;
+    thisweight *= REAL(0.5);
   return thisweight;
 }
 CUDA_CALLABLE_MEMBER
@@ -133,7 +134,8 @@ void lineshape_tracker::update_start(const Real &T_ratio,
 				     const Real &dtau_species,
 				     const Real &dtau_absorber,
 				     const Real &abs,
-				     const Real &pathlength)
+				     const Real &pathlength,
+				     const bool influence/* = true*/)
 {
   Real tau_species_voxel = dtau_species * pathlength;
   tau_species_final += tau_species_voxel;
@@ -177,16 +179,8 @@ void lineshape_tracker::update_start(const Real &T_ratio,
     Real transfer_probability_lambda_final = (transfer_probability_lambda_initial[i_lambda]
 					      * transfer_probability_lambda_voxel);
 
-    holTcoef = (M_2_SQRTPI * weight(i_lambda));
+    holTcoef = (two_over_sqrt_pi * weight(i_lambda));
     //		/ weightfn[i_lambda]);
-
-    // holstein T final represents a frequency-averaged absorption and
-    // uses lineshape_at_origin
-    holstein_T_final += (holTcoef * lineshape_at_origin *
-                         transfer_probability_lambda_final);
-    assert(!std::isnan(holstein_T_final) && holstein_T_final >= 0 &&
-           holstein_T_final <= 1 &&
-           "holstein function represents a probability");
 
     // holstein_T_int represents a frequency averaged emission and
     // therefore uses lineshape in this voxel
@@ -202,12 +196,22 @@ void lineshape_tracker::update_start(const Real &T_ratio,
            //  ^^ this allows for small rounding errors
            && "holstein integral must be between 0 and Delta tau b/c 0<=HolT<=1");
 
-    // holstein_G_int represents the frequency averaged emission
-    // followed by absorption and uses both lineshape in this voxel
-    //(via holstein_T_int_coef) and the lineshape at origin
-    holstein_G_int += holstein_T_int_coef * lineshape_at_origin;
-    assert(!std::isnan(holstein_G_int) && holstein_G_int >= 0 && holstein_G_int <= 1 &&
-           "holstein G integral represents a probability");
+    if (influence) {
+      // holstein T final represents a frequency-averaged absorption and
+      // uses lineshape_at_origin
+      holstein_T_final += (holTcoef * lineshape_at_origin *
+			   transfer_probability_lambda_final);
+      assert(!std::isnan(holstein_T_final) && holstein_T_final >= 0 &&
+	     holstein_T_final <= 1 &&
+	     "holstein function represents a probability");
+
+      // holstein_G_int represents the frequency averaged emission
+      // followed by absorption and uses both lineshape in this voxel
+      //(via holstein_T_int_coef) and the lineshape at origin
+      holstein_G_int += holstein_T_int_coef * lineshape_at_origin;
+      assert(!std::isnan(holstein_G_int) && holstein_G_int >= 0 && holstein_G_int <= 1 &&
+	     "holstein G integral represents a probability");
+    }
 
     //update the initial values
     //tau_species_lambda_initial[i_lambda] = tau_species_lambda_final;
@@ -221,6 +225,20 @@ void lineshape_tracker::update_start(const Real &T_ratio,
     holstein_T_int = tau_species_voxel; //we don't need to worry about
 					//big rounding errors here
 					//because we checked earlier
+}
+CUDA_CALLABLE_MEMBER
+void lineshape_tracker::update_start_brightness(const Real &T_ratio,
+						const Real &dtau_species,
+						const Real &dtau_absorber,
+						const Real &abs,
+						const Real &pathlength)
+{
+  update_start(T_ratio,
+	       dtau_species,
+	       dtau_absorber,
+	       abs,
+	       pathlength,
+	       /*influence = */false);
 }
 
 CUDA_CALLABLE_MEMBER

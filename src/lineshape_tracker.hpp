@@ -12,7 +12,7 @@
 //#define SHIZGAL_LAMBDAS shizgal_lambdas_16
 //#define SHIZGAL_WEIGHTS shizgal_weights_16
 
-#define N_LAMBDA 8    //number of wavelengths to sample across line 0-LAMBDA_MAX inclusive
+#define N_LAMBDA 6    //number of wavelengths to sample across line 0-LAMBDA_MAX inclusive
 #define LAMBDA_MAX REAL(4.0) //largest wavelength from line center in normalized (Doppler) width
 
 struct lineshape_tracker {
@@ -97,8 +97,28 @@ public:
 		    const Real &dtau_species,
 		    const Real &dtau_absorber,
 		    const Real &abs,
-		    const Real &pathlength);
+		    const Real &pathlength,
+		    const bool influence = true);
 
+  template <typename S, typename E>
+  CUDA_CALLABLE_MEMBER
+  void update_start_brightness(const S &stepper,
+			       const E &emission) {
+    update_start_brightness(emission.species_T_ratio(stepper.current_voxel),
+		 emission.dtau_species(stepper.current_voxel),
+		 emission.dtau_absorber(stepper.current_voxel),
+		 emission.abs(stepper.current_voxel),
+		 stepper.pathlength);
+  }
+  
+
+  CUDA_CALLABLE_MEMBER
+  void update_start_brightness(const Real &T_ratio,
+		    const Real &dtau_species,
+		    const Real &dtau_absorber,
+		    const Real &abs,
+		    const Real &pathlength);
+  
   CUDA_CALLABLE_MEMBER
   void update_end();
 };

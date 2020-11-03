@@ -10,9 +10,9 @@
 
 typedef float Real;
 #define REAL(N) (N##f)
-#define ABS 1e-3
-#define STRICTABS 1e-5
-#define CONEABS 1e-2
+#define ABS REAL(1e-3)
+#define STRICTABS REAL(1e-5)
+#define CONEABS REAL(1e-2)
 
 #else //default to double
 
