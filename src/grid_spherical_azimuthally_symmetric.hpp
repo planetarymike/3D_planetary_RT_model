@@ -460,13 +460,13 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
     
     indices_to_voxel(r_lower_pt_idx, sza_lower_pt_idx, indices[0]);
-    weights[0] =  (1.-r_wt)   *   (1-sza_wt)    ;
+    weights[0] =  (REAL(1.0)-r_wt)   *   (REAL(1.0)-sza_wt)    ;
     
     indices_to_voxel(r_upper_pt_idx, sza_lower_pt_idx, indices[1]);
-    weights[1] =      r_wt    *   (1-sza_wt)    ;
+    weights[1] =      r_wt    *   (REAL(1.0)-sza_wt)    ;
     
     indices_to_voxel(r_lower_pt_idx, sza_upper_pt_idx, indices[2]);
-    weights[2] =  (1.-r_wt)   *      sza_wt     ;
+    weights[2] =  (REAL(1.0)-r_wt)   *      sza_wt     ;
     
     indices_to_voxel(r_upper_pt_idx, sza_upper_pt_idx, indices[3]);
     weights[3] =      r_wt    *      sza_wt     ;
