@@ -393,8 +393,8 @@ struct RT_grid {
 
       //account for small rounding errors in boundary crossings
       const Real eps = ABS;
-      d_start += eps/2.*d_step;
-      d_step *= 1-eps;
+      d_start += REAL(0.5)*eps*d_step;
+      d_step *= REAL(1.0)-eps;
 
       int current_voxel = stepper.boundaries[i_bound-1].entering;
 
@@ -428,11 +428,11 @@ struct RT_grid {
 
 	  //should really rewrite this whole function to make changes
 	  //to stepper (?) to capture interpolation and use voxel traverse
-	  los.line[i_emission].update_start(species_T_ratio_temp,
-					    dtau_species_temp,
-					    dtau_absorber_temp,
-					    abs_temp,
-					    d_step);
+	  los.line[i_emission].update_start_brightness(species_T_ratio_temp,
+						       dtau_species_temp,
+						       dtau_absorber_temp,
+						       abs_temp,
+						       d_step);
 
 	  //bishop formulation
 	  sourcefn_temp = sourcefn_temp*emissions[i_emission].branching_ratio;
@@ -461,7 +461,7 @@ struct RT_grid {
     //convert to kR
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       los.brightness[i_emission] *= emissions[i_emission].branching_ratio;
-      los.brightness[i_emission] *= g[i_emission]/1e9; //megaphoton/cm2/s * 1e-3 = kR, see C&H pg 280-282
+      los.brightness[i_emission] *= g[i_emission]/REAL(1e9); //megaphoton/cm2/s * 1e-3 = kR, see C&H pg 280-282
     }
   }
 
