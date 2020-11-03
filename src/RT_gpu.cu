@@ -67,7 +67,7 @@ void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *__re
   int stride = blockDim.x * gridDim.x;
 
   //shared objects for each thread to do the calculation with lower
-  //memory latency
+  //memory latency --- ~5x speedup
   __shared__ Real emission_g_factors[N_EMISSIONS];
   if (threadIdx.x < N_EMISSIONS)   
     emission_g_factors[threadIdx.x] = obs->emission_g_factors[threadIdx.x];
@@ -76,6 +76,9 @@ void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *__re
   __shared__ brightness_tracker<N_EMISSIONS> los[brightness_blockSize];
   los[threadIdx.x].init();
 
+  // if (threadIdx.x==0 && blockIdx.x==0)
+  //   printf("size of brightness tracker: %i\n",(int) sizeof(los[threadIdx.x]));
+
   for (int i_obs = index; i_obs < obs->size(); i_obs += stride) {
     // if (blockIdx.x==0 && threadIdx.x==0) {
     //   printf("Hello from block %d, thread %d: i_obs = %d, RT->emissions[0].species_density[0] = %d\n",
@@ -83,14 +86,17 @@ void brightness_kernel(const RT_grid<N_EMISSIONS,grid_type,influence_type> *__re
     // }
 
     obs_vecs[threadIdx.x] = obs->get_vec(i_obs);
-    los[threadIdx.x] = obs->los[i_obs];
+    //los[threadIdx.x] = obs->los[i_obs];
 
     RT->brightness(obs_vecs[threadIdx.x],
 		   emission_g_factors,
 		   los[threadIdx.x],
 		   n_subsamples);
 
-    obs->los[i_obs] = los[threadIdx.x];
+    obs->los[i_obs] = los[threadIdx.x];//profiler shows a large number
+				       //of samples here but copying
+				       //only parts of the object back
+				       //doesn't improve speed
   }
 }
 
