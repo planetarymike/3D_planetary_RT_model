@@ -1,4 +1,5 @@
  //atmo_vec.cpp -- basic definitions for points, rays, and vectors
+#include "constants.hpp"
 #include "atmo_vec.hpp"
 
 //atmo_point
@@ -54,7 +55,7 @@ void atmo_point::xyz(const Real &xx, const Real &yy, const Real &zz) {
   t = acos(z/r);
   p = atan2(y,x);
   if (p<0)
-    p+=2*M_PI;//puts the negative values on the right branch [0,2pi]
+    p+=REAL(2.0)*pi;//puts the negative values on the right branch [0,2pi]
   // init=true;
   i_voxel = -1;
 }
@@ -184,7 +185,7 @@ CUDA_CALLABLE_MEMBER
 void atmo_ray::set_ray_index(const int &ii, const Real &twt, const Real &pwt) {
   // if (init) {
   i_ray = ii;
-  domega = twt*pwt/4/M_PI;
+  domega = twt*pwt*REAL(0.25)/pi;
   // }
 }
 
@@ -277,7 +278,7 @@ void atmo_vector::ptxyz(const atmo_point &ptt,
   Real costz = line_z*(pt.z/pt.r);
   
   ray.cost=costx+costy+costz;
-  ray.sint=sqrt(1.0-ray.cost*ray.cost);
+  ray.sint=sqrt(REAL(1.0)-ray.cost*ray.cost);
 
   ray.t=acos(ray.cost);
   ray.p=-1.0;
