@@ -1,13 +1,13 @@
 // things to improve/change in code
 
 
---profile+optimize GPU code (still lots to improve)
+--profile+optimize GPU code (texture memory likely to be last possible big improvement)
   --replacing atmospheric variables (density, cross section, source function) with texture units on device may help
     --these objects would pre-fecth in a volume around the current index, 
     --would need to rewrite device-side voxel_vector interface, adding a texture object
     --texture objects need to know about the grid structure, which is currently not known to emission objects.
     --this would replace linear interpolation with hardware interpolation
-    --need fast coordinate point finders (right now this is done brute force)
+    --need fast coordinate point finders? (right now this is done brute force)
 --remove transmission object; this is superseded by lineshape_tracker
 --fix transmission so that it is specified inside emission;
 --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
@@ -72,4 +72,11 @@ xx--OBSOLETE due to line profile calculation
     incoroporate CO2 absorption in holstein function instead of midpoint approximation 
     (needs 2d holstein interps with absorption)
 xx--compare with pratik brightness values (they match!)
-xx----fix CUDA implementation, brightness + matrix
+xx--fix CUDA implementation, brightness + matrix
+xx--lots of optimization (30 Oct 2020) >10x speedup.
+xx  --reduced memory usage of lineshape_tracker dramatically
+    --switch to shared memory for brightness calc
+    --use-fast-math works now
+    --converted literals to float (3x speedup!)
+    --reduced line samples and wavelength range from 12/5 to 6/4 in lineshape_tracker
+    --separate influence and brightness lineshape_tracker calculation
