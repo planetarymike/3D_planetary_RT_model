@@ -48,6 +48,7 @@ struct atmosphere_average_1d : virtual public atmosphere {
   atmosphere_average_1d();
 
   void setup();
+  void check_integrated(vector<double> &vec, double &diff, int &i_int);
 
   Real ravg(const double &r0, const double &r1,
 	    const double &q0, const double &q1) const;

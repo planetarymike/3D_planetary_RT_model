@@ -1,4 +1,5 @@
 #include "atmosphere_average_1d.hpp"
+#include <iostream>
 using std::vector;
 
 atmosphere_average_1d::atmosphere_average_1d() :  spherical(true), average_init(false) {}
@@ -42,17 +43,33 @@ void atmosphere_average_1d::setup() {
     double r1 = exp(log_r_int[i_int])*r_int_scale+rMars;
     //double dr = r0-r1;
 
-    n_species_int.push_back( (n_species(r1) + n_species(r0))/2.0 * drs + n_species_int.back() );
-    n_species_int_spherical.push_back( (n_species(r1)*r1s*r1s + n_species(r0)*r0s*r0s)/2.0 * drs + n_species_int_spherical.back() );
+    double diff = (n_species(r1) + n_species(r0))/2.0 * drs;
+    n_species_int.push_back( diff + n_species_int.back() );
+    check_integrated(n_species_int, diff, i_int);
 
-    n_absorber_int.push_back( (n_absorber(r1) + n_absorber(r0))/2.0 * drs + n_absorber_int.back() );
-    n_absorber_int_spherical.push_back( (n_absorber(r1)*r1s*r1s + n_absorber(r0)*r0s*r0s)/2.0 * drs + n_absorber_int_spherical.back() );
+    diff = (n_species(r1)*r1s*r1s + n_species(r0)*r0s*r0s)/2.0 * drs;
+    n_species_int_spherical.push_back( diff + n_species_int_spherical.back() );
+    check_integrated(n_species_int_spherical, diff, i_int);
+
+    diff = (n_absorber(r1) + n_absorber(r0))/2.0 * drs;
+    n_absorber_int.push_back( diff + n_absorber_int.back() );
+    check_integrated(n_absorber_int, diff, i_int);
+
+    diff = (n_absorber(r1)*r1s*r1s + n_absorber(r0)*r0s*r0s)/2.0 * drs;
+    n_absorber_int_spherical.push_back( diff + n_absorber_int_spherical.back() );
+    check_integrated(n_absorber_int_spherical, diff, i_int);
 
     double T0 = Temp(r0);
     double T1 = Temp(r1);
 
-    Tint.push_back( (T1 + T0)/2.0 * drs + Tint.back() );
-    Tint_spherical.push_back( (T1*r1s*r1s + T0*r0s*r0s)/2.0 * drs + Tint_spherical.back() );
+    diff = (T1 + T0)/2.0 * drs;
+    Tint.push_back( diff + Tint.back() );
+    check_integrated(Tint, diff, i_int);
+
+    diff = (T1*r1s*r1s + T0*r0s*r0s)/2.0 * drs;
+    Tint_spherical.push_back( diff + Tint_spherical.back() );
+    check_integrated(Tint_spherical, diff, i_int);
+    
   }
   n_species_int_spline = cardinal_cubic_b_spline<double>(n_species_int.rbegin(),
 						       n_species_int.rend(),
@@ -71,6 +88,10 @@ void atmosphere_average_1d::setup() {
   average_init=true;
 }
 
+void atmosphere_average_1d::check_integrated(vector<double> &vec, double &diff, int &i_int) {
+  if (vec[i_int-1]==vec[i_int] && diff!=0)
+    std::cout << "no difference in integrated quantity in atmosphere_average_1d! (may indicate floating point error)" << std::endl;
+}
 
 Real atmosphere_average_1d::ravg(const double &r0, const double &r1,
 				 const double &q0, const double &q1) const {
