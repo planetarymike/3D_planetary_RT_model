@@ -21,6 +21,7 @@ const Real mCO2 = 44 * mH;// gm, mass of CO2 molecule
 
 //mathematical constants
 const Real pi = M_PI;
+const Real two_over_sqrt_pi = M_2_SQRTPI;
 
 //radiative transfer parameters
 const Real lyman_alpha_lambda = 121.6e-7;// cm
