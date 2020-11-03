@@ -151,7 +151,7 @@ public:
 
     Vector3 loc = {0.,-dist,0.};
 
-    Real angle_rad = M_PI/180. * angle_deg;
+    Real angle_rad = pi/180. * angle_deg;
     Real dangle_rad = 2*angle_rad/(nsamples-1);
     
     resize_input(nsamples*nsamples);
