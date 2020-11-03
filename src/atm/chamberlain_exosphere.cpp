@@ -8,9 +8,9 @@ using std::pow;
 #include <boost/math/special_functions/gamma.hpp>
 
 chamberlain_exosphere::chamberlain_exosphere() { }
-chamberlain_exosphere::chamberlain_exosphere(const Real &rexoo,
-					     const Real &Texoo,
-					     const Real &nHexoo)
+chamberlain_exosphere::chamberlain_exosphere(const Real rexoo,
+					     const Real Texoo,
+					     const Real nHexoo)
   : rexo(rexoo), Texo(Texoo), nHexo(nHexoo)
 {
   lambdac = G*mMars*mH/(kB*Texo*rexo);//chamberlain lambda @ rexo
@@ -119,8 +119,8 @@ Temp_converter::Temp_converter(Real rexoo)
   vector<Real> Tvec(T_list,T_list+nT);
   vector<Real> lcvec(lc_list,lc_list+nT);
   vector<Real> effvec(eff_list,eff_list+nT);
-  inv_eff = Linear_interp(effvec,Tvec);
-  inv_lc = Linear_interp(lcvec,Tvec);
+  inv_eff = Linear_interp<Real>(effvec,Tvec);
+  inv_lc = Linear_interp<Real>(lcvec,Tvec);
 }
 
 Real Temp_converter::lc_from_T_exact(const Real T) const {

@@ -19,7 +19,7 @@ void atmosphere_average_1d::setup() {
   
   //integrate from the top of the atmosphere down to minimize floating
   //point subtraction errors
-  Real log_r_int_step = (log((rmax-rMars)/r_int_scale) - log((rmin-rMars)/r_int_scale))/(n_int_steps - 1.);
+  double log_r_int_step = (log((rmax-rMars)/r_int_scale) - log((rmin-rMars)/r_int_scale))/(n_int_steps - 1.);
   log_r_int.push_back(log((rmax-rMars)*(1-ABS)/r_int_scale));
 
   n_species_int.push_back(0);
@@ -34,13 +34,13 @@ void atmosphere_average_1d::setup() {
       log_r_int.back() = log((rmin-rMars)*(1+ABS)/r_int_scale);
 
     //scaled quantities
-    Real r0s = exp(log_r_int[i_int-1])+rMars/r_int_scale;
-    Real r1s = exp(log_r_int[i_int])+rMars/r_int_scale;
-    Real drs = r0s-r1s;
+    double r0s = exp(log_r_int[i_int-1])+rMars/r_int_scale;
+    double r1s = exp(log_r_int[i_int])+rMars/r_int_scale;
+    double drs = r0s-r1s;
     //unscaled quantities
-    Real r0 = exp(log_r_int[i_int-1])*r_int_scale+rMars;
-    Real r1 = exp(log_r_int[i_int])*r_int_scale+rMars;
-    //Real dr = r0-r1;
+    double r0 = exp(log_r_int[i_int-1])*r_int_scale+rMars;
+    double r1 = exp(log_r_int[i_int])*r_int_scale+rMars;
+    //double dr = r0-r1;
 
     n_species_int.push_back( (n_species(r1) + n_species(r0))/2.0 * drs + n_species_int.back() );
     n_species_int_spherical.push_back( (n_species(r1)*r1s*r1s + n_species(r0)*r0s*r0s)/2.0 * drs + n_species_int_spherical.back() );
@@ -48,32 +48,32 @@ void atmosphere_average_1d::setup() {
     n_absorber_int.push_back( (n_absorber(r1) + n_absorber(r0))/2.0 * drs + n_absorber_int.back() );
     n_absorber_int_spherical.push_back( (n_absorber(r1)*r1s*r1s + n_absorber(r0)*r0s*r0s)/2.0 * drs + n_absorber_int_spherical.back() );
 
-    Real T0 = Temp(r0);
-    Real T1 = Temp(r1);
+    double T0 = Temp(r0);
+    double T1 = Temp(r1);
 
     Tint.push_back( (T1 + T0)/2.0 * drs + Tint.back() );
     Tint_spherical.push_back( (T1*r1s*r1s + T0*r0s*r0s)/2.0 * drs + Tint_spherical.back() );
   }
-  n_species_int_spline = cardinal_cubic_b_spline<Real>(n_species_int.rbegin(),
+  n_species_int_spline = cardinal_cubic_b_spline<double>(n_species_int.rbegin(),
 						       n_species_int.rend(),
 						       log_r_int.back(),
 						       log_r_int_step);
-  n_species_int_spline_spherical = cardinal_cubic_b_spline<Real>(n_species_int_spherical.rbegin(),
-								 n_species_int_spherical.rend(),
-								 log_r_int.back(),
-								 log_r_int_step);
-  n_absorber_int_spline = Linear_interp(log_r_int, n_absorber_int);
-  n_absorber_int_spline_spherical = Linear_interp(log_r_int, n_absorber_int_spherical);
+  n_species_int_spline_spherical = cardinal_cubic_b_spline<double>(n_species_int_spherical.rbegin(),
+								   n_species_int_spherical.rend(),
+								   log_r_int.back(),
+								   log_r_int_step);
+  n_absorber_int_spline = Linear_interp<double>(log_r_int, n_absorber_int);
+  n_absorber_int_spline_spherical = Linear_interp<double>(log_r_int, n_absorber_int_spherical);
   
-  Tint_spline = Linear_interp(log_r_int, Tint);
-  Tint_spline_spherical = Linear_interp(log_r_int, Tint_spherical);
+  Tint_spline = Linear_interp<double>(log_r_int, Tint);
+  Tint_spline_spherical = Linear_interp<double>(log_r_int, Tint_spherical);
 
   average_init=true;
 }
 
 
-Real atmosphere_average_1d::ravg(const Real &r0, const Real &r1,
-			 const Real &q0, const Real &q1) const {
+Real atmosphere_average_1d::ravg(const double &r0, const double &r1,
+				 const double &q0, const double &q1) const {
   //compute average values from integral quantities q;
   if (spherical) {
     return -3*( q1 - q0 )/( r1*r1*r1 - r0*r0*r0 );// volume is

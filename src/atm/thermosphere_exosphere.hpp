@@ -42,9 +42,9 @@ struct thermosphere_exosphere : virtual public atmosphere {
   vector<Real> lognHthermosphere;
   vector<Real> r_thermosphere;
   cardinal_cubic_b_spline<Real> lognCO2_thermosphere_spline;
-  Linear_interp invlognCO2_thermosphere;
+  Linear_interp<Real> invlognCO2_thermosphere;
   cardinal_cubic_b_spline<Real> lognH_thermosphere_spline;
-  Linear_interp invlognH_thermosphere;
+  Linear_interp<Real> invlognH_thermosphere;
   
   //exosphere interpolation
   static const int n_exosphere_steps = 40;
@@ -52,7 +52,7 @@ struct thermosphere_exosphere : virtual public atmosphere {
   vector<Real> lognHexosphere;
   vector<Real> logr_exosphere;
   cardinal_cubic_b_spline<Real> lognH_exosphere_spline;
-  Linear_interp invlognH_exosphere;
+  Linear_interp<Real> invlognH_exosphere;
 
   thermosphere_exosphere(Real nHexoo, // a good number is 10^5-6
 			 Real nCO2exoo, //a good number is 10^9 (?)
@@ -66,7 +66,18 @@ struct thermosphere_exosphere : virtual public atmosphere {
 			 Real nCO2exoo, //a good number is 10^9 (?)
 			 temperature &tempp);
 
+  void setup(Real nHexoo, // a good number is 10^5-6
+	     Real nCO2exoo, //a good number is 10^9 (?)
+	     temperature &tempp);
 
+  void setup(Real rminn,
+	     Real rexoo,
+	     Real nHmin,
+	     Real rmindiffusionn,
+	     Real nHexoo, // a good number is 10^5-6
+	     Real nCO2exoo, //a good number is 10^9 (?)
+	     temperature &tempp);
+  
   Real nCO2(const Real &r) const;
   Real n_absorber(const Real &r) const;
 

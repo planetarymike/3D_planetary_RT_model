@@ -22,6 +22,18 @@ struct chamb_diff_1d : public thermosphere_exosphere,
 		Real nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp);
 
+  void setup(Real nHexoo, // a good number is 10^5-6
+	     Real nCO2exoo, //a good number is 10^9 (?)
+	     temperature &tempp);
+  
+  void setup(Real rminn,
+	     Real rexoo,
+	     Real nHmin,
+	     Real rmindiffusionn,
+	     Real nHexoo, // a good number is 10^5-6
+	     Real nCO2exoo, //a good number is 10^9 (?)
+	     temperature &tempp);
+  
   //these functions are shared with tabular_1d
   void nH(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const;
   void nCO2(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const;

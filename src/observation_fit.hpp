@@ -36,8 +36,9 @@ protected:
   
   krasnopolsky_temperature temp;
   const Real CO2_exobase_density = 2e8;//cm-3
-  chamb_diff_1d atm;//make sure to use the same exobase alt as in Tconv
-  chamb_diff_1d_asymmetric atm_asym;//make sure to use the same quantities as in atm
+  //chamb_diff_1d atm;//make sure to use the same exobase alt as in Tconv
+  //chamb_diff_1d_asymmetric atm_asym;//make sure to use the same quantities as in atm
+  H_cross_sections H_cross_section_options;
   tabular_1d atm_tabular;
 
   typedef holstein_approx influence_type;
@@ -99,10 +100,10 @@ public:
 				   bool plane_parallel=false);
 
   template <typename A>
-  void generate_source_function_plane_parallel(const A &atm, const Real &Texo,
+  void generate_source_function_plane_parallel(A &atm, const Real &Texo,
 					       const string sourcefn_fname = "");
   template <typename A>
-  void generate_source_function_sph_azi_sym(const A &atm, const Real &Texo,
+  void generate_source_function_sph_azi_sym(A &atm, const Real &Texo,
 					    const string sourcefn_fname = "");
   
 

@@ -24,20 +24,22 @@ using boost::math::interpolators::cardinal_cubic_b_spline;
 struct atmosphere_average_1d : virtual public atmosphere {
   //integrated quantities to get averages
   static const int n_int_steps = 1000;
-  static const int r_int_scale = 1e8;
-  vector<Real> log_r_int;
-  vector<Real> n_species_int;
-  cardinal_cubic_b_spline<Real> n_species_int_spline;
-  vector<Real> n_species_int_spherical;
-  cardinal_cubic_b_spline<Real> n_species_int_spline_spherical;
-  vector<Real> n_absorber_int;
-  Linear_interp n_absorber_int_spline;
-  vector<Real> n_absorber_int_spherical;
-  Linear_interp n_absorber_int_spline_spherical;
-  vector<Real> Tint;
-  Linear_interp Tint_spline;
-  vector<Real> Tint_spherical;
-  Linear_interp Tint_spline_spherical;
+  static constexpr double r_int_scale = 1e8;
+
+  //use doubles internally or risk losing precision in computing averages
+  vector<double> log_r_int;
+  vector<double> n_species_int;
+  cardinal_cubic_b_spline<double> n_species_int_spline;
+  vector<double> n_species_int_spherical;
+  cardinal_cubic_b_spline<double> n_species_int_spline_spherical;
+  vector<double> n_absorber_int;
+  Linear_interp<double> n_absorber_int_spline;
+  vector<double> n_absorber_int_spherical;
+  Linear_interp<double> n_absorber_int_spline_spherical;
+  vector<double> Tint;
+  Linear_interp<double> Tint_spline;
+  vector<double> Tint_spherical;
+  Linear_interp<double> Tint_spline_spherical;
 
   bool spherical;//whether to compute averages in spherical geometry
 
@@ -47,8 +49,8 @@ struct atmosphere_average_1d : virtual public atmosphere {
 
   void setup();
 
-  Real ravg(const Real &r0, const Real &r1,
-	    const Real &q0, const Real &q1) const;
+  Real ravg(const double &r0, const double &r1,
+	    const double &q0, const double &q1) const;
   
   Real n_absorber_avg(const Real &r0, const Real &r1) const;
   using atmosphere::n_absorber;

@@ -28,6 +28,42 @@ chamb_diff_1d::chamb_diff_1d(Real rminn,
 			   nCO2exoo,
 			   tempp)
 {
+  this->setup(rminn,
+	      rexoo,
+	      nHmin,
+	      rmindiffusionn,
+	      nHexoo,
+	      nCO2exoo,
+	      tempp);
+}
+
+void chamb_diff_1d::setup(Real nHexoo, // a good number is 10^5-6
+			  Real nCO2exoo, //a good number is 10^9 (?)
+			  temperature &tempp)
+{
+  this->setup(/*          rmin = */rMars + 80e5,
+	      /*          rexo = */rexo_typical,
+	      /*         nHmin = */10,
+	      /* rmindiffusion = */rMars + 120e5,
+	      nHexoo,
+	      nCO2exoo,
+	      tempp);
+}
+void chamb_diff_1d::setup(Real rminn,
+			  Real rexoo,
+			  Real nHmin,
+			  Real rmindiffusionn,
+			  Real nHexoo,   // a good number is 10^5-6
+			  Real nCO2exoo, // a good number is 10^9 (?)
+			  temperature &tempp)
+{
+  thermosphere_exosphere::setup(rminn,
+				rexoo,
+				nHmin,
+				rmindiffusionn,
+				nHexoo,
+				nCO2exoo,
+				tempp);
   atmosphere_average_1d::setup();
 }
 

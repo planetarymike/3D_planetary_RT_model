@@ -13,10 +13,10 @@ using std::vector;
 
 struct tabular_atmosphere : virtual public atmosphere {
 protected:
-  Linear_interp log_n_species_spline;
-  Linear_interp inv_log_n_species_spline;
-  Linear_interp Temp_spline;
-  Linear_interp log_n_absorber_spline;
+  Linear_interp<Real> log_n_species_spline;
+  Linear_interp<Real> inv_log_n_species_spline;
+  Linear_interp<Real> Temp_spline;
+  Linear_interp<Real> log_n_absorber_spline;
 
   bool compute_exosphere;
   chamberlain_exosphere exosphere; 

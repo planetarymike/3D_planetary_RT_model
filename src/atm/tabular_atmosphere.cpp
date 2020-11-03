@@ -17,21 +17,21 @@ void tabular_atmosphere::load_log_species_density(const vector<Real> &alt,
 			      log_n_species[i] < log_n_species[i-1]);
   assert(monotonic && "log_n_species must be monotonic and invertible");
   
-  log_n_species_spline = Linear_interp(alt,log_n_species);
-  inv_log_n_species_spline = Linear_interp(log_n_species,alt);
+  log_n_species_spline = Linear_interp<Real>(alt,log_n_species);
+  inv_log_n_species_spline = Linear_interp<Real>(log_n_species,alt);
 
   check_init();
 }
 
 void tabular_atmosphere::load_log_absorber_density(const vector<Real> &alt,
 						   const vector<Real> &log_n_absorber) {
-  log_n_absorber_spline = Linear_interp(alt,log_n_absorber);
+  log_n_absorber_spline = Linear_interp<Real>(alt,log_n_absorber);
   check_init();
 }
 
 void tabular_atmosphere::load_temperature(const vector<Real> &alt,
 					  const vector<Real> &temp) {
-  Temp_spline = Linear_interp(alt,temp);
+  Temp_spline = Linear_interp<Real>(alt,temp);
 
   check_init();
 }

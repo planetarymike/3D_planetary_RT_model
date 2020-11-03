@@ -12,7 +12,7 @@ struct chamberlain_exosphere {
   Real H_escape_flux;
 
   chamberlain_exosphere();
-  chamberlain_exosphere(const Real &rexoo, const Real &Texoo, const Real &nHexoo);
+  chamberlain_exosphere(const Real rexoo, const Real Texoo, const Real nHexoo);
   
   Real nH(const Real r) const;
   Real operator()(Real r) const; //alias for nH
@@ -56,8 +56,8 @@ protected:
   Real eff_list[nT];
   cardinal_cubic_b_spline<Real> eff_spline;
   cardinal_cubic_b_spline<Real> lc_spline;
-  Linear_interp inv_eff;
-  Linear_interp inv_lc;
+  Linear_interp<Real> inv_eff;
+  Linear_interp<Real> inv_lc;
 public:
   Temp_converter(Real rexoo = rexo_typical);
 
