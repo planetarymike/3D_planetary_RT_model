@@ -22,8 +22,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 		    CO2_exobase_density,
 		    temp);
   // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
-  atm.temp_dependent_sH=false;
-  atm.constant_temp_sH=exobase_temp;
+  // atm.temp_dependent_sH=false;
+  // atm.constant_temp_sH=exobase_temp;
   //atm.no_CO2_absorption = true;
   atm.save("test/test_atmosphere.dat");
   
