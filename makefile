@@ -20,7 +20,7 @@ EIGENDIR=-I/home/mike/Documents/Utilities/eigen_git/
 IDIR=-I$(SRCDIR) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
-CC=g++
+CC=g++ #-D RT_FLOAT -Wfloat-conversion #these commands can be used to check for double literals
 LIBS=-lm 
 MPFLAGS=-fopenmp
 OFLAGS=-O3 -march=native -DNDEBUG 
@@ -36,10 +36,10 @@ NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
       -I$(CUDA_HOME)/samples/common/inc/
 NLIBS=-lm -lcudart -lcusolver -lcublas
-NOBASEFLAGS= -O3 -DNDEBUG -lineinfo -arch sm_61 --use_fast_math #--maxrregcount 64 
+NOBASEFLAGS= -O3 -DNDEBUG -lineinfo -arch sm_61 --use_fast_math #--maxrregcount 43
 # if we are CUDA 11, link time optimization is possible
-ifeq ($(shell cat $$CUDA_HOME/version.txt | awk '{split($$3,a,"."); print a[1]}'),11)
-#$(info Using CUDA 11 link time optimization)
+ifeq ($(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d.),11)
+CUDA_DLTO=true
 NOFLAGS=$(NOBASEFLAGS) -dlto
 else
 NOFLAGS=$(NOBASEFLAGS)
@@ -77,6 +77,9 @@ generate_source_function_float:
 
 generate_source_function_gpu: $(NOBJFILES) 
 	@echo "linking..."
+ifeq ($(CUDA_DLTO),true)
+	$(info Using CUDA 11 link time optimization)
+endif
 	@$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
 
 $(OBJDIR)/%.cuda.o: %.cpp
