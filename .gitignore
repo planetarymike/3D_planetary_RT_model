@@ -2,10 +2,11 @@
 callgrind*
 gmon.out
 profile.txt
+*.x
 generate_source_function.x
 generate_source_function_gpu.x
-test
-test/*
+/test
+/test/**
 python/*.so
 python/*.h
 python/*.cpp

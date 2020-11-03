@@ -1,15 +1,19 @@
 MAKEFLAGS += -j20 #parallel compilation
 
 #files that need compilin'
+OBJDIR = ../bin
 SRCDIR = ../src
 SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
-OBJDIR = ../bin/src
-OBJFILES  = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRCFILES))
-NOBJFILES = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.cuda.o,$(SRCFILES))
+
+NSRCFILES = $(SRCFILES) 
+NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=%.cuda.o)       $(NSRCFILES:%.cu=%.cuda.o      ))
+NOBJFILES    := $(subst $(SRCDIR),$(OBJDIR),$(NOBJFILES))
+NOBJFILESDBG := $(filter %.o, $(NSRCFILES:%.cpp=%.cuda.debug.o) $(NSRCFILES:%.cu=%.cuda.debug.o))
+NOBJFILESDBG := $(subst $(SRCDIR),$(OBJDIR),$(NOBJFILESDBG))
 
 #include directories
 BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/
-EIGENDIR=-I/home/mike/Documents/Utilities/eigen-3.3.7/
+EIGENDIR=-I/home/mike/Documents/Utilities/eigen_git/
 IDIR=-I$(SRCDIR) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
@@ -21,12 +25,26 @@ OFLAGS=-O3 -march=native -DNDEBUG
 
 
 # Nvidia CUDA Compiler
-NCC=nvcc --disable-warnings
+# Nvidia CUDA Compiler
+NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
+NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
+#            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
+#                                           (some modifications to    (added this flag by hand as a wrapper
+#                                            Eigen were needed to      around BOOST_GPU_ENABLED in
+#                                            get this to work)         boost/config/compiler/nvcc.hpp)
 NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
       -I$(CUDA_HOME)/samples/common/inc/
 NLIBS=-lm -lcudart -lcusolver -lcublas
-NOFLAGS= -O3 -DNDEBUG #-lineinfo
+NOBASEFLAGS= -O3 -DNDEBUG -lineinfo -arch sm_61 --use_fast_math #--maxrregcount 43
+# if we are CUDA 11, link time optimization is possible
+ifeq ($(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d.),11)
+CUDA_DLTO=true
+NOFLAGS=$(NOBASEFLAGS) -dlto
+else
+NOFLAGS=$(NOBASEFLAGS)
+endif
+NDBGFLAGS=-O0 -g -lineinfo
 
 py_corona_sim_cpu: $(OBJFILES)
 	@mkdir -p build
@@ -54,10 +72,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 py_corona_sim_gpu: $(NOBJFILES)
 	@mkdir -p build
 
-	$(NCC) -Xcompiler -fPIC \
-	-D RT_FLOAT \
-	$(IDIR) $(NIDIR) $(NLIBS) $(NOFLAGS) \
-	-dlink $(NOBJFILES) \
+	$(NCC) -dlink $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) \
 	-o build/observation_fit_wrapper_gpu_device.o
 
 # shared library --- python can't find this at runtime
@@ -79,10 +94,22 @@ py_corona_sim_gpu: $(NOBJFILES)
 $(OBJDIR)/%.cuda.o: $(SRCDIR)/%.cpp
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	@$(NCC) -x cu -D RT_FLOAT -Xcompiler -fPIC $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+
+obs_fit_test_gpu: $(NOBJFILESDBG)
+	$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc test/obs_fit_test.cpp -o ../bin/obs_fit_test.cuda.debug.o
+	@echo "linking ..."
+	@$(NCC) $(NOBJFILESDBG) ../bin/obs_fit_test.cuda.debug.o $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o ./test/obs_fit_test.x
+
+$(OBJDIR)/%.cuda.debug.o: $(SRCDIR)/%.cpp
+	@echo "compiling $<..."
+	@mkdir -p '$(@D)'
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc $< -o $@
+
+
 
 clean_all:
-	rm -rf *.cpp build* *.so ../bin/*
+	rm -rf *.cpp build* *.so ../bin/* $(NOBJFILES) $(NOBJFILESDBG)
 
 clean_python:
 	rm -rf build* *.so *.cpp
