@@ -6,11 +6,11 @@ using std::vector;
 using std::string;
 
 observation_fit::observation_fit()
-  : emission_names{"H Lyman alpha","H Lyman beta"},
-    obs(emission_names),
-    atm_tabular(),
-    RT_pp(emission_names),
-    RT(emission_names)
+    : emission_names{"H Lyman alpha"}, //,"H Lyman beta"},
+      obs(emission_names),
+      atm_tabular(),
+      RT_pp(emission_names),
+      RT(emission_names)
 {
 
   for (int i_emission = 0; i_emission < n_emissions; i_emission++) {
@@ -116,12 +116,12 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
 		     atmm,
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya);
-  RT_pp.define_emission("H Lyman beta",
-		     lyman_beta_branching_ratio,
-		     Texo, atmm.sH_lyb(Texo),
-		     atmm,
-		     &A::nH,   &A::H_Temp,
-		     &A::nCO2, &A::sCO2_lyb);
+  // RT_pp.define_emission("H Lyman beta",
+  // 		     lyman_beta_branching_ratio,
+  // 		     Texo, atmm.sH_lyb(Texo),
+  // 		     atmm,
+  // 		     &A::nH,   &A::H_Temp,
+  // 		     &A::nCO2, &A::sCO2_lyb);
 
   atmm.spherical = atmm_spherical;  
 
@@ -154,12 +154,12 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 		     atmm,
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya);
-  RT.define_emission("H Lyman beta",
-		     lyman_beta_branching_ratio,
-		     Texo, atmm.sH_lyb(Texo),
-		     atmm,
-		     &A::nH,   &A::H_Temp,
-		     &A::nCO2, &A::sCO2_lyb);
+  // RT.define_emission("H Lyman beta",
+  // 		     lyman_beta_branching_ratio,
+  // 		     Texo, atmm.sH_lyb(Texo),
+  // 		     atmm,
+  // 		     &A::nH,   &A::H_Temp,
+  // 		     &A::nCO2, &A::sCO2_lyb);
 
   atmm.spherical = atmm_spherical;    
 

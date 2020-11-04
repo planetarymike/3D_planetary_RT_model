@@ -16,7 +16,7 @@
 
 class observation_fit {
 protected:
-  static const int n_emissions = 2;
+  static const int n_emissions = 1;
   const std::string emission_names[n_emissions];// = {"H Lyman alpha",
                                                 //    "H Lyman beta"};
 					        // nvcc complains about
