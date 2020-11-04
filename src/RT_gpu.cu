@@ -28,14 +28,18 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device_brightness() {
   RT_to_device();
   //emissions must be copied seperately as these contain dynamically allocated arrays
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
-    emissions[i_emission].copy_to_device_brightness(&(d_RT->emissions[i_emission]));
+    emissions[i_emission].copy_to_device_brightness(&(d_RT->emissions[i_emission]),
+						    grid.n_dimensions,
+						    grid.n_pts);
 }
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device_influence() {
   RT_to_device();
   //emissions must be copied seperately as these contain dynamically allocated arrays
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
-    emissions[i_emission].copy_to_device_influence(&(d_RT->emissions[i_emission]));
+    emissions[i_emission].copy_to_device_influence(&(d_RT->emissions[i_emission]),
+						   grid.n_dimensions,
+						   grid.n_pts);
 }
 
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
@@ -472,14 +476,16 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::solve_gpu() {
   transpose_influence_gpu();
 #endif
   
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
+  
   //solve for each emission
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++) {
     //pass to the CUDA solver
     solve_emission_gpu(emissions[i_emission]);
+    checkCudaErrors( cudaPeekAtLastError() );
+    checkCudaErrors( cudaDeviceSynchronize() );
   }
-  
-  checkCudaErrors( cudaPeekAtLastError() );
-  checkCudaErrors( cudaDeviceSynchronize() );
 
   // //define log_sourcefn
   // get_log_sourcefn<N_EMISSIONS,

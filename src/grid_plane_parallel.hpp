@@ -33,7 +33,9 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
   Real pts_radii[n_radial_boundaries-1];
   plane radial_boundary_planes[n_radial_boundaries];
   
-  plane_parallel_grid() { }
+  plane_parallel_grid() {
+    this->n_pts[0] = n_radial_boundaries-1;
+ }
   
   void setup_voxels(const atmosphere &atm)
   {
@@ -181,10 +183,11 @@ struct plane_parallel_grid : grid<1,//this is a 1d grid
   CUDA_CALLABLE_MEMBER 
   void interp_weights(__attribute__((unused)) const int &ivoxel, __attribute__((unused)) const atmo_point &ptt,
 		      __attribute__((unused)) int (&indices)[parent_grid::n_interp_points],
-		      __attribute__((unused)) Real (&weights)[parent_grid::n_interp_points]) const {
+		      __attribute__((unused)) Real (&weights)[parent_grid::n_interp_points],
+		      __attribute__((unused)) int (&indices_1d)[2*parent_grid::n_dimensions],
+		      __attribute__((unused)) Real (&weights_1d)[parent_grid::n_dimensions]) const {
     assert(false && "interp_weights not implemented in grid_plane_parallel");
   }
-
   
   void save_S(const string &fname, const emission<parent_grid::n_voxels> *emissions, const int n_emissions) const {
     std::ofstream file(fname.c_str());

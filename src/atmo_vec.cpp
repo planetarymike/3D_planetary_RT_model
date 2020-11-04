@@ -293,7 +293,7 @@ CUDA_CALLABLE_MEMBER
 atmo_point atmo_vector::extend(const Real &dist) const {
   atmo_point retpt;
 
-  const Real scale = 1e9;
+  const Real scale = Real(1e9);
 
   Real newx = pt.x/scale; //more baffling CUDA shenanigans here
   newx += (line_x * dist)/scale;

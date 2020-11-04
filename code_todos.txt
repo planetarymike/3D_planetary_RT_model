@@ -1,13 +1,7 @@
 // things to improve/change in code
 
 
---profile+optimize GPU code (texture memory likely to be last possible big improvement)
-  --replacing atmospheric variables (density, cross section, source function) with texture units on device may help
-    --these objects would pre-fecth in a volume around the current index, 
-    --would need to rewrite device-side voxel_vector interface, adding a texture object
-    --texture objects need to know about the grid structure, which is currently not known to emission objects.
-    --this would replace linear interpolation with hardware interpolation
-    --need fast coordinate point finders? (right now this is done brute force)
+
 --remove transmission object; this is superseded by lineshape_tracker
 --fix transmission so that it is specified inside emission;
 --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
@@ -41,6 +35,8 @@ Small code improvements
   --move emission tracker inside of emission, specific to emissions (allowing different rules for each line)
     --not clear how to do this: a catchall call with a switch for each mode is possible, but this could have a significant performance overhead.
     --pointers are problematic because of CUDA; host/device pointer handling is tricky.
+  
+  --fix texture implementation
 
 
 longer-term:
@@ -80,3 +76,10 @@ xx  --reduced memory usage of lineshape_tracker dramatically
     --converted literals to float (3x speedup!)
     --reduced line samples and wavelength range from 12/5 to 6/4 in lineshape_tracker
     --separate influence and brightness lineshape_tracker calculation
+xx--profile+optimize GPU code (texture memory likely to be last possible big improvement)
+    --replacing atmospheric variables (density, cross section, source function) with texture units on device may help
+      --these objects would pre-fecth in a volume around the current index, 
+      --would need to rewrite device-side voxel_vector interface, adding a texture object
+      --texture objects need to know about the grid structure, which is currently not known to emission objects.
+      --this would replace linear interpolation with hardware interpolation
+      --need fast coordinate point finders? (right now this is done brute force)

@@ -7,10 +7,20 @@
 template <int N_VOXELS>
 void emission<N_VOXELS>::vector_to_device(voxel_vector<N_VOXELS> & device_vec,
 					  voxel_vector<N_VOXELS> & host_vec,
-					  bool transfer/*=true*/) {
+					  const int n_dim,
+					  const int *dim,
+					  const bool transfer/*=true*/)
+{
   //if transfer = false vector is allocated on device but not copied
-
-  host_vec.to_device(transfer);
+  //texture memory is used when USE_CUDA_TEXTURES flag is set
+  if (transfer) {
+#ifdef USE_CUDA_TEXTURES
+    host_vec.to_device_read_only(&device_vec, n_dim, dim);
+#else
+    host_vec.to_device(/*transfer = */true);
+#endif
+  } else
+    host_vec.to_device(/*transfer = */false);
   //point the device pointer at the same location we just moved memory to
   checkCudaErrors(
 		  cudaMemcpy(&device_vec.vec,
@@ -23,7 +33,7 @@ void emission<N_VOXELS>::vector_to_device(voxel_vector<N_VOXELS> & device_vec,
 template <int N_VOXELS>
 void emission<N_VOXELS>::matrix_to_device(voxel_matrix<N_VOXELS> & device_mat,
 					  voxel_matrix<N_VOXELS> & host_mat,
-					  bool transfer/*=true*/) {
+					  const bool transfer/*=true*/) {
   //if transfer = false vector is allocated on device but not copied
 
   host_mat.to_device(transfer);
@@ -37,24 +47,33 @@ void emission<N_VOXELS>::matrix_to_device(voxel_matrix<N_VOXELS> & device_mat,
 }
 
 template <int N_VOXELS>
-void emission<N_VOXELS>::copy_to_device_influence(emission<N_VOXELS> *device_emission) {
-  vector_to_device(device_emission->species_T_ratio, species_T_ratio);
+void emission<N_VOXELS>::copy_to_device_influence(emission<N_VOXELS> *device_emission, const int n_dim, const int*dim) {
 
-  vector_to_device(device_emission->dtau_species, dtau_species);
-  vector_to_device(device_emission->dtau_absorber, dtau_absorber);
-  vector_to_device(device_emission->abs, abs);
+  //copy the read-only atmosphere arrays
+  bool transfer = true;
+  
+  vector_to_device(device_emission->species_T_ratio, species_T_ratio, n_dim, dim, transfer);
 
-  matrix_to_device(device_emission->influence_matrix, influence_matrix, false);
+  vector_to_device(device_emission->dtau_species, dtau_species, n_dim, dim, transfer);
+  vector_to_device(device_emission->dtau_absorber, dtau_absorber, n_dim, dim, transfer);
+  vector_to_device(device_emission->abs, abs, n_dim, dim, transfer);
 
-  vector_to_device(device_emission->tau_species_single_scattering, tau_species_single_scattering, false);
-  vector_to_device(device_emission->tau_absorber_single_scattering, tau_absorber_single_scattering, false);
-  vector_to_device(device_emission->singlescat, singlescat, false);
-  vector_to_device(device_emission->sourcefn, sourcefn, false);
-  //  vector_to_device(device_emission->log_sourcefn, log_sourcefn, false);
+
+  //now the arrays we populate on the device
+  transfer = false;
+
+  matrix_to_device(device_emission->influence_matrix, influence_matrix, transfer);
+
+  vector_to_device(device_emission->tau_species_single_scattering, tau_species_single_scattering, n_dim, dim, transfer);
+  vector_to_device(device_emission->tau_absorber_single_scattering, tau_absorber_single_scattering, n_dim, dim, transfer);
+  vector_to_device(device_emission->singlescat, singlescat, n_dim, dim, transfer);
+  vector_to_device(device_emission->sourcefn, sourcefn, n_dim, dim, transfer);
 }
 
 template <int N_VOXELS>
-void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_emission) {
+void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_emission,
+						   const int n_dim, const int *dim)
+{
   //free some of the influnce stuff if we used it
   species_T_ratio.free_d_vec();
   dtau_species.free_d_vec();
@@ -65,22 +84,15 @@ void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_em
   tau_absorber_single_scattering.free_d_vec();
   singlescat.free_d_vec();
 
-  //  vector_to_device(device_emission->dtau_species, dtau_species);
-  //  vector_to_device(device_emission->log_dtau_species, log_dtau_species);
-  vector_to_device(device_emission->dtau_species_pt, dtau_species_pt);
-  //  vector_to_device(device_emission->log_dtau_species_pt, log_dtau_species_pt);
-  vector_to_device(device_emission->species_T_ratio_pt, species_T_ratio_pt);  
+  bool transfer = true;
+  
+  vector_to_device(device_emission->dtau_species_pt, dtau_species_pt, n_dim, dim, transfer);
+  vector_to_device(device_emission->species_T_ratio_pt, species_T_ratio_pt, n_dim, dim, transfer);  
 
+  vector_to_device(device_emission->dtau_absorber_pt, dtau_absorber_pt, n_dim, dim, transfer);
+  vector_to_device(device_emission->abs_pt, abs_pt, n_dim, dim, transfer);
 
-  //  vector_to_device(device_emission->dtau_absorber, dtau_absorber);
-  //  vector_to_device(device_emission->log_dtau_absorber, log_dtau_absorber);
-  vector_to_device(device_emission->dtau_absorber_pt, dtau_absorber_pt);
-  //  vector_to_device(device_emission->log_dtau_absorber_pt, log_dtau_absorber_pt);
-  vector_to_device(device_emission->abs_pt, abs_pt);
-
-
-  vector_to_device(device_emission->sourcefn, sourcefn); 
-  //  vector_to_device(device_emission->log_sourcefn, log_sourcefn); 
+  vector_to_device(device_emission->sourcefn, sourcefn, n_dim, dim, transfer); 
 }
 
 template <int N_VOXELS>

@@ -21,8 +21,20 @@ public:
   Real* vec;
   Real* d_vec = NULL;//pointer to device memory for CUDA
 
+#if defined(__CUDACC__) and defined(USE_CUDA_TEXTURES)
+  bool texture;
+  int n_dim; //number of grid dimensions
+  int dim[3]; //size of each dimension
+  cudaTextureObject_t tex;
+  struct cudaResourceDesc resDesc;
+  struct cudaTextureDesc texDesc;
+#endif
+  
   voxel_vector() : VectorX() {
     resize();
+#if defined(__CUDACC__) and defined(USE_CUDA_TEXTURES)
+    texture = false;
+#endif
   }
 
   ~voxel_vector() {
@@ -66,7 +78,11 @@ public:
   }
   CUDA_CALLABLE_MEMBER
   Real operator[](const int n) const {
+#if defined(__CUDA_ARCH__) and defined(USE_CUDA_TEXTURES)
+    return fetch_element_device(n);
+#else
     return vec[n];
+#endif
   }
   CUDA_CALLABLE_MEMBER
   Real & operator()(const int n) {
@@ -74,8 +90,51 @@ public:
   }
   CUDA_CALLABLE_MEMBER
   Real operator()(const int n) const {
+#if defined(__CUDA_ARCH__) and defined(USE_CUDA_TEXTURES)
+    return fetch_element_device(n);
+#else
     return vec[n];
+#endif
   }
+
+#if defined(__CUDACC__) and defined(USE_CUDA_TEXTURES)
+  __device__
+  Real fetch_element_device(const int n) const {
+    if (texture && n_dim == 2) {
+      int i = n/dim[1];
+      int j = n%dim[1];
+
+      // Real **matvals;
+      // matvals = new Real*[dim[0]];
+
+      // for (int ii = 0; ii < dim[0]; ii++) {
+      //   matvals[ii] = new Real[dim[1]];
+      //   for (int jj = 0; jj < dim[1]; jj++)
+      //     matvals[ii][jj] = tex2D<Real>(tex, jj+0.5, ii+0.5);
+      // }
+
+      // if (i==dim[0]-1)
+      // 	i++;i--;
+      
+      Real retval = tex2D<Real>(tex,j+0.5f,i+0.5f);
+
+      // for (int ii = 0; ii < dim[0]; ii++)
+      // 	delete [] matvals[ii];
+      // delete [] matvals;
+      
+      return retval;
+    } else
+      return vec[n];
+  }
+
+  __device__
+  Real interp(const Real (&pt)[3], const int n_dim) const {
+    if (n_dim==2)
+      return tex2D<Real>(tex, pt[1], pt[0]);
+    else
+      return -1.0f;
+  }
+#endif
 
   void free_d_vec() {
 #ifdef __CUDACC__
@@ -103,6 +162,101 @@ public:
 				 cudaMemcpyHostToDevice)
 		      );
   }
+  void to_device_read_only(voxel_vector<N_VOXELS> *device_voxel_vector, const int n_dim, const int *dim) {
+#if !defined(USE_CUDA_TEXTURES)
+    to_device(/*transfer = */true);
+#else
+    //allocate and assign texture objects based on dimensionality
+    if (n_dim == 2) {
+      texture = true;
+
+      const int num_rows = dim[0]; 
+      const int num_cols = dim[1]; 
+
+      // Real dataIn[num_rows*num_cols];
+      // for (int i = 0; i < num_rows; i++)
+      // 	for (int j=0;j<num_cols; j++) {
+      // 	  int n = i*num_cols+j;
+      // 	  dataIn[n] = i+j/100.0;
+      // 	}
+
+      
+      //copy data to device
+      size_t pitch;
+      cudaMallocPitch((void**)&d_vec, &pitch,  num_cols*sizeof(Real), num_rows);
+      cudaMemcpy2D(d_vec, pitch, vec, num_cols*sizeof(Real), num_cols*sizeof(Real), num_rows, cudaMemcpyHostToDevice);
+
+      //move n_dim and dim information to device
+      checkCudaErrors(
+		      cudaMemcpy(&(device_voxel_vector->texture),
+				 &texture,
+				 sizeof(bool),
+				 cudaMemcpyHostToDevice)
+		      );
+      checkCudaErrors(
+		      cudaMemcpy(&(device_voxel_vector->n_dim),
+				 &n_dim,
+				 sizeof(int),
+				 cudaMemcpyHostToDevice)
+		      );
+      checkCudaErrors(
+		      cudaMemcpy(&(device_voxel_vector->dim[0]),
+				 &dim[0],
+				 sizeof(int),
+				 cudaMemcpyHostToDevice)
+		      );
+      checkCudaErrors(
+		      cudaMemcpy(&(device_voxel_vector->dim[1]),
+				 &dim[1],
+				 sizeof(int),
+				 cudaMemcpyHostToDevice)
+		      );
+
+      //set up resource information
+      memset(&resDesc, 0, sizeof(resDesc));
+      resDesc.resType = cudaResourceTypePitch2D;
+      resDesc.res.pitch2D.devPtr = d_vec;
+      resDesc.res.pitch2D.width = num_cols;
+      resDesc.res.pitch2D.height = num_rows;
+      resDesc.res.pitch2D.desc = cudaCreateChannelDesc<Real>();
+      resDesc.res.pitch2D.pitchInBytes = pitch;
+
+      //bind texture
+      memset(&texDesc, 0, sizeof(texDesc));
+      texDesc.normalizedCoords = false;
+      texDesc.filterMode       = cudaFilterModeLinear;
+      texDesc.addressMode[0] = cudaAddressModeClamp;
+      texDesc.addressMode[1] = cudaAddressModeClamp;
+      texDesc.readMode = cudaReadModeElementType;
+
+      cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
+
+      //move texture information to device voxel_vec pointer
+      checkCudaErrors(
+      		      cudaMemcpy(&(device_voxel_vector->tex),
+      				 &tex,
+      				 sizeof(cudaTextureObject_t),
+      				 cudaMemcpyHostToDevice)
+      		      );
+      checkCudaErrors(
+		      cudaMemcpy(&(device_voxel_vector->resDesc),
+				 &resDesc,
+				 sizeof(cudaResourceDesc),
+				 cudaMemcpyHostToDevice)
+		      );
+      checkCudaErrors(
+		      cudaMemcpy(&(device_voxel_vector->texDesc),
+				 &texDesc,
+				 sizeof(cudaTextureDesc),
+				 cudaMemcpyHostToDevice)
+		      );
+      //cudaCreateTextureObject(&(device_voxel_vector->tex), &(device_voxel_vector->resDesc), &(device_voxel_vector->texDesc, NULL);
+
+    } else {
+      to_device();
+    }
+#endif
+  }
   void to_host() {
     checkCudaErrors(
 		    cudaMemcpy(vec,
@@ -110,26 +264,6 @@ public:
 			       n_voxels*sizeof(Real),
 			       cudaMemcpyDeviceToHost)
 		    );
-  }
-
-  __device__
-  void to_shared() {
-    //declare shared array
-    __shared__ Real s_vec[n_voxels];
-
-    //move to shared array using all threads in this block
-    for (int i = threadIdx.x; i < n_voxels; i+=blockDim.x)
-      s_vec[i] = vec[i];
-    __syncthreads();
-
-    d_vec = vec;
-    vec = s_vec;    
-  }
-  __device__
-  void from_shared() {
-    vec = d_vec;
-    d_vec = NULL;
-    //shared memory is automatically deallocated
   }
 
 #endif

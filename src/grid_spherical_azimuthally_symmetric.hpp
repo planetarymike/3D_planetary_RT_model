@@ -53,9 +53,6 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 					      //pts_sza=0,-1 on the
 					      //planet-sun line
 
-  int n_pts[parent_grid::n_dimensions] = {n_radial_boundaries-1,n_sza_boundaries-1};
-
-
   int raymethod_theta;
   static const int raymethod_theta_gauss = 0;
   static const int raymethod_theta_uniform = 1;
@@ -67,6 +64,9 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 
   spherical_azimuthally_symmetric_grid()
   {
+    this->n_pts[0] = n_radial_boundaries-1;
+    this->n_pts[1] = n_sza_boundaries-1;
+    
     rmethod = rmethod_altitude;
     szamethod = szamethod_uniform;
     raymethod_theta = raymethod_theta_gauss;
@@ -376,7 +376,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     stepper.boundaries.trim();
 #if !defined(NDEBUG)
     int tnvoxels = this->n_voxels;
-    assert(stepper.boundaries.check(n_pts, tnvoxels) && "boundary checks must pass");
+    assert(stepper.boundaries.check(this->n_pts, tnvoxels) && "boundary checks must pass");
 #endif
     // if (save_intersections)
     //   saver.append_intersections(vec,stepper.boundaries);
@@ -384,10 +384,12 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     stepper.init_stepper();
   }
 
-  CUDA_CALLABLE_MEMBER 
+  CUDA_CALLABLE_MEMBER
   void interp_weights(const int &ivoxel, const atmo_point &ptt,
 		      int (&indices)[parent_grid::n_interp_points],
-		      Real (&weights)[parent_grid::n_interp_points]) const {
+		      Real (&weights)[parent_grid::n_interp_points],
+		      int (&indices_1d)[2*parent_grid::n_dimensions],
+		      Real (&weights_1d)[parent_grid::n_dimensions]) const {
     // n_interp_points = 4, because this is a 2d grid with linear interpolation
 
     atmo_point pt = ptt;
@@ -458,7 +460,17 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     }
     sza_wt = (pt.t-pts_sza[sza_lower_pt_idx])/(pts_sza[sza_upper_pt_idx]-pts_sza[sza_lower_pt_idx]);
 
-    
+
+    //return the 1D points and weights
+    indices_1d[0] = r_lower_pt_idx;
+    indices_1d[1] = sza_lower_pt_idx;
+    indices_1d[2] = r_upper_pt_idx;
+    indices_1d[3] = sza_upper_pt_idx;
+
+    weights_1d[0] = r_wt;
+    weights_1d[1] = sza_wt;
+
+    //and the voxel number and weights
     indices_to_voxel(r_lower_pt_idx, sza_lower_pt_idx, indices[0]);
     weights[0] =  (REAL(1.0)-r_wt)   *   (REAL(1.0)-sza_wt)    ;
     

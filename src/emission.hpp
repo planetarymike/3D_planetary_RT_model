@@ -197,10 +197,10 @@ struct emission {
 
 
   //methods to transfer objects to device
-  void copy_to_device_influence(emission<N_VOXELS> *device_emission);
-  void copy_to_device_brightness(emission<N_VOXELS> *device_emission);
+  void copy_to_device_influence(emission<N_VOXELS> *device_emission, const int n_dim, const int *dim);
+  void copy_to_device_brightness(emission<N_VOXELS> *device_emission, const int n_dim, const int *dim);
 
-  void vector_to_device(vv & device_vec, vv & host_vec, bool transfer = true);
+  void vector_to_device(vv & device_vec, vv & host_vec, const int n_dim, const int*dim, const bool transfer = true);
   void matrix_to_device(vm & device_vec, vm & host_vec, bool transfer = true);
 
   void copy_influence_to_host();

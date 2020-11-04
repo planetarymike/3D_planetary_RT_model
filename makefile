@@ -44,8 +44,8 @@ NOFLAGS=$(NOBASEFLAGS) -dlto
 else
 NOFLAGS=$(NOBASEFLAGS)
 endif
-NDBGFLAGS=-O0 -g -lineinfo
-
+NDBGFLAGS=-O0 -g #-G -arch sm_61 # -lineinfo
+#                ^^^ this -G sometimes changes the behavior of the code??
 
 # # intel compiler
 # you may need to run this

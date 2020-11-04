@@ -342,12 +342,25 @@ struct RT_grid {
   }
   CUDA_CALLABLE_MEMBER
   void interp(const int &ivoxel, const atmo_point &pt, interpolated_values<n_emissions> &retval) const {
-
     int indices[grid_type::n_interp_points];
     Real weights[grid_type::n_interp_points];
+    int indices_1d[2*grid_type::n_dimensions];
+    Real weights_1d[grid_type::n_dimensions];
+    grid.interp_weights(ivoxel,pt,indices,weights,indices_1d,weights_1d);
 
-    grid.interp_weights(ivoxel,pt,indices,weights);
-    
+#if defined(__CUDA_ARCH__) && defined(USE_CUDA_TEXTURES)
+    Real pts[3];
+    for (int i=0;i<grid_type::n_dimensions;i++)
+      pts[i] = indices[i] + weights[i];
+
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      retval.dtau_species_interp[i_emission]    = emissions[i_emission].dtau_species_pt.interp(pts, grid_type::n_dimensions);
+      retval.species_T_ratio_interp[i_emission] = emissions[i_emission].species_T_ratio_pt.interp(pts, grid_type::n_dimensions);
+      retval.dtau_absorber_interp[i_emission]   = emissions[i_emission].dtau_absorber_pt.interp(pts, grid_type::n_dimensions);
+      retval.abs_interp[i_emission]             = emissions[i_emission].abs_pt.interp(pts, grid_type::n_dimensions);
+      retval.sourcefn_interp[i_emission]        = emissions[i_emission].sourcefn.interp(pts, grid_type::n_dimensions);
+    }
+#else
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       retval.dtau_species_interp[i_emission]    = interp_array(indices, weights,
 							       emissions[i_emission].dtau_species_pt);
@@ -360,6 +373,7 @@ struct RT_grid {
       retval.sourcefn_interp[i_emission]        = interp_array(indices, weights,
 							       emissions[i_emission].sourcefn);
     }
+#endif
   }
   
   //interpolated brightness routine

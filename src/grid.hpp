@@ -12,8 +12,8 @@
 template <int NDIM, int NVOXELS, int NRAYS, int N_MAX_INTERSECTIONS>
 struct grid {
   static const int n_dimensions = NDIM; //dimensionality of the grid
+  int n_pts[NDIM];
   static const int n_voxels = NVOXELS;//number of grid voxels
-
 
   // !!!!! Note: Even though the next three functions are commented
   // !!!!! out, they MUST be implemented in any child class of grid.
@@ -53,8 +53,8 @@ struct grid {
   static const int n_interp_points = 2*n_dimensions;
   CUDA_CALLABLE_MEMBER
   virtual void interp_weights(const int &ivoxel, const atmo_point &pt,
-			      int (&/*indices*/)[n_interp_points], Real (&/*weights*/)[n_interp_points] ) const = 0;
-
+			      int (&/*indices*/)[n_interp_points], Real (&/*weights*/)[n_interp_points],
+			      int (&/*indices_1d*/)[2*n_dimensions], Real (&/*weights_1d*/)[n_dimensions] ) const = 0;
 
   virtual void save_S(const string &fname, const emission<n_voxels> *emiss, const int n_emissions) const = 0;
 };
