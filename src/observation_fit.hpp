@@ -43,7 +43,7 @@ protected:
 
   typedef holstein_approx influence_type;
 
-  // for comparison with Pratik
+  //  // for comparison with Pratik
   // static const int n_radial_boundaries = 90;
   // static const int n_sza_boundaries = 32;/*20 for 10 deg increments with szamethod_uniform*/
   // static const int n_rays_theta = 24;

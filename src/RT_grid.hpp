@@ -45,6 +45,7 @@ struct RT_grid {
   void emissions_to_device_brightness();
   void emissions_influence_to_host();
   void emissions_solved_to_host();
+  void device_clear();
   
   RT_grid() : all_emissions_init(false) { }
 
@@ -73,8 +74,7 @@ struct RT_grid {
   }
   ~RT_grid() {
 #ifdef __CUDACC__
-    if(d_RT!=NULL)
-      checkCudaErrors(cudaFree(d_RT));
+    device_clear();
 #endif
   }
 

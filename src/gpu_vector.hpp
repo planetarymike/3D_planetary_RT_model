@@ -20,8 +20,7 @@ public:
     if (v)
       delete [] v;
 #ifdef __CUDACC__
-    if(d_v)
-      checkCudaErrors(cudaFree(d_v));
+    device_clear();
 #endif
   }
   
@@ -111,6 +110,13 @@ public:
 			       cudaMemcpyDeviceToHost)
 		    );
   }
+  
+  void device_clear() {
+    if(d_v)
+      checkCudaErrors(cudaFree(d_v));
+    d_v = NULL;
+  }
+  
 #endif
 };
 

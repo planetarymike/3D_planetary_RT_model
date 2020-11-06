@@ -21,6 +21,8 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device() {
 			     sizeof(RT_grid_type),
 			     cudaMemcpyHostToDevice)
 		  );
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
 }
 
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
@@ -31,6 +33,8 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device_brightness() {
     emissions[i_emission].copy_to_device_brightness(&(d_RT->emissions[i_emission]),
 						    grid.n_dimensions,
 						    grid.n_pts);
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
 }
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
 void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device_influence() {
@@ -40,6 +44,8 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::RT_to_device_influence() {
     emissions[i_emission].copy_to_device_influence(&(d_RT->emissions[i_emission]),
 						   grid.n_dimensions,
 						   grid.n_pts);
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
 }
 
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
@@ -47,6 +53,8 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_influence_to_host(
   //everything we need to copy back is in emissions
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
     emissions[i_emission].copy_influence_to_host();
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
 }
 
 template <int N_EMISSIONS, typename grid_type, typename influence_type>
@@ -54,7 +62,21 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::emissions_solved_to_host() {
   //everything we need to copy back is in emissions
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
     emissions[i_emission].copy_solved_to_host();
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
 }
+
+template <int N_EMISSIONS, typename grid_type, typename influence_type>
+void RT_grid<N_EMISSIONS,grid_type,influence_type>::device_clear() {
+  for (int i_emission=0;i_emission<n_emissions;i_emission++)
+    emissions[i_emission].device_clear();
+  if(d_RT!=NULL)
+    checkCudaErrors(cudaFree(d_RT));
+  d_RT=NULL;
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
+}
+
 
 static const int brightness_blockSize = 32;
 
@@ -134,7 +156,7 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n
   
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
-  
+
   kernel_clk.stop();
   kernel_clk.print_elapsed("brightness kernel execution takes ");
 
@@ -145,7 +167,12 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::brightness_gpu(observation<n
   clk.stop();
   clk.print_elapsed("brightness memory operations take ",
 		    kernel_clk.elapsed());
-  
+
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
+  obs.device_clear();
+  device_clear();
+
 }
 
 
@@ -245,7 +272,8 @@ void RT_grid<N_EMISSIONS,grid_type,influence_type>::generate_S_gpu() {
 
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
- 
+  device_clear();
+
   // print time elapsed
   clk.stop();
   clk.print_elapsed("source function generation takes ");

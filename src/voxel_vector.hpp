@@ -282,7 +282,7 @@ public:
   }
 
   ~voxel_matrix() {
-    free_dmat();
+    free_d_mat();
   }
   
   
@@ -339,7 +339,7 @@ public:
     return mat[i];
   }
 
-  void free_dmat() {
+  void free_d_mat() {
 #ifdef __CUDACC__
     if(d_mat!=NULL) {
       checkCudaErrors(cudaFree(d_mat));

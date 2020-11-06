@@ -5,6 +5,35 @@
 #include "helper_cuda.h"
 
 template <int N_VOXELS>
+void emission<N_VOXELS>::device_clear() {
+  species_density.free_d_vec();
+  species_density.free_d_vec();
+  species_density_pt.free_d_vec();
+  species_T_ratio.free_d_vec();
+  species_T_ratio_pt.free_d_vec();
+  dtau_species.free_d_vec();
+  dtau_species_pt.free_d_vec();
+
+  absorber_density.free_d_vec();
+  absorber_density_pt.free_d_vec(); 
+  absorber_sigma.free_d_vec();
+  absorber_sigma_pt.free_d_vec();
+  dtau_absorber.free_d_vec();
+  dtau_absorber_pt.free_d_vec();
+
+  abs.free_d_vec();
+  abs_pt.free_d_vec(); 
+
+  influence_matrix.free_d_mat();
+
+  tau_species_single_scattering.free_d_vec();
+  tau_absorber_single_scattering.free_d_vec();
+  singlescat.free_d_vec(); 
+
+  sourcefn.free_d_vec();
+}
+
+template <int N_VOXELS>
 void emission<N_VOXELS>::vector_to_device(voxel_vector<N_VOXELS> & device_vec,
 					  voxel_vector<N_VOXELS> & host_vec,
 					  const int n_dim,
@@ -46,6 +75,8 @@ void emission<N_VOXELS>::matrix_to_device(voxel_matrix<N_VOXELS> & device_mat,
 		  );
 }
 
+
+
 template <int N_VOXELS>
 void emission<N_VOXELS>::copy_to_device_influence(emission<N_VOXELS> *device_emission, const int n_dim, const int*dim) {
 
@@ -79,7 +110,7 @@ void emission<N_VOXELS>::copy_to_device_brightness(emission<N_VOXELS> *device_em
   dtau_species.free_d_vec();
   dtau_absorber.free_d_vec();
   abs.free_d_vec();
-  influence_matrix.free_dmat();
+  influence_matrix.free_d_mat();
   tau_species_single_scattering.free_d_vec();
   tau_absorber_single_scattering.free_d_vec();
   singlescat.free_d_vec();

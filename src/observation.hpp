@@ -83,8 +83,7 @@ public:
   }
   ~observation() {
 #ifdef __CUDACC__
-    if (d_obs != NULL)
-      checkCudaErrors(cudaFree(d_obs));
+    device_clear();
 #endif
   }
 
@@ -234,6 +233,15 @@ public:
     // 		    );
   }
 
+  void device_clear() {
+    obs_vecs.device_clear();
+    los.device_clear();
+    los_observed.device_clear();
+    if (d_obs != NULL)
+      checkCudaErrors(cudaFree(d_obs));
+    d_obs=NULL;
+  }
+  
 #endif
 
 
