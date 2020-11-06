@@ -1,26 +1,30 @@
 // things to improve/change in code
 
+Fitting Routine:
+--explore/compare quadratic fit to best-fit basin vs. nested sampling
+--how different are retrievals using high-res grid?
+--need utilities for fitting multiple files/observations
+--reproduce 2018 paper results
 
-
+Maintanance:
 --remove transmission object; this is superseded by lineshape_tracker
---fix transmission so that it is specified inside emission;
---fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/
---32 bit vs 64 bit differences in code output?
+--fix transmission so that it is specified inside emission
+
+Validation:
 --comparison with anderson
 --comparison with chaufray
---problems with asym_calc
 --any analytic test case? Maybe something asymptotic from Holstein?
 --alternate source function calculation guaranteed to populate all elements of matrix?
+--compare
 
-UIUC collaboration:
---think more about normalization effects on degeneracy
-
-Near term:
---python fitting routine (get it running fast)
---move finite-difference derivative calculation inside observation_fit
+New functionality:
 --deuterium and hot H physical densities
 --O I 102.6 nm radiance calculation (may require frequency redistribution)
 --include single-scattering anisotropy
+--temperature differences with SZA
+
+UIUC collaboration:
+--think more about normalization effects on degeneracy
 
 Needed next 6 months:
 --IPH background (for IUVS apoapse images)
@@ -31,13 +35,15 @@ Small code improvements
   --use monotone cubic interpolation in brightness calculation: 
     --implement this: http://articles.adsabs.harvard.edu/pdf/1990A%26A...239..443S
     -- or switch to GSL: https://www.gnu.org/software/gsl/doc/html/interp.html#d-higher-level-interface
-
-  --move emission tracker inside of emission, specific to emissions (allowing different rules for each line)
-    --not clear how to do this: a catchall call with a switch for each mode is possible, but this could have a significant performance overhead.
-    --pointers are problematic because of CUDA; host/device pointer handling is tricky.
+ 
+  --fix texture implementation(?) may not be worth it given that interpolation is the major speedup and this has only 9-bit accuracy
   
-  --fix texture implementation
-
+  --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/ 
+    --CUDA already uses hardware exp2, not much slower than a single FLOP multiply
+  
+  --move finite-difference derivative calculation inside observation_fit
+    --not needed for many fitting techniques
+    --likely to significantly slow down CUDA implementation due to shared memory occupancy
 
 longer-term:
 --more realistic exosphere (Vidal-Madjar or similar)
@@ -83,3 +89,4 @@ xx--profile+optimize GPU code (texture memory likely to be last possible big imp
       --texture objects need to know about the grid structure, which is currently not known to emission objects.
       --this would replace linear interpolation with hardware interpolation
       --need fast coordinate point finders? (right now this is done brute force)
+xx--32 bit vs 64 bit differences in code output? --- these appear to be mostly gone
