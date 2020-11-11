@@ -229,7 +229,7 @@ struct Bilinear_interp
   Bilinear_interp(const vector<Real> &x1v,
 		  const vector<Real> &x2v,
 		  const Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> &ym)
-    : m(x1v.size()), n(x2v.size()), x1terp(x1v,x1v), x2terp(x2v,x2v) { y = ym; }
+    : m(x1v.size()), n(x2v.size()), x1terp(x1v,x1v), x2terp(x2v,x2v), y(ym) {}
   
   Real interp(const Real x1p, const Real x2p) const {
     int i, j;
