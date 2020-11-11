@@ -44,7 +44,7 @@ NOFLAGS=$(NOBASEFLAGS) -dlto
 else
 NOFLAGS=$(NOBASEFLAGS)
 endif
-NDBGFLAGS=-O0 -g -lineinfo
+NDBGFLAGS=-O0 -g -lineinfo #-G # -lineinfo
 
 py_corona_sim_cpu: $(OBJFILES)
 	@mkdir -p build
