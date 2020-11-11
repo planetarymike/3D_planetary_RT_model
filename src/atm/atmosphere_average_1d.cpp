@@ -17,6 +17,15 @@ void atmosphere_average_1d::setup() {
   if (!init)
     return;
 
+
+  //reset all our vectors
+  log_r_int.clear();
+  n_species_int.clear();
+  n_species_int_spherical.clear();
+  n_absorber_int.clear();
+  n_absorber_int_spherical.clear();
+  Tint.clear();
+  Tint_spherical.clear();
   
   //integrate from the top of the atmosphere down to minimize floating
   //point subtraction errors
