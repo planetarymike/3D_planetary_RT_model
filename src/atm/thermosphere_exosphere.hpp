@@ -36,7 +36,7 @@ struct thermosphere_exosphere : virtual public atmosphere {
   thermosphere_diffeq diffeq;
 
   //thermosphere interpolation object
-  static const int n_thermosphere_steps = 40;
+  static const int n_thermosphere_steps = 100;
   Real thermosphere_step_r;
   vector<Real> lognCO2thermosphere;
   vector<Real> lognHthermosphere;
@@ -47,7 +47,7 @@ struct thermosphere_exosphere : virtual public atmosphere {
   Linear_interp<Real> invlognH_thermosphere;
   
   //exosphere interpolation
-  static const int n_exosphere_steps = 40;
+  static const int n_exosphere_steps = 100;
   Real exosphere_step_logr;
   vector<Real> lognHexosphere;
   vector<Real> logr_exosphere;
