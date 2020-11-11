@@ -6,7 +6,7 @@ using std::vector;
 using std::string;
 
 observation_fit::observation_fit()
-    : emission_names{"H Lyman alpha"}, //,"H Lyman beta"},
+    : emission_names{"H Lyman alpha","H Lyman beta"},
       obs(emission_names),
       atm_tabular(),
       RT_pp(emission_names),
@@ -116,12 +116,12 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
 		     atmm,
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya);
-  // RT_pp.define_emission("H Lyman beta",
-  // 		     lyman_beta_branching_ratio,
-  // 		     Texo, atmm.sH_lyb(Texo),
-  // 		     atmm,
-  // 		     &A::nH,   &A::H_Temp,
-  // 		     &A::nCO2, &A::sCO2_lyb);
+  RT_pp.define_emission("H Lyman beta",
+  		     lyman_beta_branching_ratio,
+  		     Texo, atmm.sH_lyb(Texo),
+  		     atmm,
+  		     &A::nH,   &A::H_Temp,
+  		     &A::nCO2, &A::sCO2_lyb);
 
   atmm.spherical = atmm_spherical;  
 
@@ -140,8 +140,11 @@ template <typename A>
 void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &Texo,
 							   const string sourcefn_fname/* = ""*/)
 {
-  bool atmm_spherical = atmm.spherical;
-  atmm.spherical = true;
+  bool change_spherical = false;
+  if (atmm.spherical != true) {
+    change_spherical = true;
+    atmm.spherical = true;
+  }
 
   RT.grid.setup_voxels(atmm);
   RT.grid.setup_rays();
@@ -154,14 +157,15 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 		     atmm,
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya);
-  // RT.define_emission("H Lyman beta",
-  // 		     lyman_beta_branching_ratio,
-  // 		     Texo, atmm.sH_lyb(Texo),
-  // 		     atmm,
-  // 		     &A::nH,   &A::H_Temp,
-  // 		     &A::nCO2, &A::sCO2_lyb);
+  RT.define_emission("H Lyman beta",
+  		     lyman_beta_branching_ratio,
+  		     Texo, atmm.sH_lyb(Texo),
+  		     atmm,
+  		     &A::nH,   &A::H_Temp,
+  		     &A::nCO2, &A::sCO2_lyb);
 
-  atmm.spherical = atmm_spherical;    
+  if (change_spherical)
+    atmm.spherical = false;    
 
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
@@ -175,16 +179,28 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 }
 
 
-void observation_fit::generate_source_function_asym(const Real &nHexo, const Real &Texo,
-						    const Real &asym,
-						    const string sourcefn_fname/* = ""*/) {
-
+void observation_fit::generate_source_function_nH_asym(const Real &nHexo, const Real &Texo,
+						       const Real &asym,
+						       const string sourcefn_fname/* = ""*/) {
+  
   temp = krasnopolsky_temperature(Texo);
   chamb_diff_1d_asymmetric atm_asym(nHexo,CO2_exobase_density,temp);
   atm_asym.copy_H_options(H_cross_section_options);
   atm_asym.set_asymmetry(asym);
 
   generate_source_function_sph_azi_sym(atm_asym,Texo,
+				       sourcefn_fname);
+
+}
+
+void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
+							 const Real &Tnoon, const Real &Tmidnight,
+							 const string sourcefn_fname/* = ""*/) {
+
+  chamb_diff_temp_asymmetric atm_asym(nHavg, Tnoon, Tmidnight);
+  atm_asym.copy_H_options(H_cross_section_options);
+
+  generate_source_function_sph_azi_sym(atm_asym,Tnoon,
 				       sourcefn_fname);
 
 }

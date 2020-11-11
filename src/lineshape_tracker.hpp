@@ -12,7 +12,7 @@
 //#define SHIZGAL_LAMBDAS shizgal_lambdas_16
 //#define SHIZGAL_WEIGHTS shizgal_weights_16
 
-#define N_LAMBDA 6    //number of wavelengths to sample across line 0-LAMBDA_MAX inclusive
+#define N_LAMBDA 10    //number of wavelengths to sample across line 0-LAMBDA_MAX inclusive
 #define LAMBDA_MAX REAL(4.0) //largest wavelength from line center in normalized (Doppler) width
 
 struct lineshape_tracker {

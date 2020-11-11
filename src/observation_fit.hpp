@@ -9,6 +9,7 @@
 #include "atm/chamberlain_exosphere.hpp"
 #include "atm/chamb_diff_1d.hpp"
 #include "atm/chamb_diff_1d_asymmetric.hpp"
+#include "atm/chamb_diff_temp_asymmetric.hpp"
 #include "atm/tabular_1d.hpp"
 #include "RT_grid.hpp"
 #include "grid_plane_parallel.hpp"
@@ -16,7 +17,7 @@
 
 class observation_fit {
 protected:
-  static const int n_emissions = 1;
+  static const int n_emissions = 2;
   const std::string emission_names[n_emissions];// = {"H Lyman alpha",
                                                 //    "H Lyman beta"};
 					        // nvcc complains about
@@ -107,9 +108,12 @@ public:
 					    const string sourcefn_fname = "");
   
 
-  void generate_source_function_asym(const Real &nHexo, const Real &Texo,
-				     const Real &asym,
-				     const string sourcefn_fname = "");
+  void generate_source_function_nH_asym(const Real &nHexo, const Real &Texo,
+					const Real &asym,
+					const string sourcefn_fname = "");
+  void generate_source_function_temp_asym(const Real &nHavg,
+					  const Real &Tnoon, const Real &Tmidnight,
+					  const string sourcefn_fname = "");
   
   void generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
 						   const std::vector<Real> &alt_nH, const std::vector<Real> &log_nH,

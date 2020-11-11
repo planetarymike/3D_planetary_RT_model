@@ -33,7 +33,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   vector<Real> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obsfit.set_g_factor(g);
 
-  obsfit.generate_source_function(1e5,300);
+  obsfit.generate_source_function_temp_asym(1e5,300,100);
 
   vector<vector<Real>> brightness;
   brightness = obsfit.brightness();

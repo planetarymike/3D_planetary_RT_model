@@ -45,9 +45,13 @@ cdef extern from "observation_fit.hpp":
                                            string sourcefn_fname,
                                            bool plane_parallel)
     
-        void generate_source_function_asym(Real nHexo, Real Texo,
-                                           Real asym,
-                                           string sourcefn_fname)
+        void generate_source_function_nH_asym(Real nHexo, Real Texo,
+                                              Real asym,
+                                              string sourcefn_fname)
+
+        void generate_source_function_temp_asym(Real nHavg,
+                                                Real Tnoon, Real Tmidnight,
+                                                string sourcefn_fname)
 
         void generate_source_function_tabular_atmosphere(Real rmin, Real rexo, Real rmax,
 							 vector[Real] &alt_nH, vector[Real] &log_nH,
@@ -129,12 +133,19 @@ cdef class Pyobservation_fit:
                                                    sourcefn_fname.encode('utf-8'),
                                                    plane_parallel)
 
-    def generate_source_function_asym(self, Real nH, Real Texo,
+    def generate_source_function_nH_asym(self, Real nH, Real Texo,
                                       Real asym,
                                       sourcefn_fname = ""):
-        self.thisptr.generate_source_function_asym(nH,Texo,
-                                                   asym,
-                                                   sourcefn_fname.encode('utf-8'))
+        self.thisptr.generate_source_function_nH_asym(nH,Texo,
+                                                      asym,
+                                                      sourcefn_fname.encode('utf-8'))
+
+    def generate_source_function_temp_asym(self, Real nHavg,
+                                           Real Tnoon, Real Tmidnight,
+                                           sourcefn_fname = ""):
+        self.thisptr.generate_source_function_temp_asym(nHavg,
+                                                        Tnoon,Tmidnight,
+                                                        sourcefn_fname.encode('utf-8'))
 
     def get_example_tabular_atmosphere(self):
         rmin = 3395e5 +    80e5
