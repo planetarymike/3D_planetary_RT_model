@@ -21,13 +21,13 @@ struct atmosphere {
   virtual Real r_from_n_species(const Real &n_species) const = 0;
 
   //atmosphere temperature
-  virtual Real Temp(const Real &n_species) const = 0;
+  virtual Real Temp(const Real &r) const = 0;
 
   //absorber density
   virtual Real n_absorber(const Real &r) const = 0; 
   
   //function for cross sections should be defined for use with RT
-  //code, but it not required as some species (H) have multiple
+  //code, but this is not required as some species (H) have multiple
   //emissions with different cross sections
   //
   //virtual Real species_sigma(const Real &T) const = 0; virtual
