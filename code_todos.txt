@@ -18,10 +18,13 @@ Validation:
 --compare
 
 New functionality:
+--In temp_asym:
+  --switch to constant CO2 at 80km / rmin rather than rexo
+  --switch to constant rmax instead of min nHexo
 --deuterium and hot H physical densities
 --O I 102.6 nm radiance calculation (may require frequency redistribution)
 --include single-scattering anisotropy
---temperature differences with SZA
+
 
 UIUC collaboration:
 --think more about normalization effects on degeneracy
@@ -90,3 +93,4 @@ xx--profile+optimize GPU code (texture memory likely to be last possible big imp
       --this would replace linear interpolation with hardware interpolation
       --need fast coordinate point finders? (right now this is done brute force)
 xx--32 bit vs 64 bit differences in code output? --- these appear to be mostly gone
+xx--temperature differences with SZA
