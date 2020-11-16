@@ -35,7 +35,7 @@ const Real CO2_lyman_alpha_absorption_cross_section = 6.3e-20; //cm^2 CO2 cross 
 
 const Real lyman_alpha_flux_Earth_typical = 4.5e15;//photons/s/m2/Angstrom line center flux, Earth (Solar Min)
 const Real lyman_alpha_flux_Mars_typical = (lyman_alpha_flux_Earth_typical/1e4  // photons/s/cm2/A
-					      *1e8*lyman_alpha_lambda*lyman_alpha_lambda/clight //now photons/s/cm2/Hz
+					    *1e8/* A / cm */*lyman_alpha_lambda*lyman_alpha_lambda/clight //now photons/s/cm2/Hz
 					      /aMars_typical/aMars_typical); //now photons/s/cm2/Hz at Mars-Sun distance
 const Real lyman_alpha_typical_g_factor = lyman_alpha_flux_Mars_typical*lyman_alpha_cross_section_total; // s-1
 

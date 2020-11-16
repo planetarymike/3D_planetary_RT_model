@@ -51,7 +51,10 @@ Real chamberlain_exosphere::nH(const Real rr) const {
   frac /= norm;
 
   // multiply by the exobase density and return
-  return nHexo*frac*exp(lambda-lambdac);
+  Real retval = nHexo*frac*exp(lambda-lambdac);
+  assert(retval > 0 && "nH must be positive");
+  
+  return retval;
 }
 Real chamberlain_exosphere::operator()(const Real r) const {
   return this->nH(r);

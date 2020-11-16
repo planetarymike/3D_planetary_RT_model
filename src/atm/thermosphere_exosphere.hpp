@@ -23,6 +23,9 @@ using boost::math::interpolators::cardinal_cubic_b_spline;
 //an assumed exobase density and temperature profile
 
 struct thermosphere_exosphere : virtual public atmosphere {
+  static const int method_nHmin_nCO2exo = 0;
+  static const int method_rmax_nCO2rmin = 1;
+  
   Real nHexo;   // cm-3, H density at exobase
   Real nCO2exo; // cm-3, CO2 density at exobase
 
@@ -41,9 +44,11 @@ struct thermosphere_exosphere : virtual public atmosphere {
   vector<Real> lognCO2thermosphere;
   vector<Real> lognHthermosphere;
   vector<Real> r_thermosphere;
-  cardinal_cubic_b_spline<Real> lognCO2_thermosphere_spline;
+  //cardinal_cubic_b_spline<Real> lognCO2_thermosphere_spline;
+  Linear_interp<Real> lognCO2_thermosphere_spline;
   Linear_interp<Real> invlognCO2_thermosphere;
-  cardinal_cubic_b_spline<Real> lognH_thermosphere_spline;
+  //  cardinal_cubic_b_spline<Real> lognH_thermosphere_spline;
+  Linear_interp<Real> lognH_thermosphere_spline;
   Linear_interp<Real> invlognH_thermosphere;
   
   //exosphere interpolation
@@ -51,7 +56,8 @@ struct thermosphere_exosphere : virtual public atmosphere {
   Real exosphere_step_logr;
   vector<Real> lognHexosphere;
   vector<Real> logr_exosphere;
-  cardinal_cubic_b_spline<Real> lognH_exosphere_spline;
+  //cardinal_cubic_b_spline<Real> lognH_exosphere_spline;
+  Linear_interp<Real> lognH_exosphere_spline;
   Linear_interp<Real> invlognH_exosphere;
 
   thermosphere_exosphere(Real nHexoo, // a good number is 10^5-6
@@ -60,23 +66,48 @@ struct thermosphere_exosphere : virtual public atmosphere {
   
   thermosphere_exosphere(Real rminn,
 			 Real rexoo,
-			 Real nHmin,
+			 Real rmaxx_or_nHmin,
 			 Real rmindiffusionn,
 			 Real nHexoo, // a good number is 10^5-6
-			 Real nCO2exoo, //a good number is 10^9 (?)
-			 temperature &tempp);
+			 Real nCO2rmin_or_nCO2exoo, //a good number is 10^9 (?)
+			 temperature &tempp,
+			 const int method = method_nHmin_nCO2exo);
 
-  void setup(Real nHexoo, // a good number is 10^5-6
-	     Real nCO2exoo, //a good number is 10^9 (?)
-	     temperature &tempp);
+  void setup_nHmin_nCO2exo(Real nHexoo, // a good number is 10^5-6
+			   Real nCO2exoo, //a good number is 10^9 (?)
+			   temperature &tempp);
+  
+  void setup_nHmin_nCO2exo(Real rminn,
+			   Real rexoo,
+			   Real nHmin,
+			   Real rmindiffusionn,
+			   Real nHexoo, // a good number is 10^5-6
+			   Real nCO2exoo, //a good number is 10^9 (?)
+			   temperature &tempp);
 
-  void setup(Real rminn,
-	     Real rexoo,
-	     Real nHmin,
-	     Real rmindiffusionn,
-	     Real nHexoo, // a good number is 10^5-6
-	     Real nCO2exoo, //a good number is 10^9 (?)
-	     temperature &tempp);
+  void setup_rmax_nCO2rmin(Real nHexoo, // a good number is 10^5-6
+			   Real nCO2rmin, //a good number is 10^9 (?)
+			   temperature &tempp);
+
+  void setup_rmax_nCO2rmin(Real rminn,
+			   Real rexoo,
+			   Real rmaxx,
+			   Real rmindiffusionn,
+			   Real nHexoo, // a good number is 10^5-6
+			   Real nCO2rmin, //a good number is 10^9 (?)
+			   temperature &tempp);
+
+  void setup_rmax_nCO2exo(Real nHexoo, // a good number is 10^5-6
+			  Real nCO2exoo, //a good number is 10^9 (?)
+			  temperature &tempp);
+
+  void setup_rmax_nCO2exo(Real rminn,
+			  Real rexoo,
+			  Real nHmin,
+			  Real rmindiffusionn,
+			  Real nHexoo, // a good number is 10^5-6
+			  Real nCO2exoo, //a good number is 10^9 (?)
+			  temperature &tempp);
   
   Real nCO2(const Real &r) const;
   Real n_absorber(const Real &r) const;

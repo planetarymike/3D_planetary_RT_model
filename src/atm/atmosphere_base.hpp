@@ -34,6 +34,8 @@ struct atmosphere {
   //Real absorber_sigma(const Real &T) const = 0;
 
   atmosphere(Real rminn, Real rexoo, Real rmaxx);
+
+  virtual ~atmosphere() = default;
 };
 
 #endif

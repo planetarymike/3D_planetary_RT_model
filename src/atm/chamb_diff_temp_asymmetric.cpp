@@ -28,23 +28,23 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
   : chamb_diff_temp_asymmetric(navgg,
 			       T00,
 			       T11,
-			       /*      nCO2exoo = */2e8,			       
+			       /*      nCO2exoo = */2.6e13,			       
 			       /*          rexo = */rexo_typical,
 			       /*          rmin = */rMars + 80e5,
-			       /*         nHmin = */10,
+			       /*         rmaxx = */rMars + 50000e5,
 			       /* rmindiffusion = */rMars + 120e5)
 { }
 
 chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
 						       const double T00,
 						       const double T11,
-						       const double nCO2exoo, //a good number is 10^9 (?)
+						       const double nCO2rminn, //a good number is 2.6e13 (80km) [Chaufray+2008]
 						       const double rexoo,
 						       const double rminn,
-						       const double nHminn,
+						       const double rmaxx,
 						       const double rmindiffusionn)
-  : navg(navgg), T0(T00), T1(T11), nCO2exo(nCO2exoo), nHmin(nHminn), rmindiffusion(rmindiffusionn),
-    atmosphere(rminn, rexoo, -1)
+  : atmosphere(rminn, rexoo, rmaxx),
+    navg(navgg), T0(T00), T1(T11), nCO2rmin(nCO2rminn), rmindiffusion(rmindiffusionn)
 {
   //compute the normalizing constant for this T0 and T1
   const int n_sza_int=100;
@@ -68,13 +68,15 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
   for (int isza=0; isza<n_sza; isza++) {
     sza_vec[isza] = isza*d_sza;
     Temp_sza[isza] = krasnopolsky_temperature(T_sza(sza_vec[isza]));
+
     atm_sza[isza] = new chamb_diff_1d(rmin,
 				      rexo,
-				      nHmin,
+				      rmax,
 				      rmindiffusion,
 				      nH_sza(sza_vec[isza]),
-				      nCO2exo,
-				      Temp_sza[isza]);
+				      nCO2rmin,
+				      Temp_sza[isza],
+				      thermosphere_exosphere::method_rmax_nCO2rmin);
   }
 
   //set the max altitude to the minumum of the max altitudes as a function of SZA
@@ -125,7 +127,7 @@ chamb_diff_temp_asymmetric::~chamb_diff_temp_asymmetric() {
 
 
 void chamb_diff_temp_asymmetric::sza_interp(const double &sza, int &i_sza, double &sza_wt) const {
-  i_sza = (int) sza/d_sza;//rounds down (truncation)
+  i_sza = (int) (sza/d_sza);//rounds down (truncation)
   sza_wt = 1.0-(sza-sza_vec[i_sza])/d_sza;// 1.0 if we're at the lower boundary, 0.0 at the upper
 }
 
@@ -174,7 +176,7 @@ Real chamb_diff_temp_asymmetric::Temp(const atmo_point &pt) const {
     int isza;
     double szawt;
     sza_interp(pt.t, isza, szawt);
-    if (isza==n_sza)
+    if (isza==n_sza-1)
       return atm_sza[isza]->thermosphere_exosphere::Temp(pt.r);
     else
       return (       szawt *(atm_sza[isza  ]->thermosphere_exosphere::Temp(pt.r))
@@ -222,7 +224,7 @@ Real chamb_diff_temp_asymmetric::nCO2(const atmo_point &pt) const {
   int isza;
   double szawt;
   sza_interp(pt.t, isza, szawt);
-  if (isza==n_sza)
+  if (isza==n_sza-1)
     return atm_sza[isza]->thermosphere_exosphere::nCO2(pt.r);
   else
     return (       szawt *(atm_sza[isza  ]->thermosphere_exosphere::nCO2(pt.r))
@@ -265,7 +267,7 @@ Real chamb_diff_temp_asymmetric::nH(const atmo_point &pt) const {
   int isza;
   double szawt;
   sza_interp(pt.t, isza, szawt);
-  if (isza==n_sza)
+  if (isza==n_sza-1)
     return atm_sza[isza]->thermosphere_exosphere::nH(pt.r);
   else
     return (       szawt *(atm_sza[isza  ]->thermosphere_exosphere::nH(pt.r))

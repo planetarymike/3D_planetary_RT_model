@@ -28,49 +28,93 @@ thermosphere_exosphere::thermosphere_exosphere(Real nHexoo, // a good number is 
 
 thermosphere_exosphere::thermosphere_exosphere(Real rminn,
 					       Real rexoo,
-					       Real nHmin,
+					       Real rmaxx_or_nHmin,
 					       Real rmindiffusionn,
 					       Real nHexoo, // a good number is 10^5-6
-					       Real nCO2exoo, //a good number is 10^9 (?)
-					       temperature &tempp)
+					       Real nCO2rmin_or_nCO2exoo, //a good number is 10^9 (?)
+					       temperature &tempp,
+					       const int method)
   : atmosphere(rminn, rexoo, -1), // -1 is immediately overwritten
     exosphere(rexoo, tempp.T_exo, nHexoo),// overwritten in setup()
     diffeq(tempp, exosphere.H_escape_flux, rexoo) //overwritten in setup()
 {
-  setup(rminn,
-	rexoo,
-	nHmin,
-	rmindiffusionn,
-	nHexoo,
-	nCO2exoo,
-	tempp);
+  if (method == method_nHmin_nCO2exo)
+    this->setup_nHmin_nCO2exo(rminn,
+			      rexoo,
+			      rmaxx_or_nHmin,
+			      rmindiffusionn,
+			      nHexoo,
+			      nCO2rmin_or_nCO2exoo,
+			      tempp);
+  else if (method == method_rmax_nCO2rmin)
+    this->setup_rmax_nCO2rmin(rminn,
+			      rexoo,
+			      rmaxx_or_nHmin,
+			      rmindiffusionn,
+			      nHexoo,
+			      nCO2rmin_or_nCO2exoo,
+			      tempp);
 }
 
-void thermosphere_exosphere::setup(Real nHexoo, // a good number is 10^5-6
-				   Real nCO2exoo, //a good number is 10^9 (?)
-				   temperature &tempp)
+void thermosphere_exosphere::setup_nHmin_nCO2exo(Real rminn,
+						 Real rexoo,
+						 Real nHmin,
+						 Real rmindiffusionn,
+						 Real nHexoo, // a good number is 10^5-6
+						 Real nCO2exoo, //a good number is 10^9 (?)
+						 temperature &tempp)
 {
-  setup(/*          rmin = */rMars + 80e5,
-	/*          rexo = */rexo_typical,
-	/*         nHmin = */10,
-	/* rmindiffusion = */rMars + 120e5,
-	nHexoo,
-	nCO2exoo,
-	tempp);
+  //set the max altitude by finding the density at which the exosphere = nHmin
+  Real rmaxx = exosphere.r(nHmin);
+  
+  setup_rmax_nCO2exo(rminn,
+		     rexoo,
+		     rmaxx,
+		     rmindiffusionn,
+		     nHexoo, // a good number is 10^5-6
+		     nCO2exoo, //a good number is 10^9 (?)
+		     tempp);
 }
 
-void thermosphere_exosphere::setup(Real rminn,
-				   Real rexoo,
-				   Real nHmin,
-				   Real rmindiffusionn,
-				   Real nHexoo, // a good number is 10^5-6
-				   Real nCO2exoo, //a good number is 10^9 (?)
-				   temperature &tempp)
+void thermosphere_exosphere::setup_rmax_nCO2rmin(Real rminn,
+						 Real rexoo,
+						 Real rmaxx,
+						 Real rmindiffusionn,
+						 Real nHexoo, // a good number is 10^5-6
+						 Real nCO2rmin, //a good number is 2.6e13 (Chaufray 2008)
+						 temperature &tempp)
+{
+  //integrate from rmin upward to rexo to get nCO2exo
+  vector<Real> n80km(2);
+  n80km[0] = log(nCO2rmin);
+  n80km[1] = log(1);//H density is arbitrary, not used later on
+
+  //use a constant stepper for easy interpolation
+  Real initial_step = (rexo-rmin)/200.;
+  integrate( diffeq , n80km, rmin , rexo , initial_step);
+
+  Real nCO2exoo = exp(n80km[0]);
+  
+  setup_rmax_nCO2exo(rminn,
+		     rexoo,
+		     rmaxx,
+		     rmindiffusionn,
+		     nHexoo, // a good number is 10^5-6
+		     nCO2exoo, //a good number is 10^9 (?)
+		     tempp);
+}
+
+void thermosphere_exosphere::setup_rmax_nCO2exo(Real rminn,
+						Real rexoo,
+						Real rmaxx,
+						Real rmindiffusionn,
+						Real nHexoo, // a good number is 10^5-6
+						Real nCO2exoo, //a good number is 10^9 (?)
+						temperature &tempp)
 {
   rmin = rminn;
   rexo = rexoo;
-  //set the max altitude by finding the density at which the exosphere = nHmin
-  rmax = exosphere.r(nHmin);
+  rmax = rmaxx;
     
   nHexo = nHexoo;
   nCO2exo = nCO2exoo;
@@ -95,16 +139,28 @@ void thermosphere_exosphere::setup(Real rminn,
 		   push_back_quantities( &lognCO2thermosphere,
 					 &lognHthermosphere,
 					 &r_thermosphere ) );
+
+#ifndef DNDEBUG
+  //check the thermosphere values for any negatives
+  for (unsigned int i=0; i < lognCO2thermosphere.size(); i++) {
+    assert(exp(lognCO2thermosphere[i]) > 0 && "densities must be positive.");
+    assert(exp(lognHthermosphere[i]) > 0 && "densities must be positive.");
+    assert(r_thermosphere[i] > 0 && "radii must be positive.");
+  }
+#endif
+  
   //interpolate the densities in the thermosphere
-  lognCO2_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognCO2thermosphere.rbegin(),
-							      lognCO2thermosphere.rend(),
-							      rmin,
-							      -thermosphere_step_r);
+  // lognCO2_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognCO2thermosphere.rbegin(),
+  // 							      lognCO2thermosphere.rend(),
+  // 							      rmin,
+  // 							      -thermosphere_step_r);
+  lognCO2_thermosphere_spline = Linear_interp<Real>(r_thermosphere,lognCO2thermosphere);
   invlognCO2_thermosphere = Linear_interp<Real>(lognCO2thermosphere,r_thermosphere);
-  lognH_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognHthermosphere.rbegin(),
-							    lognHthermosphere.rend(),
-							    rmin,
-							    -thermosphere_step_r);
+  // lognH_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognHthermosphere.rbegin(),
+  // 							    lognHthermosphere.rend(),
+  // 							    rmin,
+  // 							    -thermosphere_step_r);
+  lognH_thermosphere_spline = Linear_interp<Real>(r_thermosphere,lognHthermosphere);
   invlognH_thermosphere = Linear_interp<Real>(lognHthermosphere,r_thermosphere);
 
   nHrmindiffusion = nH(rmindiffusion);
@@ -114,16 +170,20 @@ void thermosphere_exosphere::setup(Real rminn,
   exosphere_step_logr = (log(rmax) - log(rexo))/(n_exosphere_steps - 1.);
   for (int iexo = 0; iexo < n_exosphere_steps; iexo++) {
     logr_exosphere.push_back( log(rexo) + iexo * exosphere_step_logr );
+    assert(logr_exosphere.back() > 0 && "radii must be positive");
     lognHexosphere.push_back( log( exosphere( exp( logr_exosphere[iexo] ) ) ) );
+    assert(exp(lognHexosphere.back()) > 0 && "densities must be positive");
   }
-  lognH_exosphere_spline = cardinal_cubic_b_spline<Real>(lognHexosphere.begin(),
-							 lognHexosphere.end(),
-							 log(rexo),
-							 exosphere_step_logr);
+  // lognH_exosphere_spline = cardinal_cubic_b_spline<Real>(lognHexosphere.begin(),
+  // 							 lognHexosphere.end(),
+  // 							 log(rexo),
+  // 							 exosphere_step_logr);
+  lognH_exosphere_spline = Linear_interp<Real>(logr_exosphere,lognHexosphere);
   invlognH_exosphere = Linear_interp<Real>(lognHexosphere,logr_exosphere);
 
   init=true;
 }
+
 
 Real thermosphere_exosphere::nCO2(const Real &r) const {
   if (r>rexo)

@@ -10,60 +10,32 @@ chamb_diff_1d::chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
 		  /* rmindiffusion = */rMars + 120e5,
 		  nHexoo,
 		  nCO2exoo,
-		  tempp)   { }
+		  tempp,
+		  method_nHmin_nCO2exo)   { }
 
 chamb_diff_1d::chamb_diff_1d(Real rminn,
 			     Real rexoo,
-			     Real nHmin,
+			     Real rmaxx_or_nHmin,
                              Real rmindiffusionn,
                              Real nHexoo,   // a good number is 10^5-6
-                             Real nCO2exoo, // a good number is 10^9 (?)
-                             temperature &tempp)
-  : atmosphere(rminn,rexoo,-1),
+                             Real nCO2rmin_or_nCO2exoo, // a good number is 10^9 (?)
+                             temperature &tempp,
+			     const int method)
+  : atmosphere(rminn,rexoo,rmaxx_or_nHmin),
     thermosphere_exosphere(rminn,
 			   rexoo,
-			   nHmin,
+			   rmaxx_or_nHmin,
 			   rmindiffusionn,
 			   nHexoo,
-			   nCO2exoo,
-			   tempp)
+			   nCO2rmin_or_nCO2exoo,
+			   tempp,
+			   method)
 {
-  this->setup(rminn,
-	      rexoo,
-	      nHmin,
-	      rmindiffusionn,
-	      nHexoo,
-	      nCO2exoo,
-	      tempp);
+  setup();
 }
 
-void chamb_diff_1d::setup(Real nHexoo, // a good number is 10^5-6
-			  Real nCO2exoo, //a good number is 10^9 (?)
-			  temperature &tempp)
+void chamb_diff_1d::setup()
 {
-  this->setup(/*          rmin = */rMars + 80e5,
-	      /*          rexo = */rexo_typical,
-	      /*         nHmin = */10,
-	      /* rmindiffusion = */rMars + 120e5,
-	      nHexoo,
-	      nCO2exoo,
-	      tempp);
-}
-void chamb_diff_1d::setup(Real rminn,
-			  Real rexoo,
-			  Real nHmin,
-			  Real rmindiffusionn,
-			  Real nHexoo,   // a good number is 10^5-6
-			  Real nCO2exoo, // a good number is 10^9 (?)
-			  temperature &tempp)
-{
-  thermosphere_exosphere::setup(rminn,
-				rexoo,
-				nHmin,
-				rmindiffusionn,
-				nHexoo,
-				nCO2exoo,
-				tempp);
   atmosphere_average_1d::setup();
 }
 

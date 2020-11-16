@@ -18,7 +18,7 @@ protected:
   double A;  //constant A = nT^p 
 
   //other input parameters
-  double nCO2exo; //CO2 density at exobase
+  double nCO2rmin; //CO2 density at rmin
 
   double nHmin;// minimum H density to track, sets upper boundary
   double rmindiffusion; // minimum altitude to solve H diffusion equation
@@ -71,10 +71,10 @@ public:
   chamb_diff_temp_asymmetric(const double n00,
 			     const double T00,
 			     const double T11,
-			     const double nCO2exoo, //a good number is 10^9 (?)
+			     const double nCO2rminn, //a good number is 2.6e13 (Chaufray2008)
 			     const double rexoo,
 			     const double rminn,
-			     const double nHmin,
+			     const double rmaxx,
 			     const double rmindiffusionn);
 
   ~chamb_diff_temp_asymmetric();

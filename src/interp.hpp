@@ -220,9 +220,9 @@ struct Bilinear_interp
 // values.
 {
   int m, n;
-  Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> y;
   // we need dummy 1 dim interp objects for their locate and hunt functions
   Linear_interp<Real> x1terp, x2terp;
+  Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> y;
 
   Bilinear_interp() { }
 
