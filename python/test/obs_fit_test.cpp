@@ -15,7 +15,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   string emission_names[n_emissions] = {"fake"};
   observation<n_emissions> obs(emission_names);
 
-  int n_fake = 600;
+  int n_fake = 60;
   Real dist = 30*rMars;
   obs.fake(dist,30,n_fake);
 
@@ -32,6 +32,19 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   obsfit.add_observation(locations,directions);
   vector<Real> g = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obsfit.set_g_factor(g);
+
+  vector<Real> ra;
+  vector<Real> dec;
+  ra.resize(n_fake*n_fake);
+  dec.resize(n_fake*n_fake);
+  for (int i=0; i<n_fake*n_fake; i++) {
+    ra[i] = 360.0*(i%n_fake)/(1.0*n_fake);
+    dec[i] = 180.0*(i/n_fake)/(1.0*n_fake)-90;
+  }
+
+  vector<Real> marspos = {std::sqrt(2.0f),0,0};
+
+  obsfit.add_observation_ra_dec(marspos, ra, dec);
 
   obsfit.generate_source_function_temp_asym(1e5,300,100);
 

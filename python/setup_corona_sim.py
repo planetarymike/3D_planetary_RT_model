@@ -6,9 +6,10 @@ import sys
 
 extension = Extension("py_corona_sim",
                       ["py_corona_sim.pyx"],
-                      extra_objects=['build/libobservation_fit.a'],
+                      extra_objects=['build/libobservation_fit.a','../bin/ipbackgroundCFR_fun.o'],
                       language="c++",
-                      extra_compile_args=['-lm','-fopenmp','-O3','-march=native',
+                      extra_link_args=['-lgfortran'],
+                      extra_compile_args=['-lgfortran','-lm','-fopenmp','-O3','-march=native',
                                           '-DNDEBUG','-fPIC'],
                       include_dirs=["../src/",
                                     "/home/mike/Documents/Utilities/boost_1_73_0/",

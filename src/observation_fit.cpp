@@ -2,15 +2,17 @@
 
 #include "constants.hpp"
 #include "observation_fit.hpp"
+#include "quemerais_IPH_model/iph_model_interface.hpp"
 using std::vector;
 using std::string;
 
 observation_fit::observation_fit()
-    : emission_names{"H Lyman alpha","H Lyman beta"},
-      obs(emission_names),
-      atm_tabular(),
-      RT_pp(emission_names),
-      RT(emission_names)
+  : emission_names{"H Lyman alpha"},//,"H Lyman beta"},
+    obs(emission_names),
+    atm_tabular(),
+    RT_pp(emission_names),
+    RT(emission_names),
+    sim_iph(false)
 {
 
   for (int i_emission = 0; i_emission < n_emissions; i_emission++) {
@@ -47,6 +49,33 @@ void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations,
 void observation_fit::set_g_factor(vector<Real> &g) {
   for (int i_emission=0;i_emission<n_emissions;i_emission++)
     obs.emission_g_factors[i_emission] = g[i_emission];
+}
+
+void observation_fit::simulate_iph(const bool sim_iphh) {
+  sim_iph = sim_iphh;
+}
+
+void observation_fit::add_observation_ra_dec(const std::vector<Real> &mars_ecliptic_coords,
+			    const std::vector<Real> &RAA,
+			    const std::vector<Real> &Decc) {
+  simulate_iph(true);
+  obs.add_observation_ra_dec(mars_ecliptic_coords,
+			     RAA,
+			     Decc);
+  get_unextincted_iph();
+}
+
+void observation_fit::get_unextincted_iph() {
+  //simulate the IPH brightness using Quemerais' IPH code
+  vector<Real> iph_brightness_lya = quemerais_iph_model(obs.emission_g_factors[0],
+							obs.mars_ecliptic_pos,
+							obs.ra, obs.dec);
+  
+  for (int i_obs=0; i_obs < obs.size(); i_obs++) {
+    obs.iph_brightness_unextincted[i_obs][0] = iph_brightness_lya[i_obs];
+    if (n_emissions==2)
+      obs.iph_brightness_unextincted[i_obs][1] = 0; //could maybe estimate using lyman alpha?
+  }
 }
 
 
@@ -116,12 +145,12 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
 		     atmm,
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya);
-  RT_pp.define_emission("H Lyman beta",
-  		     lyman_beta_branching_ratio,
-  		     Texo, atmm.sH_lyb(Texo),
-  		     atmm,
-  		     &A::nH,   &A::H_Temp,
-  		     &A::nCO2, &A::sCO2_lyb);
+  // RT_pp.define_emission("H Lyman beta",
+  // 		     lyman_beta_branching_ratio,
+  // 		     Texo, atmm.sH_lyb(Texo),
+  // 		     atmm,
+  // 		     &A::nH,   &A::H_Temp,
+  // 		     &A::nCO2, &A::sCO2_lyb);
 
   atmm.spherical = atmm_spherical;  
 
@@ -157,12 +186,12 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 		     atmm,
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya);
-  RT.define_emission("H Lyman beta",
-  		     lyman_beta_branching_ratio,
-  		     Texo, atmm.sH_lyb(Texo),
-  		     atmm,
-  		     &A::nH,   &A::H_Temp,
-  		     &A::nCO2, &A::sCO2_lyb);
+  // RT.define_emission("H Lyman beta",
+  // 		     lyman_beta_branching_ratio,
+  // 		     Texo, atmm.sH_lyb(Texo),
+  // 		     atmm,
+  // 		     &A::nH,   &A::H_Temp,
+  // 		     &A::nCO2, &A::sCO2_lyb);
 
   if (change_spherical)
     atmm.spherical = false;    
@@ -196,7 +225,8 @@ void observation_fit::generate_source_function_nH_asym(const Real &nHexo, const 
 void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 							 const Real &Tnoon, const Real &Tmidnight,
 							 const string sourcefn_fname/* = ""*/) {
-
+  std::cout << "nHavg = " << nHavg << "; Tnoon = " << Tnoon << "; Tmidnight = " << Tmidnight <<".\n";
+  
   chamb_diff_temp_asymmetric atm_asym(nHavg, Tnoon, Tmidnight);
   atm_asym.copy_H_options(H_cross_section_options);
 
@@ -280,6 +310,9 @@ vector<vector<Real>> observation_fit::brightness() {
 #else
   RT.brightness(obs);
 #endif
+
+  if (sim_iph)
+    obs.update_iph_extinction();
   
   vector<vector<Real>> brightness;
   brightness.resize(n_emissions);
@@ -287,8 +320,11 @@ vector<vector<Real>> observation_fit::brightness() {
   for (int i_emission=0;i_emission<n_emissions;i_emission++) {
     brightness[i_emission].resize(obs.size());
     
-    for (int i=0;i<obs.size();i++)
+    for (int i=0;i<obs.size();i++) {
       brightness[i_emission][i] = obs.los[i].brightness[i_emission];
+      if (sim_iph)
+	brightness[i_emission][i] += obs.iph_brightness_observed[i][i_emission];
+    }
   }
   
   return brightness;
@@ -321,6 +357,37 @@ vector<vector<Real>> observation_fit::tau_absorber_final() {
   }
   
   return tau_absorber;
+}
+
+
+vector<vector<Real>> observation_fit::iph_brightness_observed() {
+  vector<vector<Real>> iph_b;
+  iph_b.resize(n_emissions);
+
+  obs.update_iph_extinction();
+  
+  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+    iph_b[i_emission].resize(obs.size());
+    
+    for (int i=0;i<obs.size();i++)
+      iph_b[i_emission][i] =  obs.iph_brightness_observed[i][i_emission];
+  }
+  
+  return iph_b;
+}
+
+vector<vector<Real>> observation_fit::iph_brightness_unextincted() {
+  vector<vector<Real>> iph_b;
+  iph_b.resize(n_emissions);
+
+  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+    iph_b[i_emission].resize(obs.size());
+    
+    for (int i=0;i<obs.size();i++)
+      iph_b[i_emission][i] =  obs.iph_brightness_unextincted[i][i_emission];
+  }
+  
+  return iph_b;
 }
 
 

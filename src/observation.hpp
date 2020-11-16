@@ -67,6 +67,12 @@ public:
 
   Real emission_g_factors[n_emissions];
 
+  vector<vector<Real>> iph_brightness_unextincted;
+  vector<vector<Real>> iph_brightness_observed;
+  vector<Real> ra;
+  vector<Real> dec;
+  vector<Real> mars_ecliptic_pos;
+
   //CUDA device pointers for dynamic arrays
   observation<n_emissions> *d_obs=NULL;
   
@@ -104,7 +110,7 @@ public:
   
   void reset_output() {
     los.resize(n_obs,brightness_tracker<n_emissions>());
-    for (int i_obs=0;i_obs<n_obs;i_obs++)
+    for (int i_obs=0;i_obs<n_obs;i_obs++) 
       los[i_obs].init();
   }
 
@@ -117,6 +123,44 @@ public:
       add_MSO_observation(locations[i],directions[i],i);
 
     reset_output();
+  }
+
+  void add_observation_ra_dec(const std::vector<Real> &mars_ecliptic_coords,
+			      const std::vector<Real> &RAA,
+			      const std::vector<Real> &Decc) {
+    assert(n_obs == RAA.size() && RAA.size() == Decc.size() &&
+	   "IPH coordinates must have the same dimensions as locations and directions");
+
+    assert(mars_ecliptic_coords.size()==3 && "mars ecliptic coords must be a 3D position.");
+    mars_ecliptic_pos.resize(3);
+    for (int i=0;i<3;i++)
+      mars_ecliptic_pos[i] = mars_ecliptic_coords[i];
+
+    ra.resize(n_obs);
+    dec.resize(n_obs);
+    for (unsigned int i = 0; i < n_obs; i++) {
+      ra[i] = RAA[i];
+      dec[i] = Decc[i];
+    }
+
+    iph_brightness_unextincted.resize(n_obs);
+    iph_brightness_observed.resize(n_obs);
+    for (int i_obs=0;i_obs<n_obs;i_obs++) {
+      iph_brightness_unextincted[i_obs].resize(n_emissions);
+      iph_brightness_observed[i_obs].resize(n_emissions);
+    }
+  }
+
+  void update_iph_extinction() {
+    for (int i_obs=0;i_obs<n_obs;i_obs++) {
+      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	if (los[i_obs].line[i_emission].tau_absorber_final != -1)
+	  iph_brightness_observed[i_obs][i_emission] = (iph_brightness_unextincted[i_obs][i_emission]
+							*std::exp(-los[i_obs].line[i_emission].tau_absorber_final));
+	else
+	  iph_brightness_observed[i_obs][i_emission] = 0.0;
+      }
+    }
   }
 
   CUDA_CALLABLE_MEMBER

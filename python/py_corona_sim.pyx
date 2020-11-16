@@ -32,6 +32,11 @@ cdef extern from "observation_fit.hpp":
 
         void set_g_factor(vector[Real] &g)
 
+        void simulate_iph(bool sim_iphh);
+        void add_observation_ra_dec(vector[Real] mars_ecliptic_coords,
+			            vector[Real] &RAA,
+	                            vector[Real] &Decc);
+
         void generate_source_function(Real nHexo, Real Texo,
                                       string atmosphere_fname,
                                       string sourcefn_fname,
@@ -79,6 +84,8 @@ cdef extern from "observation_fit.hpp":
         vector[vector[Real]] brightness()
         vector[vector[Real]] tau_species_final()
         vector[vector[Real]] tau_absorber_final()
+        vector[vector[Real]] iph_brightness_observed()
+        vector[vector[Real]] iph_brightness_unextincted()
         Temp_converter Tconv
         
 cdef class Pyobservation_fit:
@@ -103,6 +110,32 @@ cdef class Pyobservation_fit:
     def set_g_factor(self, vector[Real] g):
         self.thisptr.set_g_factor(g)
 
+    def simulate_iph(self,
+                     bool sim_iphh):
+        self.thisptr.simulate_iph(sim_iphh)
+
+        
+    def add_observation_ra_dec(self,
+                               mars_ecliptic_coords_arr,
+			       RA_arr,
+	                       Dec_arr):
+
+        cdef vector[Real] marspos, RA, Dec
+
+        marspos.resize(3)
+        for i in range(3):
+            marspos[i] = realconvert(mars_ecliptic_coords_arr[i])
+        
+        RA.resize(RA_arr.shape[0])
+        Dec.resize(Dec_arr.shape[0])
+        for i in range(RA_arr.shape[0]):
+            RA[i]  = realconvert(RA_arr[i])
+            Dec[i] = realconvert(Dec_arr[i])
+        
+        self.thisptr.add_observation_ra_dec(marspos,
+                                            RA,
+                                            Dec)
+        
     def lc_from_T(self, T):
         return self.thisptr.Tconv.lc_from_T(realconvert(T))
     def eff_from_T(self, T):
@@ -239,3 +272,9 @@ cdef class Pyobservation_fit:
 
     def tau_absorber_final(self):
         return np.asarray(self.thisptr.tau_absorber_final())
+
+    def iph_brightness_observed(self):
+        return np.asarray(self.thisptr.iph_brightness_observed())
+
+    def iph_brightness_unextincted(self):
+        return np.asarray(self.thisptr.iph_brightness_unextincted())

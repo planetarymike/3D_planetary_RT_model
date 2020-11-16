@@ -3,7 +3,7 @@ MAKEFLAGS += -j20 #parallel compilation
 #files that need compilin'
 OBJDIR = ../bin
 SRCDIR = ../src
-SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
+SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/quemerais_IPH_model/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
 
 NSRCFILES = $(SRCFILES) 
 NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=%.cuda.o)       $(NSRCFILES:%.cu=%.cuda.o      ))
@@ -62,6 +62,10 @@ py_corona_sim_cpu: $(OBJFILES)
 	ar rs build/libobservation_fit.a $(OBJFILES)
 	ranlib build/libobservation_fit.a
 
+	gfortran -fPIC -Ofast -c -std=legacy\
+	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
+	  -o $(OBJDIR)/ipbackgroundCFR_fun.o
+
 	python setup_corona_sim.py build_ext --inplace
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
@@ -89,6 +93,10 @@ py_corona_sim_gpu: $(NOBJFILES)
 
 	ranlib build/libobservation_fit.a
 
+	gfortran -fPIC -Ofast -c -std=legacy\
+	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
+	  -o $(OBJDIR)/ipbackgroundCFR_fun.o
+
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT
 
 $(OBJDIR)/%.cuda.o: $(SRCDIR)/%.cpp
@@ -97,9 +105,14 @@ $(OBJDIR)/%.cuda.o: $(SRCDIR)/%.cpp
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
 obs_fit_test_gpu: $(NOBJFILESDBG)
+	gfortran -Og -g -c -std=legacy\
+	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
+	  -o $(OBJDIR)/ipbackgroundCFR_fun.o
 	$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc test/obs_fit_test.cpp -o ../bin/obs_fit_test.cuda.debug.o
 	@echo "linking ..."
-	@$(NCC) $(NOBJFILESDBG) ../bin/obs_fit_test.cuda.debug.o $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o ./test/obs_fit_test.x
+	$(NCC) $(NOBJFILESDBG) ../bin/obs_fit_test.cuda.debug.o \
+	  -lgfortran $(OBJDIR)/ipbackgroundCFR_fun.o \
+	  $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o ./test/obs_fit_test.x
 
 $(OBJDIR)/%.cuda.debug.o: $(SRCDIR)/%.cpp
 	@echo "compiling $<..."

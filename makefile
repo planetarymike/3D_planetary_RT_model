@@ -8,7 +8,8 @@ MAKEFLAGS += -j20 #parallel compilation
 #files that need compilin'
 OBJDIR = ./bin
 SRCDIR = src
-SRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
+PSRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
+SRCFILES = $(filter-out $(SRCDIR)/observation_fit.cpp,$(PSRCFILES))
 
 NSRCFILES = $(SRCFILES) generate_source_function.cpp
 NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o)       $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.o      ))

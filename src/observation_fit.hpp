@@ -17,7 +17,7 @@
 
 class observation_fit {
 protected:
-  static const int n_emissions = 2;
+  static const int n_emissions = 1;
   const std::string emission_names[n_emissions];// = {"H Lyman alpha",
                                                 //    "H Lyman beta"};
 					        // nvcc complains about
@@ -73,6 +73,8 @@ protected:
 	  grid_type,
 	  influence_type> RT_deriv;
 
+  bool sim_iph;
+
 public:
   observation_fit();
 
@@ -84,8 +86,16 @@ public:
   void add_observed_brightness(const std::vector<Real> &brightness,
 			       const std::vector<Real> &sigma,
 			       const int emission = 0);
+  void get_unextincted_iph();
   
   void set_g_factor(vector<Real> &g);
+
+
+  void simulate_iph(const bool sim_iphh);
+  void add_observation_ra_dec(const std::vector<Real> &mars_ecliptic_coords,
+			      const std::vector<Real> &RAA,
+			      const std::vector<Real> &Decc);
+    
 
   void generate_source_function(const Real &nHexo, const Real &Texo,
 				const string atmosphere_fname = "",
@@ -137,6 +147,8 @@ public:
   std::vector<std::vector<Real>> brightness();
   std::vector<std::vector<Real>> tau_species_final();
   std::vector<std::vector<Real>> tau_absorber_final();
+  std::vector<std::vector<Real>> iph_brightness_observed();
+  std::vector<std::vector<Real>> iph_brightness_unextincted();
 
   std::vector<Real> likelihood_and_derivatives(const Real &nHexo, const Real &Texo);
   void logl();
