@@ -17,7 +17,7 @@ struct Base_interp
 {
   int n, mmm, dj;
   mutable int jsav, cor;
-  Real *xx, *yy;
+  Real *xx=NULL, *yy=NULL;
 
   Base_interp() : n(0) { }
   Base_interp(const vector<Real> &x, const vector<Real> &y, const int m)
@@ -28,6 +28,10 @@ struct Base_interp
       xx = NULL;
       yy = NULL;
     } else {
+      if (xx != NULL)
+	delete [] xx;
+      if (yy != NULL)
+	delete [] yy;
       xx = new Real[n];
       yy = new Real[n];
     }
@@ -49,6 +53,10 @@ struct Base_interp
       xx = NULL;
       yy = NULL;
     } else {
+      if (xx != NULL)
+	delete [] xx;
+      if (yy != NULL)
+	delete [] yy;
       xx = new Real[n];
       yy = new Real[n];
     }
@@ -68,6 +76,10 @@ struct Base_interp
       xx = NULL;
       yy = NULL;
     } else {
+      if (xx != NULL)
+	delete [] xx;
+      if (yy != NULL)
+	delete [] yy;
       xx = new Real[n];
       yy = new Real[n];
     }
