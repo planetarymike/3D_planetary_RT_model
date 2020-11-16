@@ -18,9 +18,6 @@ Validation:
 --compare
 
 New functionality:
---In temp_asym:
-  --switch to constant CO2 at 80km / rmin rather than rexo
-  --switch to constant rmax instead of min nHexo
 --deuterium and hot H physical densities
 --O I 102.6 nm radiance calculation (may require frequency redistribution)
 --include single-scattering anisotropy
@@ -30,7 +27,7 @@ UIUC collaboration:
 --think more about normalization effects on degeneracy
 
 Needed next 6 months:
---IPH background (for IUVS apoapse images)
+--new IPH model? Very slow to evaluate quemerais model
 
 Small code improvements
   --improve treatment of planetary shadow by doubling up voxels on the shadow boundary, with one treating the inside of the shadow and the other the outside.
@@ -94,3 +91,7 @@ xx--profile+optimize GPU code (texture memory likely to be last possible big imp
       --need fast coordinate point finders? (right now this is done brute force)
 xx--32 bit vs 64 bit differences in code output? --- these appear to be mostly gone
 xx--temperature differences with SZA
+xx--quemerais IPH background (for IUVS apoapse images)
+xx----In temp_asym:
+  xx--switch to constant CO2 at 80km / rmin rather than rexo
+  xx--switch to constant rmax instead of min nHexo
