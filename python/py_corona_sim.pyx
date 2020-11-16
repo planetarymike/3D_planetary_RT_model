@@ -58,6 +58,19 @@ cdef extern from "observation_fit.hpp":
                                                 Real Tnoon, Real Tmidnight,
                                                 string sourcefn_fname)
 
+        void generate_source_function_temp_asym(Real nHavg,
+                                                Real Tnoon, Real Tmidnight,
+						Real nCO2rminn,
+						Real rexoo,
+						Real rminn,
+						Real rmaxx,
+						Real rmindiffusionn,
+						#extra args for krasnopolsky_temp					  
+						Real T_tropo,
+						Real r_tropo,
+						Real shape_parameter,				  
+                                                string sourcefn_fname)
+
         void generate_source_function_tabular_atmosphere(Real rmin, Real rexo, Real rmax,
 							 vector[Real] &alt_nH, vector[Real] &log_nH,
 							 vector[Real] &alt_nCO2, vector[Real] &log_nCO2,
@@ -178,6 +191,31 @@ cdef class Pyobservation_fit:
                                            sourcefn_fname = ""):
         self.thisptr.generate_source_function_temp_asym(nHavg,
                                                         Tnoon,Tmidnight,
+                                                        sourcefn_fname.encode('utf-8'))
+
+    def generate_source_function_temp_asym_full(self, Real nHavg,
+                                                Real Tnoon, Real Tmidnight,
+                                                Real nCO2rminn,
+					        Real rexoo,
+					        Real rminn,
+					        Real rmaxx,
+					        Real rmindiffusionn,
+					        #extra args for krasnopolsky_temp					  
+					        Real T_tropo,
+					        Real r_tropo,
+					        Real shape_parameter,				  
+                                                sourcefn_fname = ""):
+        self.thisptr.generate_source_function_temp_asym(nHavg,
+                                                        Tnoon,Tmidnight,
+                                                        nCO2rminn,
+					                rexoo,
+					                rminn,
+					                rmaxx,
+					                rmindiffusionn,
+					                #extra args for krasnopolsky_temp					  
+					                T_tropo,
+					                r_tropo,
+                                                        shape_parameter,
                                                         sourcefn_fname.encode('utf-8'))
 
     def get_example_tabular_atmosphere(self):

@@ -225,14 +225,48 @@ void observation_fit::generate_source_function_nH_asym(const Real &nHexo, const 
 void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 							 const Real &Tnoon, const Real &Tmidnight,
 							 const string sourcefn_fname/* = ""*/) {
+  generate_source_function_temp_asym(nHavg,
+				     Tnoon, Tmidnight,
+				     /*      nCO2rmin = */2.6e13,			       
+				     /*          rexo = */rexo_typical,
+				     /*          rmin = */rMars + 80e5,
+				     /*         rmaxx = */rMars + 50000e5,
+				     /* rmindiffusion = */rMars + 120e5,
+				     //extra args for krasnopolsky_temp					  
+				     /*         T_tropo = */125.0,
+				     /*         r_tropo = */rMars + 90e5,
+				     /* shape_parameter = */11.4);
+}
+
+void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
+							 const Real &Tnoon, const Real &Tmidnight,
+							 const Real nCO2rminn, //a good number is 2.6e13 (Chaufray2008)
+							 const Real rexoo,
+							 const Real rminn,
+							 const Real rmaxx,
+							 const Real rmindiffusionn,
+							 //extra args for krasnopolsky_temp					  
+							 const Real T_tropo,
+							 const Real r_tropo,
+							 const Real shape_parameter,				  
+							 const string sourcefn_fname/* = ""*/) {
   std::cout << "nHavg = " << nHavg << "; Tnoon = " << Tnoon << "; Tmidnight = " << Tmidnight <<".\n";
   
-  chamb_diff_temp_asymmetric atm_asym(nHavg, Tnoon, Tmidnight);
+  chamb_diff_temp_asymmetric atm_asym(nHavg,
+				      Tnoon, Tmidnight,
+				      nCO2rminn,
+				      rexoo,
+				      rminn,
+				      rmaxx,
+				      rmindiffusionn,
+				      //extra args for krasnopolsky_temp					  
+				      T_tropo,
+				      r_tropo,
+				      shape_parameter);
   atm_asym.copy_H_options(H_cross_section_options);
-
+  
   generate_source_function_sph_azi_sym(atm_asym,Tnoon,
-				       sourcefn_fname);
-
+				       sourcefn_fname);  
 }
 
 void observation_fit::generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,

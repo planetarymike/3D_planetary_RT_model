@@ -75,7 +75,11 @@ public:
 			     const double rexoo,
 			     const double rminn,
 			     const double rmaxx,
-			     const double rmindiffusionn);
+			     const double rmindiffusionn,
+			     //extra args for krasnopolsky_temp
+			     const double T_tropo = 125.0,
+			     const double r_tropo = rMars + 90e5,
+			     const double shape_parameter = 11.4);
 
   ~chamb_diff_temp_asymmetric();
 

@@ -28,7 +28,7 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
   : chamb_diff_temp_asymmetric(navgg,
 			       T00,
 			       T11,
-			       /*      nCO2exoo = */2.6e13,			       
+			       /*      nCO2rmin = */2.6e13,			       
 			       /*          rexo = */rexo_typical,
 			       /*          rmin = */rMars + 80e5,
 			       /*         rmaxx = */rMars + 50000e5,
@@ -42,7 +42,11 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
 						       const double rexoo,
 						       const double rminn,
 						       const double rmaxx,
-						       const double rmindiffusionn)
+						       const double rmindiffusionn,
+						       //extra args for krasnopolsky_temp
+						       const double T_tropo/* = 125.0*/,
+						       const double r_tropo/* = rMars + 90e5*/,
+						       const double shape_parameter/* = 11.4*/)
   : atmosphere(rminn, rexoo, rmaxx),
     navg(navgg), T0(T00), T1(T11), nCO2rmin(nCO2rminn), rmindiffusion(rmindiffusionn)
 {
@@ -67,7 +71,10 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
   sza_vec.resize(n_sza);
   for (int isza=0; isza<n_sza; isza++) {
     sza_vec[isza] = isza*d_sza;
-    Temp_sza[isza] = krasnopolsky_temperature(T_sza(sza_vec[isza]));
+    Temp_sza[isza] = krasnopolsky_temperature(T_sza(sza_vec[isza]),
+					      T_tropo,
+					      r_tropo,
+					      shape_parameter);
 
     atm_sza[isza] = new chamb_diff_1d(rmin,
 				      rexo,

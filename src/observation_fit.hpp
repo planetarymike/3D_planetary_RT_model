@@ -124,6 +124,20 @@ public:
   void generate_source_function_temp_asym(const Real &nHavg,
 					  const Real &Tnoon, const Real &Tmidnight,
 					  const string sourcefn_fname = "");
+
+  void generate_source_function_temp_asym(const Real &nHavg,
+					  const Real &Tnoon, const Real &Tmidnight,
+					  const Real nCO2rminn, //a good number is 2.6e13 (Chaufray2008)
+					  const Real rexoo,
+					  const Real rminn,
+					  const Real rmaxx,
+					  const Real rmindiffusionn,
+					  //extra args for krasnopolsky_temp					  
+					  const Real T_tropo,
+					  const Real r_tropo,
+					  const Real shape_parameter,				  
+					  const string sourcefn_fname = "");
+
   
   void generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
 						   const std::vector<Real> &alt_nH, const std::vector<Real> &log_nH,
