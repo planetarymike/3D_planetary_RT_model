@@ -231,7 +231,7 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 				     /*          rexo = */rexo_typical,
 				     /*          rmin = */rMars + 80e5,
 				     /*         rmaxx = */rMars + 50000e5,
-				     /* rmindiffusion = */rMars + 120e5,
+				     /* rmindiffusion = */rMars + 80e5,
 				     //extra args for krasnopolsky_temp					  
 				     /*         T_tropo = */125.0,
 				     /*         r_tropo = */rMars + 90e5,

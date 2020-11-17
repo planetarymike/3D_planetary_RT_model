@@ -21,7 +21,7 @@ thermosphere_exosphere::thermosphere_exosphere(Real nHexoo, // a good number is 
   : thermosphere_exosphere(/*          rmin = */rMars + 80e5,
 			   /*          rexo = */rexo_typical,
 			   /*         nHmin = */10,
-			   /* rmindiffusion = */rMars + 120e5,
+			   /* rmindiffusion = */rMars + 80e5,
 			   nHexoo,
 			   nCO2exoo,
 			   tempp)   { }

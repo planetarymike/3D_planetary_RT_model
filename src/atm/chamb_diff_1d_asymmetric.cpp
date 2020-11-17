@@ -6,7 +6,7 @@ chamb_diff_1d_asymmetric::chamb_diff_1d_asymmetric(Real nHexoo, // a good number
   : chamb_diff_1d_asymmetric(/*          rmin = */rMars + 80e5,
 			     /*          rexo = */rexo_typical,
 			     /*         nHmin = */10,
-			     /* rmindiffusion = */rMars + 120e5,
+			     /* rmindiffusion = */rMars + 80e5,
 			     nHexoo,
 			     nCO2exoo,
 			     tempp)

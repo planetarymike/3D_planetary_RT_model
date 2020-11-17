@@ -7,7 +7,7 @@ chamb_diff_1d::chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
   : chamb_diff_1d(/*          rmin = */rMars + 80e5,
 		  /*          rexo = */rexo_typical,
 		  /*         nHmin = */10,
-		  /* rmindiffusion = */rMars + 120e5,
+		  /* rmindiffusion = */rMars + 80e5,
 		  nHexoo,
 		  nCO2exoo,
 		  tempp,

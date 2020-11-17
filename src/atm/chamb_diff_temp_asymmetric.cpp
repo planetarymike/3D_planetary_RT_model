@@ -32,7 +32,7 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
 			       /*          rexo = */rexo_typical,
 			       /*          rmin = */rMars + 80e5,
 			       /*         rmaxx = */rMars + 50000e5,
-			       /* rmindiffusion = */rMars + 120e5)
+			       /* rmindiffusion = */rMars + 80e5)
 { }
 
 chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
