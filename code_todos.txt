@@ -21,6 +21,7 @@ New functionality:
 --deuterium and hot H physical densities
 --O I 102.6 nm radiance calculation (may require frequency redistribution)
 --include single-scattering anisotropy
+--HDF5 save files instead of ASCII
 
 
 UIUC collaboration:
