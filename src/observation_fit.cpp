@@ -128,6 +128,49 @@ void observation_fit::generate_source_function_lc(const Real &nHexo, const Real 
 			   plane_parallel);
 }
 
+
+void observation_fit::generate_source_function_variable_thermosphere(const Real &nHexo,
+								     const Real &Texo,
+								     const Real &nCO2rminn, //a good number is 2.6e13 (Chaufray2008)
+								     const Real rexoo,
+								     const Real rminn,
+								     const Real rmaxx,
+								     const Real rmindiffusionn,
+								     //extra args for krasnopolsky_temp					  
+								     const Real T_tropo,
+								     const Real r_tropo,
+								     const Real shape_parameter,
+								     const string atmosphere_fname/* = ""*/,
+								     const string sourcefn_fname/* = ""*/,
+								     bool plane_parallel/* = false*/)
+{
+  std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
+
+  temp = krasnopolsky_temperature(Texo, T_tropo, r_tropo, shape_parameter, false/*shape parameter is in absolute units of km*/);
+  chamb_diff_1d atm(rminn,
+		    rexoo,
+		    rmaxx,
+		    rmindiffusionn,
+		    nHexo,
+		    nCO2rminn,
+		    temp,
+		    thermosphere_exosphere::method_rmax_nCO2rmin);
+  atm.copy_H_options(H_cross_section_options);
+  
+  if (atmosphere_fname !="")
+    atm.save(atmosphere_fname);
+
+  if (plane_parallel) {
+    generate_source_function_plane_parallel(atm,Texo,
+					    sourcefn_fname);
+  } else {
+    generate_source_function_sph_azi_sym(atm,Texo,
+					 sourcefn_fname);
+  }
+}
+
+
+
 template <typename A>
 void observation_fit::generate_source_function_plane_parallel(A &atmm, const Real &Texo,
 							      const string sourcefn_fname/* = ""*/)

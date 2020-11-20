@@ -49,7 +49,21 @@ cdef extern from "observation_fit.hpp":
                                            string atmosphere_fname,
                                            string sourcefn_fname,
                                            bool plane_parallel)
-    
+
+        void generate_source_function_variable_thermosphere(Real nHexo, Real Texo,
+                                                            Real nCO2rminn,
+						            Real rexoo,
+						            Real rminn,
+						            Real rmaxx,
+						            Real rmindiffusionn,
+						            #extra args for krasnopolsky_temp					  
+						            Real T_tropo,
+						            Real r_tropo,
+						            Real shape_parameter,				  
+                                                            string atmosphere_fname,
+                                                            string sourcefn_fname,
+                                                            bool plane_parallel)
+        
         void generate_source_function_nH_asym(Real nHexo, Real Texo,
                                               Real asym,
                                               string sourcefn_fname)
@@ -178,7 +192,34 @@ cdef class Pyobservation_fit:
                                                    atmosphere_fname.encode('utf-8'),
                                                    sourcefn_fname.encode('utf-8'),
                                                    plane_parallel)
-
+    def generate_source_function_variable_thermosphere(self,
+                                                       Real nHexo, Real Texo,
+                                                       Real nCO2rminn,
+						       Real rexoo,
+						       Real rminn,
+						       Real rmaxx,
+						       Real rmindiffusionn,
+						       #extra args for krasnopolsky_temp					  
+						       Real T_tropo,
+						       Real r_tropo,
+						       Real shape_parameter,				  
+                                                       atmosphere_fname = "",
+                                                       sourcefn_fname = "",
+                                                       plane_parallel = False):
+        self.thisptr.generate_source_function_variable_thermosphere(nHexo, Texo,
+                                                                    nCO2rminn,
+						                    rexoo,
+						                    rminn,
+						                    rmaxx,
+						                    rmindiffusionn,
+						                    #extra args for krasnopolsky_temp					  
+						                    T_tropo,
+						                    r_tropo,
+						                    shape_parameter,
+				                                    atmosphere_fname.encode('utf-8'),
+                                                                    sourcefn_fname.encode('utf-8'),
+                                                                    plane_parallel)
+        
     def generate_source_function_nH_asym(self, Real nH, Real Texo,
                                       Real asym,
                                       sourcefn_fname = ""):

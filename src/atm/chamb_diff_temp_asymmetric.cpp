@@ -74,7 +74,8 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
     Temp_sza[isza] = krasnopolsky_temperature(T_sza(sza_vec[isza]),
 					      T_tropo,
 					      r_tropo,
-					      shape_parameter);
+					      shape_parameter,
+					      false/*shape_parameter is in absolute units of km*/);
 
     atm_sza[isza] = new chamb_diff_1d(rmin,
 				      rexo,
@@ -86,13 +87,13 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
 				      thermosphere_exosphere::method_rmax_nCO2rmin);
   }
 
-  //set the max altitude to the minumum of the max altitudes as a function of SZA
-  rmax = atm_sza[n_sza-1]->rmax;
-  for (int isza=0; isza<n_sza; isza++) {
-    atm_sza[isza]->rmax = rmax;
-    atm_sza[isza]->atmosphere_average_1d::setup();//redo vertical integration with new rmax
-  }
-  //now all of the 1d atmospheres use the same radial grid for averaging
+  // //set the max altitude to the minumum of the max altitudes as a function of SZA
+  // rmax = atm_sza[n_sza-1]->rmax;
+  // for (int isza=0; isza<n_sza; isza++) {
+  //   atm_sza[isza]->rmax = rmax;
+  //   atm_sza[isza]->atmosphere_average_1d::setup();//redo vertical integration with new rmax
+  // }
+  //all of the 1d atmospheres use the same radial grid for averaging
   log_r = atm_sza[n_sza-1]->log_r_int;
 
   

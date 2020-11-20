@@ -110,6 +110,24 @@ public:
 				   const string sourcefn_fname = "",
 				   bool plane_parallel=false);
 
+  void generate_source_function_variable_thermosphere(const Real &nHexo,
+						      const Real &Texo,
+						      const Real &nCO2rminn, //a good number is 2.6e13 (Chaufray2008)
+						      const Real rexoo,
+						      const Real rminn,
+						      const Real rmaxx,
+						      const Real rmindiffusionn,
+						      //extra args for krasnopolsky_temp					  
+						      const Real T_tropo,
+						      const Real r_tropo,
+						      const Real shape_parameter,
+						      const string atmosphere_fname = "",
+						      const string sourcefn_fname = "",
+						      bool plane_parallel=false);
+
+
+
+
   template <typename A>
   void generate_source_function_plane_parallel(A &atm, const Real &Texo,
 					       const string sourcefn_fname = "");

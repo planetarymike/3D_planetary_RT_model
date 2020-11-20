@@ -39,7 +39,8 @@ public:
   krasnopolsky_temperature(Real T_exoo = 200.0,
 			   Real T_tropoo = 125.0,
 			   Real r_tropoo = rMars + 90e5,
-			   Real shape_parameterr = 11.4);
+			   Real shape_parameterr = 11.4,
+			   bool shape_parameter_Texo = true);
 
 };
 

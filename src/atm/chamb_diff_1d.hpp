@@ -19,7 +19,7 @@ struct chamb_diff_1d : public thermosphere_exosphere,
 		Real rmaxx_or_nHmin,
 		Real rmindiffusionn,
 		Real nHexoo, // a good number is 10^5-6
-		Real nCO2exoo, //a good number is 10^9 (?)
+		Real nCO2exo_or_nCO2rmin, //a good number is 10^9 (?)
 		temperature &tempp,
 		const int method = thermosphere_exosphere::method_nHmin_nCO2exo);
 
