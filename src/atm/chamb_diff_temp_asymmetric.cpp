@@ -46,9 +46,11 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
 						       //extra args for krasnopolsky_temp
 						       const double T_tropo/* = 125.0*/,
 						       const double r_tropo/* = rMars + 90e5*/,
-						       const double shape_parameter/* = 11.4*/)
+						       const double shape_parameter/* = 11.4*/,
+						       //power for temperature in the expression n*T^p = const.
+						       const double Tpowerr/* = 2.5*/)
   : atmosphere(rminn, rexoo, rmaxx),
-    navg(navgg), T0(T00), T1(T11), nCO2rmin(nCO2rminn), rmindiffusion(rmindiffusionn)
+    navg(navgg), T0(T00), T1(T11), Tpower(Tpowerr), nCO2rmin(nCO2rminn), rmindiffusion(rmindiffusionn)
 {
   //compute the normalizing constant for this T0 and T1
   const int n_sza_int=100;

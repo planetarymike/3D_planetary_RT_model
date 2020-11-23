@@ -145,6 +145,8 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
 								     bool plane_parallel/* = false*/)
 {
   std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
+  std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
+  std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
 
   temp = krasnopolsky_temperature(Texo, T_tropo, r_tropo, shape_parameter, false/*shape parameter is in absolute units of km*/);
   chamb_diff_1d atm(rminn,
@@ -278,7 +280,8 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 				     //extra args for krasnopolsky_temp					  
 				     /*         T_tropo = */125.0,
 				     /*         r_tropo = */rMars + 90e5,
-				     /* shape_parameter = */11.4);
+				     /* shape_parameter = */11.4,
+				     /*          Tpower = */2.5);
 }
 
 void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
@@ -291,10 +294,15 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 							 //extra args for krasnopolsky_temp					  
 							 const Real T_tropo,
 							 const Real r_tropo,
-							 const Real shape_parameter,				  
+							 const Real shape_parameter,
+							 //power for temperature in the expression n*T^p = const.
+							 const Real Tpowerr,
 							 const string sourcefn_fname/* = ""*/) {
   std::cout << "nHavg = " << nHavg << "; Tnoon = " << Tnoon << "; Tmidnight = " << Tmidnight <<".\n";
-  
+  std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
+  std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
+  std::cout << "Tpower = " << Tpowerr << ".\n";
+
   chamb_diff_temp_asymmetric atm_asym(nHavg,
 				      Tnoon, Tmidnight,
 				      nCO2rminn,
@@ -305,7 +313,8 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 				      //extra args for krasnopolsky_temp					  
 				      T_tropo,
 				      r_tropo,
-				      shape_parameter);
+				      shape_parameter,
+				      Tpowerr);
   atm_asym.copy_H_options(H_cross_section_options);
   
   generate_source_function_sph_azi_sym(atm_asym,Tnoon,

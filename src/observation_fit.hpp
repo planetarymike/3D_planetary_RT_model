@@ -153,7 +153,9 @@ public:
 					  //extra args for krasnopolsky_temp					  
 					  const Real T_tropo,
 					  const Real r_tropo,
-					  const Real shape_parameter,				  
+					  const Real shape_parameter,
+					  //power for temperature in the expression n*T^p = const.
+					  const Real Tpowerr,
 					  const string sourcefn_fname = "");
 
   

@@ -82,7 +82,9 @@ cdef extern from "observation_fit.hpp":
 						#extra args for krasnopolsky_temp					  
 						Real T_tropo,
 						Real r_tropo,
-						Real shape_parameter,				  
+						Real shape_parameter,
+                                                #power for temperature in the expression n*T^p = const.
+                                                Real Tpower,
                                                 string sourcefn_fname)
 
         void generate_source_function_tabular_atmosphere(Real rmin, Real rexo, Real rmax,
@@ -244,7 +246,9 @@ cdef class Pyobservation_fit:
 					        #extra args for krasnopolsky_temp					  
 					        Real T_tropo,
 					        Real r_tropo,
-					        Real shape_parameter,				  
+					        Real shape_parameter,
+			                        #power for temperature in the expression n*T^p = const.
+                                                Real Tpower,
                                                 sourcefn_fname = ""):
         self.thisptr.generate_source_function_temp_asym(nHavg,
                                                         Tnoon,Tmidnight,
@@ -257,6 +261,8 @@ cdef class Pyobservation_fit:
 					                T_tropo,
 					                r_tropo,
                                                         shape_parameter,
+						        #power for temperature in the expression n*T^p = const.
+                                                        Tpower,
                                                         sourcefn_fname.encode('utf-8'))
 
     def get_example_tabular_atmosphere(self):

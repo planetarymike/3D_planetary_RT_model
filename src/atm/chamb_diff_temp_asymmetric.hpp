@@ -14,7 +14,7 @@ protected:
   //key input parameters
   double navg; //average exobase density
   double T0, T1; //temperature at noon and midnight
-  static constexpr double Tpower=2.5; //power in nT^p = const
+  double Tpower; //power in nT^p = const
   double A;  //constant A = nT^p 
 
   //other input parameters
@@ -79,7 +79,9 @@ public:
 			     //extra args for krasnopolsky_temp
 			     const double T_tropo = 125.0,
 			     const double r_tropo = rMars + 90e5,
-			     const double shape_parameter = 11.4);
+			     const double shape_parameter = 11.4,
+			     //power for temperature in the expression n*T^p = const.
+			     const double Tpowerr = 2.5);
 
   ~chamb_diff_temp_asymmetric();
 
