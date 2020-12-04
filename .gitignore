@@ -10,12 +10,12 @@ generate_source_function_gpu.x
 python/*.so
 python/*.h
 python/*.cpp
-python/*.ipynb
 python/.ipy*
 python/build
 python/build/*
 python/model_fit
 python/model_fit/*
+python/test/.ipynb_checkpoints/
 python/__pycache__
 *nvvp*
 bin/
