@@ -11,7 +11,8 @@ extension = Extension("py_corona_sim",
                       extra_link_args=['-lgfortran'],
                       extra_compile_args=['-lgfortran','-lm','-fopenmp','-O3','-march=native',
                                           '-DNDEBUG','-fPIC'],
-                      include_dirs=["../src/",
+                      include_dirs=[numpy.get_include(),
+                                    "../src/",
                                     "/home/mike/Documents/Utilities/boost_1_73_0/",
                                     "/home/mike/Documents/Utilities/eigen-3.3.7/"])
 
