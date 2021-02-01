@@ -30,9 +30,9 @@ OFLAGS=-O3 -march=native -DNDEBUG
 NCC=nvcc -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
 #            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
-#                                           (some modifications to    (added this flag by hand as a wrapper
-#                                            Eigen were needed to      around BOOST_GPU_ENABLED in
-#                                            get this to work)         boost/config/compiler/nvcc.hpp)
+#                                           (needs Eigen git repo     (added this flag by hand as a wrapper
+#                                            master > 21 Oct 2020      around BOOST_GPU_ENABLED in
+#                                                                      boost/config/compiler/nvcc.hpp)
 NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
       -I$(CUDA_HOME)/samples/common/inc/
