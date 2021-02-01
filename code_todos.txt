@@ -1,52 +1,51 @@
 // things to improve/change in code
 
-Fitting Routine:
+Fitting Routine
+---------------
 --explore/compare quadratic fit to best-fit basin vs. nested sampling
 --how different are retrievals using high-res grid?
 --need utilities for fitting multiple files/observations
 --reproduce 2018 paper results
 
-Maintanance:
+
+Maintanance
+-----------
 --remove transmission object; this is superseded by lineshape_tracker
 --fix transmission so that it is specified inside emission
 
-Validation:
+
+Validation
+----------
 --comparison with anderson
 --comparison with chaufray
 --any analytic test case? Maybe something asymptotic from Holstein?
 --alternate source function calculation guaranteed to populate all elements of matrix?
---compare
 
-New functionality:
+
+New functionality
+-----------------
 --deuterium and hot H physical densities
---O I 102.6 nm radiance calculation (may require frequency redistribution)
+--O I 102.6 nm radiance calculation 
+  --requires line blending
+  --may require frequency redistribution
 --include single-scattering anisotropy
+
+
+UIUC collaboration
+------------------
+--think more about normalization effects on degeneracy
+
+
+Small improvements
+------------------
+--improve treatment of planetary shadow
+  --double up voxels on the shadow boundary, treating the inside and outside seperately
+--new IPH model? Very slow to evaluate quemerais model
 --HDF5 save files instead of ASCII
 
 
-UIUC collaboration:
---think more about normalization effects on degeneracy
-
-Needed next 6 months:
---new IPH model? Very slow to evaluate quemerais model
-
-Small code improvements
-  --improve treatment of planetary shadow by doubling up voxels on the shadow boundary, with one treating the inside of the shadow and the other the outside.
-
-  --use monotone cubic interpolation in brightness calculation: 
-    --implement this: http://articles.adsabs.harvard.edu/pdf/1990A%26A...239..443S
-    -- or switch to GSL: https://www.gnu.org/software/gsl/doc/html/interp.html#d-higher-level-interface
- 
-  --fix texture implementation(?) may not be worth it given that interpolation is the major speedup and this has only 9-bit accuracy
-  
-  --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/ 
-    --CUDA already uses hardware exp2, not much slower than a single FLOP multiply
-  
-  --move finite-difference derivative calculation inside observation_fit
-    --not needed for many fitting techniques
-    --likely to significantly slow down CUDA implementation due to shared memory occupancy
-
-longer-term:
+Longer-term
+-----------
 --more realistic exosphere (Vidal-Madjar or similar)
 --frequency redistribution (needs some refactoring of emission object)
 --RT anisotropy??
@@ -63,9 +62,24 @@ longer-term:
   --A FAST DIRECT SOLVER FOR STRUCTURED LINEAR SYSTEMS BY RECURSIVE SKELETONIZATION: https://arxiv.org/pdf/1110.3105.pdf
   --Solving Inverse Problems with Deep Learning: https://drive.google.com/file/d/1uVZ_obbchNWGV50qNTZXwbAymDuLLaWF/view
   --RESONANCE LINE TRANSFER CALCULATIONS BY DOUBLING THIN LAYERS: http://articles.adsabs.harvard.edu/pdf/1989ApJ...346..481Y
+
+
+Old/less useful ideas:
+  --use monotone cubic interpolation in brightness calculation: 
+    --implement this: http://articles.adsabs.harvard.edu/pdf/1990A%26A...239..443S
+    -- or switch to GSL: https://www.gnu.org/software/gsl/doc/html/interp.html#d-higher-level-interface
+  --fix texture interpolation implementation(?) 
+    --likely not worth it given that interpolation is not the most expensive operation and texture interps have only 9-bit accuracy
+  --fast exp calculation http://gallium.inria.fr/blog/fast-vectorizable-math-approx/ 
+    --CUDA already uses hardware exp2, not much slower than a single FLOP multiply
+  --move finite-difference derivative calculation inside observation_fit
+    --not needed for many fitting techniques
+    --likely to significantly slow down CUDA implementation due to shared memory occupancy
   
-  
-done:
+## 
+## DONE!
+##
+
 xx--compute voxel densities as average over zone rather than typical value
 xx--switch from tabulated holstein T to computing it just-in-time as line integrals are traversed
     (smells like frequency redistribution;
