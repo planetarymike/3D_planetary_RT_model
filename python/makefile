@@ -35,7 +35,7 @@ NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_N
 NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
       -I$(CUDA_HOME)/samples/common/inc/
-NLIBS=-lm -lcudart -lcusolver -lcublas
+NLIBS=-lm -lcudart -lcudadevrt -lcusolver -lcublas
 NOBASEFLAGS= -O3 -DNDEBUG -lineinfo -arch sm_61 --use_fast_math #--maxrregcount 43
 # if we are CUDA 11, link time optimization is possible
 ifeq ($(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d.),11)
