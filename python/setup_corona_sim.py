@@ -24,6 +24,7 @@ if "-RT_FLOAT" in sys.argv:
 
     extension.extra_compile_args.append('-D RT_FLOAT')
     extension.libraries.append('cudart')
+    extension.libraries.append('cudadevrt')
     extension.libraries.append('cusolver')
     extension.libraries.append('cublas')
     extension.library_dirs.append(CUDA['lib64'])
