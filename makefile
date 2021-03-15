@@ -7,9 +7,9 @@ MAKEFLAGS += -j20 #parallel compilation
 
 #files that need compilin'
 OBJDIR = ./bin
-SRCDIR = src
-PSRCFILES = $(wildcard $(SRCDIR)/atm/*.cpp) $(wildcard $(SRCDIR)/*.cpp) 
-SRCFILES = $(filter-out $(SRCDIR)/observation_fit.cpp,$(PSRCFILES))
+SRCDIRS = src src/atm src/emission src/grid
+PSRCFILES = $(foreach dir,$(SRCDIRS),$(wildcard $(dir)/*.cpp))
+SRCFILES = $(filter-out src/observation_fit.cpp, $(PSRCFILES))
 
 NSRCFILES = $(SRCFILES) generate_source_function.cpp
 NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o)       $(NSRCFILES:%.cu=$(OBJDIR)/%.cuda.o      ))
@@ -18,10 +18,10 @@ NOBJFILESDBG := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o) $(NSRC
 #include directories
 BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/
 EIGENDIR=-I/home/mike/Documents/Utilities/eigen_git/
-IDIR=-I$(SRCDIR) $(BOOSTDIR) $(EIGENDIR)
+IDIR= $(foreach dir,$(SRCDIRS),-I$(dir)) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
-CC=g++ #-D RT_FLOAT -Wfloat-conversion #these commands can be used to check for double literals
+CC=g++ -std=c++17 #-D RT_FLOAT -Wfloat-conversion #these commands can be used to check for double literals
 LIBS=-lm 
 MPFLAGS=-fopenmp
 OFLAGS=-O3 -march=native -DNDEBUG 
@@ -45,7 +45,7 @@ NOFLAGS=$(NOBASEFLAGS) -dlto
 else
 NOFLAGS=$(NOBASEFLAGS)
 endif
-NDBGFLAGS=-O0 -g #-G -arch sm_61 # -lineinfo
+NDBGFLAGS=-O0 -g -G -arch sm_61 # -lineinfo
 #                ^^^ this -G sometimes changes the behavior of the code??
 
 # # intel compiler

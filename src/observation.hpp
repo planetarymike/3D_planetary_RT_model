@@ -8,6 +8,7 @@
 #include "atmo_vec.hpp"
 #include "los_tracker.hpp"
 #include "gpu_vector.hpp"
+#include "emission.hpp"
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -21,12 +22,12 @@ typedef Eigen::Matrix<Real, 3, 1> Vector3;
 typedef Eigen::Matrix<Real,3,3> Matrix3;
 typedef Eigen::AngleAxis<Real> AngleAxis;
 
-template<int N_EMISS>
+template<typename emission_type, int N_EMISS>
 struct observation {
 protected:
   static const int n_emissions = N_EMISS;
-  std::string emission_names[n_emissions];
-
+  emission_type* emissions[n_emissions];
+  
   int n_obs;
 
   gpu_vector<atmo_vector> obs_vecs;
@@ -45,25 +46,30 @@ protected:
     vector<Real> loc_model = { loc[2] , -loc[1], loc[0] };
 
     //vector<Real> dir_MSO = { dir[0] , dir[1], dir[2] };
-    vector<Real> dir_model = { dir[2] , -dir[1], dir[0] };
+    vector<Real> dir_model = { dir[2] , -dir[1], dir[0] };\
 
     atmo_point pt;
     pt.xyz(loc_model[0],loc_model[1],loc_model[2]);
     obs_vecs[i].ptxyz(pt, dir_model[0], dir_model[1], dir_model[2]);
   }
 
+  void reset_output() {
+    // need to resize with type belonging to each emission
+    for (int i_emission = 0; i_emission < n_emissions; i_emission++) {
+      los[i_emission].resize(n_obs, typename emission_type::brightness_tracker());
+      for (int i_obs = 0; i_obs < n_obs; i_obs++)
+        los[i_emission][i_obs].init();
+    }
+  }
+
   void resize_input(int n_obss) {
     n_obs=n_obss;
-
     obs_vecs.resize(n_obs);
-    los_observed.resize(n_obs);
+    reset_output();
   }
 
 public:
-
-  gpu_vector<brightness_tracker<n_emissions>> los;
-  gpu_vector<observed<n_emissions>> los_observed;
-  Real log_likelihood;
+  gpu_vector<typename emission_type::brightness_tracker> los[n_emissions];
 
   Real emission_g_factors[n_emissions];
 
@@ -74,30 +80,23 @@ public:
   vector<Real> mars_ecliptic_pos;
 
   //CUDA device pointers for dynamic arrays
-  observation<n_emissions> *d_obs=NULL;
-  
-  observation()
+  observation<emission_type, n_emissions> *d_obs=NULL;
+
+  observation(emission_type* (&emissionss)[n_emissions])
     : n_obs(0)
   {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      emissions[i_emission] = emissionss[i_emission];
       emission_g_factors[i_emission] = 0;
-  }
-  observation(const std::string (&emission_names)[n_emissions])
-  : observation()
-  {
-    set_names(emission_names);
+    }
   }
   ~observation() {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) and not defined(__CUDA_ARCH__)
     device_clear();
 #endif
   }
-
-  void set_names(const string (&emission_namess)[n_emissions])
-  {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
-      emission_names[i_emission] = emission_namess[i_emission];
-  }
+  observation(const observation<emission_type, n_emissions> &copy) = delete;
+  observation<emission_type, n_emissions>& operator=(const observation<emission_type, n_emissions> & rhs) = delete;
   
   void set_emission_g_factors(Real (&g)[n_emissions]) {
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
@@ -108,12 +107,6 @@ public:
       g[i_emission] = emission_g_factors[i_emission];
   }
   
-  void reset_output() {
-    los.resize(n_obs,brightness_tracker<n_emissions>());
-    for (int i_obs=0;i_obs<n_obs;i_obs++) 
-      los[i_obs].init();
-  }
-
   void add_MSO_observation(const vector<vector<Real>> &locations, const vector<vector<Real>> &directions) {
     assert(locations.size() == directions.size() && "location and look direction must have the same length.");
 
@@ -121,8 +114,6 @@ public:
     
     for (unsigned int i=0;i<locations.size();i++)
       add_MSO_observation(locations[i],directions[i],i);
-
-    reset_output();
   }
 
   void add_observation_ra_dec(const std::vector<Real> &mars_ecliptic_coords,
@@ -154,9 +145,9 @@ public:
   void update_iph_extinction() {
     for (int i_obs=0;i_obs<n_obs;i_obs++) {
       for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	if (los[i_obs].line[i_emission].tau_absorber_final != -1)
+	if (los[i_emission][i_obs]->tau_absorber_final != -1)
 	  iph_brightness_observed[i_obs][i_emission] = (iph_brightness_unextincted[i_obs][i_emission]
-							*std::exp(-los[i_obs].line[i_emission].tau_absorber_final));
+							*std::exp(-los[i_emission][i_obs]->tau_absorber_final));
 	else
 	  iph_brightness_observed[i_obs][i_emission] = 0.0;
       }
@@ -181,9 +172,9 @@ public:
 	  VectorX brightness_write_out;
 	  brightness_write_out.resize(n_obs);
 	  for (int i=0;i<n_obs;i++)
-	    brightness_write_out[i] = los[i].brightness[i_emission];
+	    brightness_write_out[i] = los[i_emission][i].brightness;
 
-	  file << emission_names[i_emission] << " brightness [kR]: " << brightness_write_out.transpose() << "\n";
+	  file << emissions[i_emission]->name() << " brightness [kR]: " << brightness_write_out.transpose() << "\n";
 	}
       }
   }
@@ -215,8 +206,6 @@ public:
 	obs_vecs[iobs].ptxyz(pt, dir[0], dir[1], dir[2]);
       }
     }
-
-    reset_output();
   }
 
 #ifdef __CUDACC__
@@ -225,14 +214,14 @@ public:
       //allocate space on GPU
       checkCudaErrors(
 		      cudaMalloc((void **) &d_obs,
-				 sizeof(observation<n_emissions>))
+				 sizeof(*this))
 		      );
     }
     //copy observation over
     checkCudaErrors(
 		    cudaMemcpy(d_obs,
 			       this,
-			       sizeof(observation<n_emissions>),
+			       sizeof(*this),
 			       cudaMemcpyHostToDevice)
 		    );
     //static arrays are copied automatically by CUDA, including emission_g_factors
@@ -247,40 +236,30 @@ public:
 			       cudaMemcpyHostToDevice)
 		    );
 
-    //move brightness and sigma
-    los_observed.to_device();
-    checkCudaErrors(
-		    cudaMemcpy(&((d_obs->los_observed).v),
-			       &los_observed.d_v,
-			       sizeof(atmo_vector*),
-			       cudaMemcpyHostToDevice)
-		    );
-    
-    //prepare simulated brightness storage
-    los.to_device();
-    //point the object device pointer to the same location
-    checkCudaErrors(
-		    cudaMemcpy(&((d_obs->los).v),
-			       &los.d_v,
-			       sizeof(brightness_tracker<n_emissions>*),
-			       cudaMemcpyHostToDevice)
-		    );
+    for (int i_emission=0; i_emission<n_emissions; i_emission++) {
+      //prepare simulated brightness storage
+      los[i_emission].to_device();
+      //point the object device pointer to the same location
+      checkCudaErrors(
+		      cudaMemcpy(&((d_obs->los[i_emission]).v),
+				 &los[i_emission].d_v,
+				 sizeof(typename emission_type::brightness_tracker*),
+				 cudaMemcpyHostToDevice)
+		      );
+    }
   }
 
   void to_host() {
-    los.to_host();
-    // checkCudaErrors(
-    // 		    cudaMemcpy(&(log_likelihood),
-    // 			       &(d_obs.log_likelihood),
-    // 			       sizeof(Real),
-    // 			       cudaMemcpyDeviceToHost)
-    // 		    );
+    for (int i_emission=0; i_emission<n_emissions; i_emission++)
+      los[i_emission].to_host();
   }
 
   void device_clear() {
     obs_vecs.device_clear();
-    los.device_clear();
-    los_observed.device_clear();
+
+    for (int i_emission=0; i_emission<n_emissions; i_emission++)
+      los[i_emission].device_clear();
+
     if (d_obs != NULL)
       checkCudaErrors(cudaFree(d_obs));
     d_obs=NULL;
@@ -288,16 +267,7 @@ public:
   
 #endif
 
-
-
-
 };
-
-
-
-
-
-
 
 
 #endif

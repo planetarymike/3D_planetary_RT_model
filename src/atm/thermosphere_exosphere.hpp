@@ -110,14 +110,14 @@ struct thermosphere_exosphere : virtual public atmosphere {
 			  temperature &tempp);
   
   Real nCO2(const Real &r) const;
-  Real n_absorber(const Real &r) const;
+  Real n_absorber(const Real &r) const override;
 
   Real nH(const Real &r) const;
-  Real n_species(const Real &r) const;
+  Real n_species(const Real &r) const override;
   
-  Real Temp(const Real &r) const;
+  Real Temp(const Real &r) const override;
 
-  Real r_from_n_species(const Real &n_species) const;
+  Real r_from_n_species(const Real &n_species) const override;
   Real r_from_nH(const Real &nHtarget) const;  
 
   Real nCO2_exact(const Real &r) const;

@@ -15,12 +15,14 @@
 #endif
 
 template<int N_VOXELS> //template prevents allocation errors with CUDA pointers
-class voxel_vector : public VectorX {
+class voxel_vector {
 public:
   static const int n_voxels = N_VOXELS;
+
+  VectorX *eigen_vec;
   Real* vec;
   Real* d_vec = NULL;//pointer to device memory for CUDA
-
+  
 #if defined(__CUDACC__) and defined(USE_CUDA_TEXTURES)
   bool texture;
   int n_dim; //number of grid dimensions
@@ -29,29 +31,37 @@ public:
   struct cudaResourceDesc resDesc;
   struct cudaTextureDesc texDesc;
 #endif
-  
-  voxel_vector() : VectorX() {
+
+  CUDA_CALLABLE_MEMBER
+  voxel_vector() {
+#ifndef __CUDA_ARCH__
+    eigen_vec = new VectorX;
     resize();
+#endif
 #if defined(__CUDACC__) and defined(USE_CUDA_TEXTURES)
     texture = false;
 #endif
   }
 
+  CUDA_CALLABLE_MEMBER
   ~voxel_vector() {
+#ifndef __CUDA_ARCH__
+    delete eigen_vec;
     free_d_vec();
+#endif
   }
 
   
   voxel_vector(const voxel_vector &copy) 
-    : VectorX(copy)
   {
-    assert(n_voxels == VectorX::size());
-    vec = VectorX::data();
+    assert(n_voxels == copy.eigen_vec->size());
+    *eigen_vec = *copy.eigen_vec;
+    vec = eigen_vec->data();
   }
   voxel_vector& operator=(const VectorX &rhs) {
-    assert(n_voxels == VectorX::size());
-    VectorX::operator=(rhs);
-    vec = VectorX::data();
+    assert(n_voxels == rhs.size());
+    *eigen_vec = rhs;
+    vec = eigen_vec->data();
     return *this;
   }
   CUDA_CALLABLE_MEMBER
@@ -60,18 +70,27 @@ public:
     for (int i=0;i<n_voxels;i++)
       vec[i] = rhs.vec[i];
 #else
-    assert(n_voxels == VectorX::size());
-    VectorX::operator=(rhs.VectorX);
-    vec = VectorX::data();
+    *eigen_vec = *rhs.eigen_vec;
+    vec = eigen_vec->data();
 #endif
     return *this;
   }
-
-  void resize() {
-    VectorX::resize(n_voxels);
-    vec = VectorX::data();
+  operator VectorX() const {
+    return eigen();
   }
 
+  void resize() {
+    eigen_vec->resize(n_voxels);
+    vec = eigen_vec->data();
+  }
+
+  VectorX & eigen() {
+    return *eigen_vec;
+  }
+  const VectorX eigen() const {
+    return *eigen_vec;
+  }
+  
   CUDA_CALLABLE_MEMBER
   Real & operator[](const int n) {
     return vec[n];
@@ -137,7 +156,7 @@ public:
 #endif
 
   void free_d_vec() {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) and not defined(__CUDA_ARCH__)
     if(d_vec!=NULL) {
       checkCudaErrors(cudaFree(d_vec));
       d_vec = NULL;
@@ -271,34 +290,40 @@ public:
 };
 
 template<int N_VOXELS> //template prevents allocation errors with CUDA pointers
-class voxel_matrix : public MatrixX {
+class voxel_matrix {
 public:
   static const int n_voxels = N_VOXELS;
+
+  MatrixX *eigen_mat;
   Real* mat;
   Real* d_mat = NULL;//pointer to device memory for CUDA
 
-  voxel_matrix() : MatrixX() {
+  CUDA_CALLABLE_MEMBER
+  voxel_matrix() {
+#ifndef __CUDA_ARCH__
+    eigen_mat = new MatrixX;
     resize();
+#endif
   }
 
+  CUDA_CALLABLE_MEMBER
   ~voxel_matrix() {
+#ifndef __CUDA_ARCH__
+    delete eigen_mat;
     free_d_mat();
+#endif
   }
   
   
-  voxel_matrix(const voxel_matrix &copy) 
-    : MatrixX(copy)
-  {
-    assert(MatrixX::rows() == MatrixX::cols()
-	   && "voxel_matrix must be square");
-    assert(n_voxels == MatrixX::rows());
-    mat = MatrixX::data();
+  voxel_matrix(const voxel_matrix<N_VOXELS> &copy) {
+    *eigen_mat = *copy.eigen_mat;
+    mat = eigen_mat->data();
   }
 
   voxel_matrix& operator=(const MatrixX &rhs) {
-    assert(n_voxels == MatrixX::size());
-    MatrixX::operator=(rhs);
-    mat = MatrixX::data();
+    assert(n_voxels == rhs.size());
+    *eigen_mat = rhs;
+    mat = eigen_mat->data();
     return *this;
   }
   CUDA_CALLABLE_MEMBER
@@ -307,17 +332,28 @@ public:
     for (int i=0;i<n_voxels*n_voxels;i++)
       mat[i] = rhs.mat[i];
 #else
-    assert(n_voxels == MatrixX::size());
-    MatrixX::operator=(rhs.MatrixX);
-    mat = MatrixX::data();
+    *eigen_mat = *rhs.eigen_mat;
+    mat = eigen_mat->data();
 #endif
     return *this;
   }
+  operator MatrixX() const {
+    return eigen();
+  }
+
 
   void resize() {
-    MatrixX::resize(n_voxels,n_voxels);
-    mat = MatrixX::data();
+    eigen_mat->resize(n_voxels,n_voxels);
+    mat = eigen_mat->data();
   }
+
+  MatrixX & eigen() {
+    return *eigen_mat;
+  }
+  const MatrixX eigen() const {
+    return *eigen_mat;
+  }
+
 
   //overload () to access coefficients of mat
   CUDA_CALLABLE_MEMBER
@@ -340,7 +376,7 @@ public:
   }
 
   void free_d_mat() {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) and not defined(__CUDA_ARCH__)
     if(d_mat!=NULL) {
       checkCudaErrors(cudaFree(d_mat));
       d_mat = NULL;

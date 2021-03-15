@@ -16,6 +16,7 @@ protected:
 
 public:
   temperature();
+  virtual ~temperature() = default;
   
   Real T_exo;
 
@@ -23,7 +24,7 @@ public:
   Real Tprime(const Real &r);
 };
 
-struct krasnopolsky_temperature : public temperature {
+struct krasnopolsky_temperature : virtual public temperature {
   // computes the analytic thermospheric temperature as given by Krasnopolsky (2002)
 
 protected:
@@ -32,8 +33,7 @@ protected:
   Real shape_parameter;
 
   //implementation of pure virtual from parent
-  void get(const Real &r);
-
+  void get(const Real &r) override;
 
 public:
   krasnopolsky_temperature(Real T_exoo = 200.0,

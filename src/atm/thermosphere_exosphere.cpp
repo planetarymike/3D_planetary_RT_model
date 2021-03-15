@@ -193,7 +193,7 @@ Real thermosphere_exosphere::nCO2(const Real &r) const {
     return exp(lognCO2_thermosphere_spline(r));
   }
 }
-Real thermosphere_exosphere::n_absorber(const Real &r) const {
+Real thermosphere_exosphere::n_absorber(const Real &r) const  {
   return nCO2(r);
 }
 

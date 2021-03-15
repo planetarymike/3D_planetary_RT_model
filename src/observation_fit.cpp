@@ -14,32 +14,10 @@ observation_fit::observation_fit()
     RT(emission_names),
     sim_iph(false)
 {
-
-  for (int i_emission = 0; i_emission < n_emissions; i_emission++) {
-    int i_simulate_center = i_emission * n_simulate_per_emission;
-    simulate_names[i_simulate_center] = emission_names[i_emission];
-
-    for (int i_parameter = 0; i_parameter < n_parameters; i_parameter++) { 
-      for (int i_derivative = 0; i_derivative < n_pts_per_derivative; i_derivative++) {
-	int i_simulate = i_simulate_center+i_parameter*n_pts_per_derivative+i_derivative+1;
-
-	string deriv = i_derivative == 0 ? "-" : "+";
-
-	simulate_names[i_simulate] = emission_names[i_emission] + " " + std::to_string(i_parameter) + deriv;
-      }
-    }
-  }
-
-  obs_deriv.set_names(simulate_names);
-  RT_deriv.set_names(simulate_names);
-
   RT_pp.grid.rmethod = RT.grid.rmethod_log_n_species;
   
   RT.grid.rmethod = RT.grid.rmethod_log_n_species;
   RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
-
-  RT_deriv.grid.rmethod = RT_deriv.grid.rmethod_log_n_species;
-  RT_deriv.grid.szamethod = RT_deriv.grid.szamethod_uniform_cos;
 }
 
 void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations, const vector<vector<Real>> &MSO_directions) {
@@ -362,11 +340,9 @@ void observation_fit::set_use_temp_dependent_sH(const bool use_temp_dependent_sH
 
 void observation_fit::set_sza_method_uniform() {
   RT.grid.szamethod = RT.grid.szamethod_uniform;
-  RT_deriv.grid.szamethod = RT_deriv.grid.szamethod_uniform;
 }
 void observation_fit::set_sza_method_uniform_cos() {
   RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
-  RT_deriv.grid.szamethod = RT_deriv.grid.szamethod_uniform_cos;
 }
 
 void observation_fit::reset_H_lya_xsec_coef(const Real xsec_coef/* = lyman_alpha_line_center_cross_secion_coef*/) {
@@ -388,8 +364,6 @@ void observation_fit::reset_CO2_lyb_xsec(const Real xsec/* = CO2_lyman_beta_abso
 
 
 vector<vector<Real>> observation_fit::brightness() {
-  obs.reset_output();
-  
   //compute brightness on the GPU if compiled with NVCC
 #ifdef __CUDACC__
   RT.brightness_gpu(obs);
@@ -407,7 +381,7 @@ vector<vector<Real>> observation_fit::brightness() {
     brightness[i_emission].resize(obs.size());
     
     for (int i=0;i<obs.size();i++) {
-      brightness[i_emission][i] = obs.los[i].brightness[i_emission];
+      brightness[i_emission][i] = obs.los[i_emission][i].brightness;
       if (sim_iph)
 	brightness[i_emission][i] += obs.iph_brightness_observed[i][i_emission];
     }
@@ -478,118 +452,6 @@ vector<vector<Real>> observation_fit::iph_brightness_unextincted() {
 
 
 
-void observation_fit::add_observed_brightness(const std::vector<Real> &brightness,
-					      const std::vector<Real> &brightness_unc,
-					      const int emission/* = 0*/) {
-  //add the observed brightness to obs (not obs_deriv)
-  //so we can compute log-likelihoods
-  assert(obs.size() == (int) brightness.size());
-  for (int i=0;i<obs.size();i++) {
-    obs.los_observed[i].brightness[emission]     = brightness[i];
-    obs.los_observed[i].brightness_unc[emission] = brightness_unc[i];
-  }
-}
-
-// vector<Real> observation_fit::likelihood_and_derivatives(const Real &nHexo, const Real &Texo) {
-//   //computes likelihood and derivatives along each input dimension
-//   const Real scale = 0.01;
-
-//   //set up the atmospheres to simulate
-//   Real center_parameters[n_parameters] = {nHexo, Texo};
-//   Real parameters[n_parameters];
-
-//   for (int j_parameter = 0; j_parameter < n_parameters; j_parameter++)
-//     parameters[j_parameter] = center_parameter[j_parameter];
-  
-//   //atmosphere at center point
-//   temp = krasnopolsky_temperature(parameters[1]);
-//   atm = chamb_diff_1d(parameters[0],CO2_exobase_density,temp);
-
-//   RT_deriv.grid.setup_voxels(atm);
-//   RT_deriv.grid.setup_rays();
-
-//   //set up emission 0, H Lyman alpha
-//   i_emission = 0;
-  
-//   int i_simulate_center = i_emission * n_simulate_per_emission;
-//   RT_deriv.define_emission(emission_names[i_emission],
-// 			   1.0,
-// 			   atm,
-// 			   &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
-// 			   &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
-  
-//   for (int i_parameter = 0; i_parameter < n_parameters; i_parameter++) { 
-//     for (int i_derivative = 0; i_derivative < n_pts_per_derivative; i_derivative++) {
-//       int i_simulate = i_simulate_center+i_parameter*n_pts_per_derivative+i_derivative+1;
-      
-//       for (int j_parameter = 0; j_parameter < n_parameters; j_parameter++)
-// 	parameters[j_parameter] = center_parameter[j_parameter];
-      
-//       parameters[i_parameter] *= i_derivative == 0 ? 1.0-scale : 1.0+scale;
-      
-//       //atmosphere at this derivative point
-//       temp = krasnopolsky_temperature(parameters[1]);
-//       atm = chamb_diff_1d(parameters[0],CO2_exobase_density,temp);
-      
-//       RT_deriv.define_emission(simulate_names[i_simulate],
-// 			       1.0,
-// 			       atm,
-// 			       &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
-// 			       &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
-      
-//     }
-//   }
-
-//   //no more emissions to set up!
-  
-
-//   //simulate to retrieve model brightness
-// #ifdef __CUDACC__
-//   RT_deriv.generate_S_gpu();
-// #else
-//   RT_deriv.generate_S();
-// #endif
-
-//   obs_deriv.reset_output();
-//   //compute brightness on the GPU if compiled with NVCC
-// #ifdef __CUDACC__
-//   RT_deriv.brightness_gpu(obs_deriv);
-// #else
-//   RT_deriv.brightness(obs_deriv);
-// #endif
-
-//   //compute log likelihood for each simulatation
-// #ifdef __CUDACC__
-//   logl_gpu();
-// #else
-//   logl();
-// #endif
-
-//   //compute derivative of log-likelihood for each parameter
-//   for (int i_parameter = 0; i_parameter < n_parameters; i_parameter++) { 
-//     for (int i_derivative = 0; i_derivative < n_pts_per_derivative; i_derivative++) {
-//       int i_simulate = i_simulate_center+i_parameter*n_pts_per_derivative+i_derivative+1;
-
-// 	for (int j_parameter = 0; j_parameter < n_parameters; j_parameter++)
-// 	  parameters[j_parameter] = center_parameter[j_parameter];
-
-// 	parameters[i_parameter] *= i_derivative == 0 ? 1.0-scale : 1.0+scale;
-	
-// 	//atmosphere at this derivative point
-// 	temp = krasnopolsky_temperature(parameters[1]);
-// 	atm = chamb_diff_1d(parameters[0],CO2_exobase_density,temp);
-	
-// 	RT_deriv.define_emission(simulate_names[i_simulate],
-// 				 1.0,
-// 				 atm,
-// 				 &chamb_diff_1d::nH,   &chamb_diff_1d::sH_lya,
-// 				 &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
-	
-//       }
-//     }
-//   }
 
 
-//   //return log-likelihood and derivatives in the form pyMC3 prefers
 
-// }

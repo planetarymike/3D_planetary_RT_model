@@ -30,11 +30,11 @@ public:
   void check_init();
   void init_exosphere();
 
-  Real r_from_n_species(const Real &n_species_target) const;
+  Real r_from_n_species(const Real &n_species_target) const override;
 
-  Real n_species(const Real &r) const;
+  Real n_species(const Real &r) const override;
 
-  Real Temp(const Real &r) const;
+  Real Temp(const Real &r) const override;
 
-  Real n_absorber(const Real &r) const;
+  Real n_absorber(const Real &r) const override;
 };

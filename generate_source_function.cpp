@@ -6,6 +6,7 @@
 #include "atm/temperature.hpp"
 #include "atm/chamb_diff_1d.hpp"
 #include "RT_grid.hpp"
+#include "emission/H_lyman_series.hpp"
 #include "grid_plane_parallel.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
 
@@ -24,15 +25,12 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
   // atm.temp_dependent_sH=false;
   // atm.constant_temp_sH=exobase_temp;
-  //atm.no_CO2_absorption = true;
+  // atm.no_CO2_absorption = true;
   atm.save("test/test_atmosphere.dat");
   
-  //use holstein functions to compute influence integrals
-  typedef holstein_approx influence_function; //setting up holstein_approx is the most time consuming part of startup, ~0.4s
 
-  //define the RT grid
-  static const int n_emissions = 2;
-  string emission_names[n_emissions] = {"H Lyman alpha", "H Lyman beta"};
+
+  // define the geometry of the grid
   
   // static const int n_radial_boundaries = 40;
   // static const int n_rays_theta = 6;
@@ -49,37 +47,49 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 					       n_sza_boundaries,
 					       n_rays_phi,
 					       n_rays_theta> grid_type;
-  RT_grid<n_emissions,
-	  grid_type,
-	  influence_function> RT(emission_names);
-  std::cout << "size of RT grid: " << sizeof(RT) << "\n";
 
-  //RT.grid.rmethod = RT.grid.rmethod_altitude;
-  RT.grid.rmethod = RT.grid.rmethod_log_n_species;
-  //RT.grid.szamethod = RT.grid.szamethod_uniform; //requires CONEABS = 1e-2 in Real.hpp
-  RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
+  grid_type grid;
+  
+  //grid.rmethod = grid.rmethod_altitude;
+  grid.rmethod = grid.rmethod_log_n_species;
+  //grid.szamethod = grid.szamethod_uniform; //requires CONEABS = 1e-2 in Real.hpp
+  grid.szamethod = grid.szamethod_uniform_cos;
 
-  RT.grid.raymethod_theta = RT.grid.raymethod_theta_uniform;
+  grid.raymethod_theta = grid.raymethod_theta_uniform;
   
-  RT.grid.setup_voxels(atm);
-  RT.grid.setup_rays();
+  grid.setup_voxels(atm);
+  grid.setup_rays();
+
+
+  //define the emissions to be solved for
   
-  
+  static const int n_emissions = 2;
 
   //solve for H lyman alpha
-  RT.define_emission("H Lyman alpha",
-		     1.0,
+  typedef H_lyman_series<grid_type::n_voxels> emission_type;
+  emission_type lyman_alpha;
+  lyman_alpha.define("H Lyman alpha",
+		     /*emission branching ratio = */1.0,
 		     H_T_ref, atm.sH_lya(H_T_ref),
 		     atm,
 		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
-		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya);
+		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya,
+		     grid.voxels);
   //solve for H lyman beta
-  RT.define_emission("H Lyman beta",
-		     lyman_beta_branching_ratio,
-		     H_T_ref, atm.sH_lyb(H_T_ref),
-		     atm,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
-		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb);
+  emission_type lyman_beta;
+  lyman_beta.define("H Lyman beta",
+		    /*emission branching ratio = */lyman_beta_branching_ratio,
+		    H_T_ref, atm.sH_lyb(H_T_ref),
+		    atm,
+		    &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
+		    &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb,
+		    grid.voxels);
+
+  emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
+
+  // now set up the RT object
+  RT_grid<emission_type, n_emissions, grid_type> RT(grid, emissions);
+  std::cout << "size of RT grid: " << sizeof(RT) << "\n";
 
   //solve for the source function
   //  RT.save_influence = true;
@@ -102,10 +112,12 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
 
   //simulate a fake observation
-  observation<n_emissions> obs(emission_names);
+  observation<emission_type, n_emissions> obs(emissions);
+  observation<emission_type, n_emissions> obs_nointerp(emissions);
 
   Real g[n_emissions] = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
   obs.set_emission_g_factors(g);
+  obs_nointerp.set_emission_g_factors(g);
   
   std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
   std::cout << "lyman alpha line center cross section coef is: "
@@ -130,10 +142,10 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
 #ifndef __CUDACC__
   //CPU-only code
-  obs.fake(dist,30,600);
-  observation<n_emissions> obs_nointerp(emission_names);
-  obs_nointerp = obs;
-
+  int size = 600;
+  obs.fake(dist, 30, size);
+  obs_nointerp.fake(dist, 30, size);
+  
   std::cout << "Performing brightness calculation without interpolation...\n";
   RT.brightness_nointerp(obs_nointerp);
   obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
@@ -162,4 +174,3 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   return 0; 
 }
-

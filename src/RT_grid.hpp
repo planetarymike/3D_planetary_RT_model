@@ -1,4 +1,4 @@
- //RT_grid.h -- basic RT grid definitions
+//RT_grid.h -- basic RT grid definitions
 //             specifics for different geometries are in other files
 
 #ifndef __RT_grid_H
@@ -8,35 +8,29 @@
 #include "cuda_compatibility.hpp"
 #include <iostream> // for file output and dialog
 #include <cmath>    // for cos and sin
-#include "constants.hpp" // basic parameter definitions
 #include "my_clock.hpp"
 #include "atmo_vec.hpp"
 #include "boundaries.hpp"
-#include "influence.hpp"
-#include "emission.hpp"
 #include "observation.hpp"
-#include "los_tracker.hpp"
 #include <string>
 #include <cassert>
-#include <boost/type_traits/type_identity.hpp> //for type deduction in define_emission
+#include <type_traits>
 
 //structure to hold the atmosphere grid
-template<int N_EMISSIONS, typename grid_type, typename influence_type>
+template<typename emission_type, int N_EMISSIONS, typename grid_type>
 struct RT_grid {
-  static const int n_emissions = N_EMISSIONS;//number of emissions to evaluate at each point in the grid
-  emission<grid_type::n_voxels> emissions[n_emissions];
+  static const int n_emissions = N_EMISSIONS; //number of emissions to evaluate at each point in the grid
+  emission_type *emissions[n_emissions];// all emissions must be the same type
 
   grid_type grid;//this stores all of the geometrical info
-
-  //need to refactor so this lives inside each emission
-  //the influence function
-  //influence_type transmission;
 
   //initialization parameters
   bool all_emissions_init;
 
   //GPU interface
-  typedef RT_grid<N_EMISSIONS,grid_type,influence_type> RT_grid_type;
+  typedef RT_grid<emission_type,
+		  N_EMISSIONS,
+		  grid_type> RT_grid_type;
   RT_grid_type *d_RT=NULL; //pointer to the GPU partner of this object
   void RT_to_device();
   void RT_to_device_brightness();
@@ -47,80 +41,23 @@ struct RT_grid {
   void emissions_solved_to_host();
   void device_clear();
   
-  RT_grid() : all_emissions_init(false) { }
+  RT_grid(grid_type gridd,
+	  emission_type *emissionss[n_emissions]) :
+    grid(gridd) {
 
-  // RT_grid(const RT_grid<N_EMISSIONS,grid_type,influence_type> &copy) {
-  //   for (int i_emission=0;i_emission<n_emissions;i_emission++)
-  //     emissions[i_emission] = copy.emissions[i_emission];
-  //   grid = copy.grid;
-  //   all_emissions_init = copy.all_emissions_init;
-  // }
-  // CUDA_CALLABLE_MEMBER
-  // RT_grid& operator=(const RT_grid<N_EMISSIONS,grid_type,influence_type> &rhs) {
-  //   if(this == &rhs) return *this;
-
-  //   for (int i_emission=0;i_emission<n_emissions;i_emission++)
-  //     emissions[i_emission] = rhs.emissions[i_emission];
-  //   grid = rhs.grid;
-  //   all_emissions_init = rhs.all_emissions_init;
-
-  //   return *this;
-  // }
-
-  
-  RT_grid(const string (&emission_names)[n_emissions]) : RT_grid()
-  {
-    set_names(emission_names);
+    all_emissions_init = true;
+    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+      emissions[i_emission] = emissionss[i_emission];
+      all_emissions_init &= emissions[i_emission]->init();
+    }
   }
+
   ~RT_grid() {
 #ifdef __CUDACC__
     device_clear();
 #endif
   }
 
-  void set_names(const string (&emission_names)[n_emissions]) {
-    for (int i_emission=0; i_emission < n_emissions; i_emission++)
-      emissions[i_emission].name = emission_names[i_emission];
-  }
-
-  template<typename C>
-  void define_emission(const string &emission_name,
-		       const Real &emission_branching_ratio,
-		       const Real &species_T_ref, const Real &species_sigma_T_ref,
-		       const C &atmosphere,
-		       void (boost::type_identity<C>::type::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-		       void (boost::type_identity<C>::type::*species_T_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-		       void (boost::type_identity<C>::type::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
-		       Real (boost::type_identity<C>::type::*absorber_sigma_function)(const Real &T) const) {
-
-    //find emission name (dumb search but n_emissions is small and these are called infrequently)
-    int n;
-    for (n=0;n<n_emissions;n++) {
-      if (emissions[n].name == emission_name)
-	break;
-    }
-    if (n == n_emissions) {
-      assert(false && "can't find emission name in define_emission");
-    } else {
-      assert((0<=n&&n<n_emissions) && "attempt to set invalid emission in define_emitter");
-      
-      emissions[n].define(emission_branching_ratio,
-			  species_T_ref, species_sigma_T_ref,
-			  atmosphere,
-			  species_density_function,
-			  species_T_function,
-			  absorber_density_function,
-			  absorber_sigma_function,
-			  grid.voxels);
-      
-      all_emissions_init = true;
-      for (int i_emission=0;i_emission<n_emissions;i_emission++)
-	if (!emissions[i_emission].init)
-	  all_emissions_init = false;
-    }
-  }
-
-  
   template <typename R>
   CUDA_CALLABLE_MEMBER
   void voxel_traverse(const atmo_vector &v,
@@ -151,109 +88,58 @@ struct RT_grid {
   CUDA_CALLABLE_MEMBER
   void influence_update(boundary_intersection_stepper<grid_type::n_dimensions,
 			                              grid_type::n_max_intersections>& stepper,
-			influence_tracker<n_emissions,grid_type::n_voxels>& temp_influence) {
+			typename emission_type::influence_tracker (&temp_influence)[n_emissions]) {
     //update the influence matrix for each emission
-
-    temp_influence.update_start(stepper,emissions);
-      
-    for (int i_emission=0; i_emission < n_emissions; i_emission++) {
-      
-      //see Bishop1999 for derivation of this formula
-      Real coef = stepper.vec.ray.domega;
-
-      coef *= temp_influence.line[i_emission].holstein_G_int;
-
-      assert(!isnan(coef) && "influence coefficients must be real numbers");
-      assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
-      
-      temp_influence.influence[i_emission][stepper.current_voxel] += coef;
     
-    }
-
-    temp_influence.update_end();
-
+    for (int i_emission=0; i_emission < n_emissions; i_emission++)
+      emissions[i_emission]->update_tracker_influence(stepper.current_voxel,
+						      stepper.pathlength,
+						      stepper.vec.ray.domega,
+						      temp_influence[i_emission]);
   }
 
   CUDA_CALLABLE_MEMBER
   void get_single_scattering_optical_depths(boundary_intersection_stepper<grid_type::n_dimensions,
 					                                  grid_type::n_max_intersections>& stepper,
-					    influence_tracker<n_emissions,grid_type::n_voxels>& temp_influence)
+					    typename emission_type::influence_tracker (&temp_influence)[n_emissions])
   {
-    temp_influence.update_start(stepper,emissions);
-    temp_influence.update_end();
+    for (int i_emission=0; i_emission < n_emissions; i_emission++) {
+      //update influence functions for this voxel
+      emissions[i_emission]->update_tracker_start(stepper.current_voxel,
+						  stepper.pathlength,
+						  temp_influence[i_emission]);
+      emissions[i_emission]->update_tracker_end(temp_influence[i_emission]);
+    }
   }
   
   CUDA_CALLABLE_MEMBER
-  void get_single_scattering(const atmo_point &pt, influence_tracker<n_emissions,grid_type::n_voxels>& temp_influence) {
-
+  void get_single_scattering(const atmo_point &pt, typename emission_type::influence_tracker (&temp_influence)[n_emissions]) {
     if (pt.z<0&&pt.x*pt.x+pt.y*pt.y<grid.rmin*grid.rmin) {
       //if the point is behind the planet, no single scattering
       for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	emissions[i_emission].tau_species_single_scattering(pt.i_voxel) = -1;
-	emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel) = -1;
-	emissions[i_emission].singlescat(pt.i_voxel)=0.0;
+	temp_influence[i_emission].tau_species_final  = REAL(-1.0);
+	temp_influence[i_emission].tau_absorber_final = REAL(-1.0);
+	temp_influence[i_emission].holstein_T_final   = REAL(0.0);
+	emissions[i_emission]->compute_single_scattering(pt.i_voxel, temp_influence[i_emission]);
       }
     } else {
+      // compute the RT towards the sun and pass to the emissions
       atmo_vector vec;
       vec.ptvec(pt, grid.sun_direction);
       voxel_traverse(vec,
 		     &RT_grid::get_single_scattering_optical_depths,
 		     temp_influence);
       
-      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	emissions[i_emission].tau_species_single_scattering(pt.i_voxel) = temp_influence.line[i_emission].tau_species_final;//line center optical depth
-	assert(!isnan(emissions[i_emission].tau_species_single_scattering(pt.i_voxel))
-	       && emissions[i_emission].tau_species_single_scattering(pt.i_voxel) >= 0
-	       && "optical depth must be real and positive");
-
-	emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel) = temp_influence.line[i_emission].tau_absorber_final;
-	assert(!isnan(emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel))
-	       && emissions[i_emission].tau_absorber_single_scattering(pt.i_voxel) >= 0
-	       && "optical depth must be real and positive");
-
-	
-	emissions[i_emission].singlescat(pt.i_voxel) = temp_influence.line[i_emission].holstein_T_final;
-	assert(!isnan(emissions[i_emission].singlescat(pt.i_voxel))
-	       && emissions[i_emission].singlescat(pt.i_voxel) >= 0
-	       && "single scattering coefficient must be real and positive");
-
-      }
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	emissions[i_emission]->compute_single_scattering(pt.i_voxel, temp_influence[i_emission]);
     }
   }
 
   void solve() {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      emissions[i_emission].influence_matrix *= emissions[i_emission].branching_ratio;
-
-      MatrixX kernel = MatrixX::Identity(grid.n_voxels,grid.n_voxels);
-      kernel -= emissions[i_emission].influence_matrix;
-
-      emissions[i_emission].sourcefn=kernel.partialPivLu().solve(emissions[i_emission].singlescat);//partialPivLu has multithreading support
-
-      // // iterative solution.
-      // Real err = 1;
-      // int it = 0;
-      // VectorX sourcefn_old(grid.n_voxels);
-      // sourcefn_old = emissions[i_emission].singlescat;
-      // while (err > ABS && it < 500) {
-      // 	emissions[i_emission].sourcefn = emissions[i_emission].singlescat + emissions[i_emission].influence_matrix * sourcefn_old;
-
-      // 	err=((emissions[i_emission].sourcefn-sourcefn_old).array().abs()/sourcefn_old.array()).maxCoeff();
-      // 	sourcefn_old = emissions[i_emission].sourcefn;
-      // 	it++;
-      // }
-      // std::cout << "For " << emissions[i_emission].name << std::endl;
-      // std::cout << "  Scattering up to order: " << it << " included.\n";
-      // std::cout << "  Error at final order is: " << err << " .\n";
-      
-      // for (int i=0;i<grid.n_voxels;i++)
-      // 	emissions[i_emission].log_sourcefn(i) = emissions[i_emission].sourcefn(i) == 0 ? -1e5 : log(emissions[i_emission].sourcefn(i));
-      emissions[i_emission].solved=true;
-    }
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      emissions[i_emission]->solve();
   }
   //gpu stuff is defined in RT_gpu.cu
-  void transpose_influence_gpu();
-  void solve_emission_gpu(emission<grid_type::n_voxels> & emiss);
   void solve_gpu();
 
 
@@ -264,47 +150,55 @@ struct RT_grid {
     my_clock clk;
     clk.start();
 
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
-      emissions[i_emission].influence_matrix.setZero();
-    
     atmo_vector vec;
-    influence_tracker<n_emissions,grid_type::n_voxels> temp_influence;
-    temp_influence.init();
+
     Real max_tau_species = 0;
   
-#pragma omp parallel for firstprivate(vec,temp_influence) shared(max_tau_species,std::cout) default(none)
-    for (int i_vox = 0; i_vox < grid.n_voxels; i_vox++) {
-      Real omega = 0.0; // make sure sum(domega) = 4*pi
-    
-      //now integrate outward along the ray grid:
-      for (int i_ray=0; i_ray < grid.n_rays; i_ray++) {
-	vec.ptray(grid.voxels[i_vox].pt, grid.rays[i_ray]);
-	omega += vec.ray.domega;
-
-	temp_influence.reset(emissions, i_vox);
-	voxel_traverse(vec, &RT_grid::influence_update, temp_influence);
-	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	  Real rowsum = 0.0;
-	  for (int j_vox = 0; j_vox < grid.n_voxels; j_vox++) {
-	    emissions[i_emission].influence_matrix(i_vox,j_vox) += temp_influence.influence[i_emission][j_vox];
-	    rowsum += emissions[i_emission].influence_matrix(i_vox,j_vox);
+#pragma omp parallel firstprivate(vec) shared(max_tau_species,emissions) default(none)
+    {
+      typename emission_type::influence_tracker temp_influence[n_emissions];
+      for (int i_emission = 0; i_emission < n_emissions; i_emission++)
+	temp_influence[i_emission].init();
+      
+#pragma omp for
+      for (int i_vox = 0; i_vox < grid.n_voxels; i_vox++) {
+	
+	Real omega = 0.0; // make sure sum(domega) = 4*pi
+	
+	//now integrate outward along the ray grid:
+	for (int i_ray=0; i_ray < grid.n_rays; i_ray++) {
+	  
+	  // reset vec and temp_influence for this ray
+	  vec.ptray(grid.voxels[i_vox].pt, grid.rays[i_ray]);
+	  omega += vec.ray.domega;
+	  for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	    emissions[i_emission]->reset_tracker(i_vox, temp_influence[i_emission]);
+	  
+	  // accumulate influence along the ray
+	  voxel_traverse(vec, &RT_grid::influence_update, temp_influence);
+	  
+	  // pack the contributions back into emissions
+	  for (int i_emission = 0; i_emission < n_emissions; i_emission++) {
+	    emissions[i_emission]->accumulate_influence(i_vox, temp_influence[i_emission]);
+	    if (temp_influence[i_emission].max_tau_species > max_tau_species)
+#pragma omp atomic write
+	      max_tau_species = temp_influence[i_emission].max_tau_species;
 	  }
-	  assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this voxel");
 	}
 	
-	if (temp_influence.max_tau_species > max_tau_species)
-	  max_tau_species = temp_influence.max_tau_species;
+	assert(std::abs(omega - 1.0) < ABS && "omega must = 4*pi\n");
+	
+	// now compute the single scattering function:
+	for (int i_emission = 0; i_emission < n_emissions; i_emission++)
+	  emissions[i_emission]->reset_tracker(i_vox, temp_influence[i_emission]);
+	get_single_scattering(grid.voxels[i_vox].pt, temp_influence);
+	for (int i_emission = 0; i_emission < n_emissions; i_emission++)
+	  if (temp_influence[i_emission].max_tau_species > max_tau_species)
+	    max_tau_species = temp_influence[i_emission].max_tau_species;
       }
-
-    assert(std::abs(omega - 1.0) < ABS && "omega must = 4*pi\n");
-    
-      //now compute the single scattering function:
-      temp_influence.reset(emissions, i_vox);
-      get_single_scattering(grid.voxels[i_vox].pt, temp_influence);
-      if (temp_influence.max_tau_species > max_tau_species)
-	max_tau_species = temp_influence.max_tau_species;
+      
     }
-  
+    
     //solve for the source function
     solve();
 
@@ -314,83 +208,44 @@ struct RT_grid {
     clk.stop();
     clk.print_elapsed("source function generation takes ");
     std::cout << std::endl;
-    
+
     return;
   }
   void generate_S_gpu();
   
-  void save_influence(const string fname = "test/influence_matrix.dat") {
+  void save_influence(const string fname = "test/influence_matrix.dat") const {
     std::ofstream file(fname);
     if (file.is_open())
       for (int i_emission=0;i_emission<n_emissions;i_emission++)
-	file << "Here is the influence matrix for " << emissions[i_emission].name <<":\n" 
-	     << emissions[i_emission].influence_matrix << "\n\n";
+	emissions[i_emission]->save_influence(file);
   }
 
-  void save_S(const string fname) {
-    grid.save_S(fname,emissions,n_emissions);
+  void save_S(const string fname) const {
+    grid.save_S(fname, emissions, n_emissions);
   }
 
-
-  template <typename V>
-  CUDA_CALLABLE_MEMBER
-  Real interp_array(const int *indices, const Real *weights, const V &arr) const {
-    Real retval=0;
-    for (int i=0;i<grid.n_interp_points;i++)
-      retval+=weights[i]*arr[indices[i]];
-    return retval;
-  }
-  CUDA_CALLABLE_MEMBER
-  void interp(const int &ivoxel, const atmo_point &pt, interpolated_values<n_emissions> &retval) const {
-    int indices[grid_type::n_interp_points];
-    Real weights[grid_type::n_interp_points];
-    int indices_1d[2*grid_type::n_dimensions];
-    Real weights_1d[grid_type::n_dimensions];
-    grid.interp_weights(ivoxel,pt,indices,weights,indices_1d,weights_1d);
-
-#if defined(__CUDA_ARCH__) && defined(USE_CUDA_TEXTURES)
-    Real pts[3];
-    for (int i=0;i<grid_type::n_dimensions;i++)
-      pts[i] = indices[i] + weights[i];
-
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      retval.dtau_species_interp[i_emission]    = emissions[i_emission].dtau_species_pt.interp(pts, grid_type::n_dimensions);
-      retval.species_T_ratio_interp[i_emission] = emissions[i_emission].species_T_ratio_pt.interp(pts, grid_type::n_dimensions);
-      retval.dtau_absorber_interp[i_emission]   = emissions[i_emission].dtau_absorber_pt.interp(pts, grid_type::n_dimensions);
-      retval.abs_interp[i_emission]             = emissions[i_emission].abs_pt.interp(pts, grid_type::n_dimensions);
-      retval.sourcefn_interp[i_emission]        = emissions[i_emission].sourcefn.interp(pts, grid_type::n_dimensions);
-    }
-#else
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      retval.dtau_species_interp[i_emission]    = interp_array(indices, weights,
-							       emissions[i_emission].dtau_species_pt);
-      retval.species_T_ratio_interp[i_emission] = interp_array(indices, weights,
-							       emissions[i_emission].species_T_ratio_pt);
-      retval.dtau_absorber_interp[i_emission]   = interp_array(indices, weights,
-							       emissions[i_emission].dtau_absorber_pt);
-      retval.abs_interp[i_emission]             = interp_array(indices, weights,
-							       emissions[i_emission].abs_pt);
-      retval.sourcefn_interp[i_emission]        = interp_array(indices, weights,
-							       emissions[i_emission].sourcefn);
-    }
-#endif
-  }
-  
   //interpolated brightness routine
   CUDA_CALLABLE_MEMBER
   void brightness(const atmo_vector &vec, const Real (&g)[n_emissions],
-		  brightness_tracker<n_emissions> &los,
-		  const int n_subsamples=20) const {
+		  typename emission_type::brightness_tracker* (&los)[n_emissions], // array of pointers to los trackers
+		  const int n_subsamples=5) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
     
     boundary_intersection_stepper<grid_type::n_dimensions,
 				  grid_type::n_max_intersections> stepper;
     grid.ray_voxel_intersections(vec, stepper);
 
-    los.reset();
-
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      emissions[i_emission]->reset_tracker(0/*voxel number doesn't matter
+					      for brightness calculation*/,
+					   *los[i_emission]);
     atmo_point pt;
-    interpolated_values<n_emissions> interp_vals;
+
+    // interpolation stuff
+    int indices[grid_type::n_interp_points];
+    Real weights[grid_type::n_interp_points];
+    int indices_1d[2*grid_type::n_dimensions];
+    Real weights_1d[grid_type::n_dimensions];
     
     //brightness is zero if we do not intersect the grid
     if (stepper.boundaries.size() == 0)
@@ -412,100 +267,63 @@ struct RT_grid {
 
       int current_voxel = stepper.boundaries[i_bound-1].entering;
 
-      
       for (int i_step=1;i_step<n_subsamples_distance;i_step++) {
 
 	pt = vec.extend(d_start+i_step*d_step);
 	
-	if (n_subsamples!=0) {
-	  interp(current_voxel,pt,interp_vals);
-	}
-	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-
-	  Real dtau_species_temp, species_T_ratio_temp;
-	  Real dtau_absorber_temp, abs_temp;
-	  Real sourcefn_temp;
-	  
-	  if (n_subsamples == 0) {
-	    dtau_species_temp    = emissions[i_emission].dtau_species[current_voxel];
-	    species_T_ratio_temp = emissions[i_emission].species_T_ratio[current_voxel];
-	    dtau_absorber_temp   = emissions[i_emission].dtau_absorber[current_voxel];
-	    abs_temp             = emissions[i_emission].abs[current_voxel];
-	    sourcefn_temp        = emissions[i_emission].sourcefn[current_voxel];
-	  } else {
-	    dtau_species_temp    = interp_vals.dtau_species_interp[i_emission];
-	    species_T_ratio_temp = interp_vals.species_T_ratio_interp[i_emission];
-	    dtau_absorber_temp   = interp_vals.dtau_absorber_interp[i_emission];
-	    abs_temp             = interp_vals.abs_interp[i_emission];
-	    sourcefn_temp        = interp_vals.sourcefn_interp[i_emission];
-	  } 
-
-	  //should really rewrite this whole function to make changes
-	  //to stepper (?) to capture interpolation and use voxel traverse
-	  los.line[i_emission].update_start_brightness(species_T_ratio_temp,
-						       dtau_species_temp,
-						       dtau_absorber_temp,
-						       abs_temp,
-						       d_step);
-
-	  //bishop formulation
-	  sourcefn_temp = sourcefn_temp*emissions[i_emission].branching_ratio;
-
-	  los.brightness[i_emission] += (sourcefn_temp
-					 * los.line[i_emission].holstein_T_int
-					 / emissions[i_emission].species_sigma_T_ref); 
-	  //                                                     ^^^^^^^^^^^^^^^^^^^
-	  //                                                     sigma was multiplied
-	  //                                                     out of S0 so we must
-	  //                                                     divide by it here
-	  assert(!isnan(los.brightness[i_emission]) && "brightness must be a real number");
-	  assert(los.brightness[i_emission]>=0 && "brightness must be positive");
-	  
-	  los.line[i_emission].update_end();
-	}
+	if (n_subsamples!=0)
+	  grid.interp_weights(current_voxel,pt,indices,weights,indices_1d,weights_1d);
+	
+	for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	  if (n_subsamples == 0)
+	    emissions[i_emission]->update_tracker_brightness_nointerp(current_voxel,
+								      d_step,
+								      *los[i_emission]);
+	  else
+	    emissions[i_emission]->update_tracker_brightness_interp(grid_type::n_interp_points,
+								    indices,
+								    weights,
+								    d_step,
+								    *los[i_emission]);
       }
     }
 
-    if (stepper.exits_bottom) {
-      for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	los.line[i_emission].tau_absorber_final = -1;
-      }
-    }
+    if (stepper.exits_bottom)
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	los[i_emission]->tau_absorber_final = -1;
 
-    //convert to kR
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-      los.brightness[i_emission] *= emissions[i_emission].branching_ratio;
-      los.brightness[i_emission] *= g[i_emission]/REAL(1e9); //megaphoton/cm2/s * 1e-3 = kR, see C&H pg 280-282
-    }
+    // convert to kR
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      los[i_emission]->brightness *= g[i_emission]/REAL(1e9); //megaphoton/cm2/s * 1e-3 = kR, see C&H pg 280-282
   }
 
-  void brightness(observation<n_emissions> &obs, const int n_subsamples=20) const {
+  void brightness(observation<emission_type, n_emissions> &obs, const int n_subsamples=5) const {
     assert(obs.size()>0 && "there must be at least one observation to simulate!");
     for (int i_emission=0;i_emission<n_emissions;i_emission++)
       assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");
 
     my_clock clk;
     clk.start();
-
-    obs.reset_output();
-
-#pragma omp parallel for shared(obs) firstprivate(n_subsamples) default(none)
-    for(int i=0; i<obs.size(); i++)
-      brightness(obs.get_vec(i),obs.emission_g_factors,
-		 obs.los[i],
-		 n_subsamples);
     
+#pragma omp parallel for shared(obs) firstprivate(n_subsamples) default(none)
+    for(int i=0; i<obs.size(); i++) {
+      typename emission_type::brightness_tracker *los[n_emissions];
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	los[i_emission] = &obs.los[i_emission][i];
+      brightness(obs.get_vec(i), obs.emission_g_factors,
+		 los,
+		 n_subsamples);
+    }
     clk.stop();
     clk.print_elapsed("brightness calculation takes ");
   }
-
-  void brightness_nointerp(observation<n_emissions> &obs) const {
+  
+  void brightness_nointerp(observation<emission_type, n_emissions> &obs) const {
     brightness(obs,0);
   }
-
-  //hooks for porting to gpu
-  void brightness_gpu(observation<n_emissions> &obs, const int n_subsamples=20);
   
+  //hooks for porting to gpu
+  void brightness_gpu(observation<emission_type, N_EMISSIONS> &obs, const int n_subsamples=5);
 };
 
 //import the CUDA code if NVCC is the compiler

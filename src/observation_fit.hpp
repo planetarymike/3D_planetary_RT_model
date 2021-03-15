@@ -42,8 +42,6 @@ protected:
   H_cross_sections H_cross_section_options;
   tabular_1d atm_tabular;
 
-  typedef holstein_approx influence_type;
-
   //  // for comparison with Pratik
   // static const int n_radial_boundaries = 90;
   // static const int n_sza_boundaries = 32;/*20 for 10 deg increments with szamethod_uniform*/
@@ -58,20 +56,14 @@ protected:
   typedef plane_parallel_grid<n_radial_boundaries,
 			      n_rays_theta> plane_parallel_grid_type;
   RT_grid<n_emissions,
-	  plane_parallel_grid_type,
-	  influence_type> RT_pp;
+	  plane_parallel_grid_type> RT_pp;
   
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
 					       n_sza_boundaries,
 					       n_rays_theta,
 					       n_rays_phi> grid_type;
   RT_grid<n_emissions,
-	  grid_type,
-	  influence_type> RT;
-
-  RT_grid<n_simulate,
-	  grid_type,
-	  influence_type> RT_deriv;
+	  grid_type> RT;
 
   bool sim_iph;
 
@@ -83,9 +75,6 @@ public:
   void add_observation(const std::vector<vector<Real>> &MSO_locations,
 		       const std::vector<vector<Real>> &MSO_directions);
 
-  void add_observed_brightness(const std::vector<Real> &brightness,
-			       const std::vector<Real> &sigma,
-			       const int emission = 0);
   void get_unextincted_iph();
   
   void set_g_factor(vector<Real> &g);
@@ -188,9 +177,5 @@ public:
   void logl();
   void logl_gpu();
 };
-
-//might be needed to instantiate template members
-//#include "observation_fit.cpp"
-//observation_fit hello;
 
 #endif
