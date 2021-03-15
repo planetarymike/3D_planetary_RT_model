@@ -247,8 +247,10 @@ public:
   }
   void pre_solve_gpu(); //defined below
 protected:
+#ifdef __CUDACC__
   template <int NV>
   friend __global__ void H_lyman_series_prepare_for_solution(H_lyman_series<NV> *emission);
+#endif
 public:
 
   

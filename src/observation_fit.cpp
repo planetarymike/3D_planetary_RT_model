@@ -7,17 +7,16 @@ using std::vector;
 using std::string;
 
 observation_fit::observation_fit()
-  : emission_names{"H Lyman alpha"},//,"H Lyman beta"},
-    obs(emission_names),
-    atm_tabular(),
-    RT_pp(emission_names),
-    RT(emission_names),
+  : atm_tabular(),
+    RT_pp(grid_pp, emissions_pp),
+    RT(grid, emissions),
+    obs(emissions),
     sim_iph(false)
 {
-  RT_pp.grid.rmethod = RT.grid.rmethod_log_n_species;
-  
-  RT.grid.rmethod = RT.grid.rmethod_log_n_species;
-  RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
+  RT.grid.rmethod = grid_pp.rmethod_log_n_species;
+
+  RT.grid.rmethod = grid.rmethod_log_n_species;
+  RT.grid.szamethod = grid.szamethod_uniform_cos;
 }
 
 void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations, const vector<vector<Real>> &MSO_directions) {
@@ -161,19 +160,21 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
   RT_pp.grid.setup_voxels(atmm);
   RT_pp.grid.setup_rays();
 
-  //update the RT_pp grid values
-  RT_pp.define_emission("H Lyman alpha",
-		     1.0,
-		     Texo, atmm.sH_lya(Texo),
-		     atmm,
-		     &A::nH,   &A::H_Temp,
-		     &A::nCO2, &A::sCO2_lya);
-  // RT_pp.define_emission("H Lyman beta",
-  // 		     lyman_beta_branching_ratio,
-  // 		     Texo, atmm.sH_lyb(Texo),
-  // 		     atmm,
-  // 		     &A::nH,   &A::H_Temp,
-  // 		     &A::nCO2, &A::sCO2_lyb);
+  //update the emission density values
+  lyman_alpha_pp.define("H Lyman alpha",
+			1.0,
+			Texo, atmm.sH_lya(Texo),
+			atmm,
+			&A::nH,   &A::H_Temp,
+			&A::nCO2, &A::sCO2_lya,
+			RT_pp.grid.voxels);
+  lyman_beta_pp.define("H Lyman beta",
+		       lyman_beta_branching_ratio,
+		       Texo, atmm.sH_lyb(Texo),
+		       atmm,
+		       &A::nH,   &A::H_Temp,
+		       &A::nCO2, &A::sCO2_lyb,
+		       RT_pp.grid.voxels);
 
   atmm.spherical = atmm_spherical;  
 
@@ -202,19 +203,21 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
   RT.grid.setup_rays();
 
 
-  //update the RT grid values
-  RT.define_emission("H Lyman alpha",
+  //update the emission density values
+  lyman_alpha.define("H Lyman alpha",
 		     1.0,
 		     Texo, atmm.sH_lya(Texo),
 		     atmm,
 		     &A::nH,   &A::H_Temp,
-		     &A::nCO2, &A::sCO2_lya);
-  // RT.define_emission("H Lyman beta",
-  // 		     lyman_beta_branching_ratio,
-  // 		     Texo, atmm.sH_lyb(Texo),
-  // 		     atmm,
-  // 		     &A::nH,   &A::H_Temp,
-  // 		     &A::nCO2, &A::sCO2_lyb);
+		     &A::nCO2, &A::sCO2_lya,
+		     RT.grid.voxels);
+  lyman_beta.define("H Lyman beta",
+		    lyman_beta_branching_ratio,
+		    Texo, atmm.sH_lyb(Texo),
+		    atmm,
+		    &A::nH,   &A::H_Temp,
+		    &A::nCO2, &A::sCO2_lyb,
+		    RT.grid.voxels);
 
   if (change_spherical)
     atmm.spherical = false;    
@@ -398,7 +401,7 @@ vector<vector<Real>> observation_fit::tau_species_final() {
     tau_species[i_emission].resize(obs.size());
     
     for (int i=0;i<obs.size();i++)
-      tau_species[i_emission][i] = obs.los[i].line[i_emission].tau_species_final;
+      tau_species[i_emission][i] = obs.los[i_emission][i].tau_species_final;
   }
   
   return tau_species;
@@ -413,7 +416,7 @@ vector<vector<Real>> observation_fit::tau_absorber_final() {
     tau_absorber[i_emission].resize(obs.size());
     
     for (int i=0;i<obs.size();i++)
-      tau_absorber[i_emission][i] = obs.los[i].line[i_emission].tau_absorber_final;
+      tau_absorber[i_emission][i] = obs.los[i_emission][i].tau_absorber_final;
   }
   
   return tau_absorber;

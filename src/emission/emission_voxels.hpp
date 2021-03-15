@@ -306,6 +306,7 @@ public:
 #endif
 };
 
+#ifdef __CUDACC__
 template <int N_VOXELS, typename emission_type, template<bool,int> class los_tracker_type>
 void emission_voxels<N_VOXELS, emission_type, los_tracker_type>::solve_gpu() {
   //the CUDA matrix library has a LOT more boilerplate than Eigen
@@ -465,7 +466,7 @@ void emission_voxels<N_VOXELS, emission_type, los_tracker_type>::transpose_influ
   cublasDestroy(handle);
 }
 
-
+#endif
 
 
 #endif

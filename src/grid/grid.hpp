@@ -5,7 +5,6 @@
 
 #include "Real.hpp"
 #include "cuda_compatibility.hpp"
-#include "emission.hpp"
 #include "boundaries.hpp"
 #include "atm/atmosphere_base.hpp"
 

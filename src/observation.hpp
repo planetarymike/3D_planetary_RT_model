@@ -6,9 +6,8 @@
 #include "Real.hpp"
 #include "cuda_compatibility.hpp"
 #include "atmo_vec.hpp"
-#include "los_tracker.hpp"
+#include "emission/los_tracker.hpp"
 #include "gpu_vector.hpp"
-#include "emission.hpp"
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -145,9 +144,9 @@ public:
   void update_iph_extinction() {
     for (int i_obs=0;i_obs<n_obs;i_obs++) {
       for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	if (los[i_emission][i_obs]->tau_absorber_final != -1)
+	if (los[i_emission][i_obs].tau_absorber_final != -1)
 	  iph_brightness_observed[i_obs][i_emission] = (iph_brightness_unextincted[i_obs][i_emission]
-							*std::exp(-los[i_emission][i_obs]->tau_absorber_final));
+							*std::exp(-los[i_emission][i_obs].tau_absorber_final));
 	else
 	  iph_brightness_observed[i_obs][i_emission] = 0.0;
       }

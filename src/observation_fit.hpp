@@ -12,29 +12,12 @@
 #include "atm/chamb_diff_temp_asymmetric.hpp"
 #include "atm/tabular_1d.hpp"
 #include "RT_grid.hpp"
-#include "grid_plane_parallel.hpp"
-#include "grid_spherical_azimuthally_symmetric.hpp"
+#include "grid/grid_plane_parallel.hpp"
+#include "grid/grid_spherical_azimuthally_symmetric.hpp"
+#include "emission/H_lyman_series.hpp"
 
 class observation_fit {
 protected:
-  static const int n_emissions = 1;
-  const std::string emission_names[n_emissions];// = {"H Lyman alpha",
-                                                //    "H Lyman beta"};
-					        // nvcc complains about
-					        // inline definition, this
-					        // needs to go in
-					        // constructor
-
-  static const int n_parameters = 2; // nH_exo and some T_exo type
-  static const int n_pts_per_derivative = 2; // central difference
-
-  static const int n_simulate_per_emission = n_parameters*n_pts_per_derivative + 1;
-  static const int n_simulate = n_emissions*n_simulate_per_emission;
-  std::string simulate_names[n_simulate];
-  
-  observation<n_emissions> obs;
-  observation<n_simulate> obs_deriv;
-  
   krasnopolsky_temperature temp;
   const Real CO2_exobase_density = 2e8;//cm-3
   //chamb_diff_1d atm;//make sure to use the same exobase alt as in Tconv
@@ -55,15 +38,36 @@ protected:
   static const int n_rays_phi = 12;
   typedef plane_parallel_grid<n_radial_boundaries,
 			      n_rays_theta> plane_parallel_grid_type;
-  RT_grid<n_emissions,
-	  plane_parallel_grid_type> RT_pp;
-  
+  plane_parallel_grid_type grid_pp;
+
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
 					       n_sza_boundaries,
 					       n_rays_theta,
 					       n_rays_phi> grid_type;
-  RT_grid<n_emissions,
+  grid_type grid;
+
+  // define emissions
+  static const int n_emissions = 2;
+
+  typedef H_lyman_series<plane_parallel_grid_type::n_voxels> emission_type_pp;
+  emission_type_pp lyman_alpha_pp, lyman_beta_pp;
+  emission_type_pp *emissions_pp[n_emissions] = {&lyman_alpha_pp, &lyman_beta_pp};
+
+  RT_grid<emission_type_pp,
+	  n_emissions,
+	  plane_parallel_grid_type> RT_pp;
+  
+
+
+  typedef H_lyman_series<grid_type::n_voxels> emission_type;
+  emission_type lyman_alpha, lyman_beta;
+  emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
+
+  RT_grid<emission_type,
+	  n_emissions,
 	  grid_type> RT;
+
+  observation<emission_type, n_emissions> obs;
 
   bool sim_iph;
 

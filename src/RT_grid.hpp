@@ -10,7 +10,7 @@
 #include <cmath>    // for cos and sin
 #include "my_clock.hpp"
 #include "atmo_vec.hpp"
-#include "boundaries.hpp"
+#include "grid/boundaries.hpp"
 #include "observation.hpp"
 #include <string>
 #include <cassert>
