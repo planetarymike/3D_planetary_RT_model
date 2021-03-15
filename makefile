@@ -48,22 +48,8 @@ endif
 NDBGFLAGS=-O0 -g -G -arch sm_61 # -lineinfo
 #                ^^^ this -G sometimes changes the behavior of the code??
 
-# # intel compiler
-# you may need to run this
-# source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh -arch intel64 -platform linux
-ICC=icpc
-ICOMPILER_OPT=-std=c++17
-ILIBS=-fPIC -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm
-IMPFLAGS=-qopenmp
-IOFLAGS=-DNDEBUG -fast
-
-all: generate_source_function generate_source_function_gpu
-
 generate_source_function:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
-
-generate_source_function_intel:
-	$(ICC) generate_source_function.cpp $(SRCFILES) $(ICOMPILER_OPT) $(IDIR) $(ILIBS) $(IMPFLAGS) $(IOFLAGS) -o generate_source_function.x
 
 generate_source_function_profile:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
