@@ -49,47 +49,41 @@ def locate_cuda():
 
     return cudaconfig
 
+# The following functions pull compiler flags out of 
+from distutils.sysconfig import get_config_vars as default_get_config_vars
 
-def customize_compiler_for_nvcc(self):
-    """Inject deep into distutils to customize how the dispatch
-    to gcc/nvcc works.
-    If you subclass UnixCCompiler, it's not trivial to get your subclass
-    injected in, and still have the right customizations (i.e.
-    distutils.sysconfig.customize_compiler) run on it. So instead of going
-    the OO route, I have this. Note, it's kindof like a wierd functional
-    subclassing going on.
-    """
+wrap_nvcc_flags = ['-Werror=format-security',
+                   '-Wno-unused-result',
+                   '-Wsign-compare',
+                   '-Wformat',
+                   '-D_FORTIFY_SOURCE=2',
+                   '-fPIC',
+                   '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION']
 
-    # Tell the compiler it can processes .cu
-    self.src_extensions.append('.cu')
+remove_nvcc_flags = ['-O2',
+                     '-Wall',
+                     '-fwrapv',
+                     '-Wdate-time',
+                     '-fstack-protector-strong',
+                     '-pthread']
 
-    # Save references to the default compiler_so and _comple methods
-    default_compiler_so = self.compiler_so
-    super = self._compile
+def remove_compiler_warning_flags(x):
+    if isinstance(x, str):
+        for f in remove_nvcc_flags:
+            x = x.replace(f, '')
+        for f in wrap_nvcc_flags:
+            x = x.replace(f, '-Xcompiler '+f)
+        x = x.replace("-Wl,", "-Xlinker ")
+    return x
 
-    # Now redefine the _compile method. This gets executed for each
-    # object but distutils doesn't have the ability to change compilers
-    # based on source extension: we add it.
-    def _compile(obj, src, ext, cc_args, extra_postargs, pp_opts):
-        if os.path.splitext(src)[1] == '.cu':
-            # use the cuda for .cu files
-            self.set_executable('compiler_so', CUDA['nvcc'])
-            # use only a subset of the extra_postargs, which are 1-1
-            # translated from the extra_compile_args in the Extension class
-            postargs = extra_postargs['nvcc']
-        else:
-            postargs = extra_postargs['gcc']
-
-        super(obj, src, ext, cc_args, postargs, pp_opts)
-        # Reset the default compiler_so, which we might have changed for cuda
-        self.compiler_so = default_compiler_so
-
-    # Inject our redefined _compile method into the class
-    self._compile = _compile
-
-
-# Run the customize_compiler
-class custom_build_ext(build_ext):
-    def build_extensions(self):
-        customize_compiler_for_nvcc(self.compiler)
-        build_ext.build_extensions(self)
+def cuda_get_config_vars(*args):
+    # print(args)
+    result = default_get_config_vars(*args)
+    # sometimes result is a list and sometimes a dict:
+    if isinstance(result, list):
+        return [remove_compiler_warning_flags(x) for x in result]
+    elif isinstance(result, dict):
+        return {k: remove_compiler_warning_flags(x)
+                for k, x in result.items()}
+    else:
+        raise Exception("cannot handle type"+type(result))

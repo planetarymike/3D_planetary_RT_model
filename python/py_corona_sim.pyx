@@ -19,7 +19,7 @@ ELSE:
     ctypedef double Real
     realconvert = np.float64
 
-cdef extern from "atm/chamberlain_exosphere.hpp":
+cdef extern from "chamberlain_exosphere.hpp":
     cpdef cppclass Temp_converter:
         Real lc_from_T(Real T)
         Real eff_from_T(Real T)
