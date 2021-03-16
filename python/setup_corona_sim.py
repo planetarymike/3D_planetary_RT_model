@@ -10,10 +10,15 @@ include_dirs = os.getenv('IDIR')
 include_dirs = include_dirs.replace("-I", "").split()
 include_dirs.append(numpy.get_include())
 
+extra_objects = os.getenv('COMPILED_OBJECTS')
+extra_objects = extra_objects.replace('./bin', '../bin').split()
+extra_objects.append('../bin/ipbackgroundCFR_fun.o')
+
 extension = Extension("py_corona_sim",
                       ["py_corona_sim.pyx"],
-                      extra_objects=['build/libobservation_fit.a',
-                                     '../bin/ipbackgroundCFR_fun.o'],
+                      extra_objects=extra_objects,
+                      # extra_objects=['build/libobservation_fit.a',
+                      #                '../bin/ipbackgroundCFR_fun.o'],
                       language="c++",
                       extra_link_args=['-lgfortran', '-lgfortran', '-lm'],
                       extra_compile_args=['-O3', '-DNDEBUG'],
@@ -27,10 +32,10 @@ if "-RT_FLOAT" in sys.argv:
     CUDA = locate_cuda()
 
     extension.extra_compile_args.append('-D RT_FLOAT')
-    extension.extra_compile_args.append('--use_fast_math')
     for arg in os.getenv('CUDA_DLTO').split():
         extension.extra_compile_args.append(arg)
         extension.extra_link_args.append(arg)
+    # extension.extra_link_args.append('--verbose')
     extension.libraries.append('cudart')
     extension.libraries.append('cudadevrt')
     extension.libraries.append('cusolver')

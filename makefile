@@ -51,11 +51,11 @@ NOBASEFLAGS= -O3 -DNDEBUG -lineinfo --use_fast_math #--maxrregcount 43
 # if we are CUDA 11, link time optimization is possible
 ifeq ($(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d.),11)
 CUDA_DLTO=true
-CUDA_DLTO_EXPORT = -dlto --gpu-architecture=sm_$(CUDA_DEVICE_CODE)
+EXTRA_NOFLAGS = -dlto --gpu-architecture=sm_$(CUDA_DEVICE_CODE)
 else
-CUDA_DLTO_EXPORT = --gpu-architecture=sm_$(CUDA_DEVICE_CODE)
+EXTRA_NOFLAGS = --gpu-architecture=sm_$(CUDA_DEVICE_CODE)
 endif
-NOFLAGS=$(NOBASEFLAGS) $(CUDA_DLTO_EXPORT)
+NOFLAGS=$(NOBASEFLAGS) $(EXTRA_NOFLAGS)
 NDBGFLAGS=-O0 -g -G -arch sm_$(CUDA_DEVICE_CODE) # -lineinfo
 #                ^^^ this -G sometimes changes the behavior of the code??
 
@@ -78,7 +78,7 @@ generate_source_function_gpu: $(NOBJFILES)
 ifeq ($(CUDA_DLTO),true)
 	$(info Using CUDA 11 link time optimization)
 endif
-	@$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
+	$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
 
 $(OBJDIR)/%.cuda.o: %.cpp
 	@echo "compiling $<..."
@@ -108,18 +108,19 @@ py_corona_sim_cpu: $(PYOBJFILES)
 	$(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) \
 	 -o build/libobservation_fit.so
 
-	rm -f python/build/libobservation_fit.a
+#	rm -f python/build/libobservation_fit.a
 
-	ar rs python/build/libobservation_fit.a $(PYOBJFILES)
+#	ar rs python/build/libobservation_fit.a $(PYOBJFILES)
 
-	ranlib python/build/libobservation_fit.a
+#	ranlib python/build/libobservation_fit.a
 
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
 	  -o $(OBJDIR)/ipbackgroundCFR_fun.o
 
-	cd python; \
+	@cd python; \
 	export IDIR='$(IDIR)'; \
+	export COMPILED_OBJECTS='$(PYNOBJFILES)'; \
 	python setup_corona_sim.py build_ext --inplace
 
 $(OBJDIR)/%.o: %.cpp
@@ -130,7 +131,7 @@ $(OBJDIR)/%.o: %.cpp
 py_corona_sim_gpu: $(PYNOBJFILES)
 	@mkdir -p python/build
 
-	$(NCC) -dlink \
+#	$(NCC) -dlink \
 	$(PYNOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) \
 	-o python/build/observation_fit_wrapper_gpu_device.o
 
@@ -140,13 +141,13 @@ py_corona_sim_gpu: $(PYNOBJFILES)
 	build/observation_fit_gpu_host.o \
 	build/observation_fit_gpu_device.o -lc
 
-	rm -f python/build/libobservation_fit.a
+#	rm -f python/build/libobservation_fit.a
 
-	ar rs python/build/libobservation_fit.a \
+#	ar rs python/build/libobservation_fit.a \
 	python/build/observation_fit_wrapper_gpu_device.o \
 	$(PYNOBJFILES)
 
-	ranlib python/build/libobservation_fit.a
+#	ranlib python/build/libobservation_fit.a
 
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
@@ -154,7 +155,8 @@ py_corona_sim_gpu: $(PYNOBJFILES)
 
 	@cd python; \
 	export IDIR='$(IDIR)'; \
-	export CUDA_DLTO='$(CUDA_DLTO_EXPORT)' ; \
+	export CUDA_DLTO='$(NOFLAGS)' ; \
+	export COMPILED_OBJECTS='$(PYNOBJFILES)'; \
 	export CC='nvcc'; \
 	export CXX='nvcc'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT

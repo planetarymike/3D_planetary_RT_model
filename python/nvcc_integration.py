@@ -52,16 +52,16 @@ def locate_cuda():
 # The following functions pull compiler flags out of 
 from distutils.sysconfig import get_config_vars as default_get_config_vars
 
-wrap_nvcc_flags = ['-Werror=format-security',
-                   '-Wno-unused-result',
-                   '-Wsign-compare',
-                   '-Wformat',
-                   '-D_FORTIFY_SOURCE=2',
-                   '-fPIC',
+wrap_nvcc_flags = ['-fPIC',
                    '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION']
 
 remove_nvcc_flags = ['-O2',
                      '-Wall',
+                     '-Werror=format-security',
+                     '-Wno-unused-result',
+                     '-Wsign-compare',
+                     '-Wformat',
+                     '-D_FORTIFY_SOURCE=2',
                      '-fwrapv',
                      '-Wdate-time',
                      '-fstack-protector-strong',
@@ -73,7 +73,8 @@ def remove_compiler_warning_flags(x):
             x = x.replace(f, '')
         for f in wrap_nvcc_flags:
             x = x.replace(f, '-Xcompiler '+f)
-        x = x.replace("-Wl,", "-Xlinker ")
+        x = " ".join([el for el in x.split() if (("-Wl" not in el)
+                                                 and (el != '-g'))])
     return x
 
 def cuda_get_config_vars(*args):
