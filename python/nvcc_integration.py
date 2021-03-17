@@ -75,6 +75,7 @@ def remove_compiler_warning_flags(x):
             x = x.replace(f, '-Xcompiler '+f)
         x = " ".join([el for el in x.split() if (("-Wl" not in el)
                                                  and (el != '-g'))])
+        x.replace("-c", "-dc")
     return x
 
 def cuda_get_config_vars(*args):
@@ -88,3 +89,16 @@ def cuda_get_config_vars(*args):
                 for k, x in result.items()}
     else:
         raise Exception("cannot handle type"+type(result))
+
+from distutils.ccompiler import CCompiler as default_CCompiler
+
+
+class cuda_CCompiler(default_CCompiler):
+    def _get_cc_args(self, pp_opts, debug, before):
+        # works for unixccompiler, cygwinccompiler
+        cc_args = pp_opts + ['-dc']
+        if debug:
+            cc_args[:0] = ['-g']
+        if before:
+            cc_args[:0] = before
+        return cc_args

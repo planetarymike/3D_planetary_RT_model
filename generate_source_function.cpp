@@ -12,12 +12,22 @@
 
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[]) {
 
+  // read input if provided
+  Real input_exobase_density, input_exobase_temp;
+  if (argc == 1) {
+    input_exobase_density = 5e5;// cm-3
+    input_exobase_temp = 200;//K
+  } else {
+    input_exobase_density = atof(argv[1]);
+    input_exobase_temp = atof(argv[2]);
+  }
+  
   //define the physical atmosphere
-  Real exobase_temp = 200;//K
+  Real exobase_temp = input_exobase_temp;//K
   Real H_T_ref = exobase_temp;//K
   krasnopolsky_temperature temp(exobase_temp);
 
-  Real H_exobase_density = 5e5;// cm-3
+  Real H_exobase_density = input_exobase_density;//cm-3
   Real CO2_exobase_density = 2e8;//cm-3
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,

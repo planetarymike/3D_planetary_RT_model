@@ -128,7 +128,7 @@ public:
 
     ra.resize(n_obs);
     dec.resize(n_obs);
-    for (unsigned int i = 0; i < n_obs; i++) {
+    for (int i = 0; i < n_obs; i++) {
       ra[i] = RAA[i];
       dec[i] = Decc[i];
     }

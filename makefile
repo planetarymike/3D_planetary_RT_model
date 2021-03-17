@@ -8,16 +8,16 @@ MAKEFLAGS += -j20 #parallel compilation
 #files that need compilin'
 OBJDIR = ./bin
 SRCDIR = ./src
-SRCDIRS = src src/atm src/emission src/grid
+SRCDIRS = ./src ./src/atm ./src/emission ./src/grid
 PSRCFILES = $(foreach dir,$(SRCDIRS),$(wildcard $(dir)/*.cpp))
-SRCFILES = $(filter-out src/observation_fit.cpp, $(PSRCFILES))
+SRCFILES = $(filter-out ./src/observation_fit.cpp, $(PSRCFILES))
 
 NSRCFILES = $(SRCFILES) generate_source_function.cpp
 NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 NOBJFILESDBG := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o))
 
 
-PYSRCFILES = $(SRCFILES) $(SRCDIR)/observation_fit.cpp $(wildcard $(SRCDIR)/quemerais_IPH_model/*.cpp)
+PYSRCFILES = $(SRCFILES) $(wildcard $(SRCDIR)/quemerais_IPH_model/*.cpp)
 PYOBJFILES   := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.o))
 PYNOBJFILES  := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
@@ -29,7 +29,7 @@ IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
 CC=g++ -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion #these commands can be used to check for double literals
-LIBS=-lm 
+LIBS=-lm -lgomp
 MPFLAGS=-fopenmp
 OFLAGS=-O3 -march=native -DNDEBUG 
 
@@ -90,37 +90,27 @@ generate_source_function_gpu_debug: $(NOBJFILESDBG)
 	@echo "linking ..."
 	@$(NCC) $(NOBJFILESDBG) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o generate_source_function_gpu.x
 
-%.cuda.debug.o: %.cpp
+$(OBJDIR)/%.cuda.debug.o: %.cpp
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc $< -o $@
 
 
 
-py_corona_sim_cpu: $(PYOBJFILES)
-	@mkdir -p python/build
-
-# shared library --- python can't find this at runtime
-#	$(CC) -Wall -shared -std=c++17 -fPIC \
-	-Wl,-soname,libobservationfit.so \
-	$(SRCFILES) \
-	wrapper.cpp \
-	$(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) \
-	 -o build/libobservation_fit.so
-
-#	rm -f python/build/libobservation_fit.a
-
-#	ar rs python/build/libobservation_fit.a $(PYOBJFILES)
-
-#	ranlib python/build/libobservation_fit.a
-
+py_corona_sim_cpu: # $(PYOBJFILES)
+	@mkdir -p bin
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
 	  -o $(OBJDIR)/ipbackgroundCFR_fun.o
 
 	@cd python; \
 	export IDIR='$(IDIR)'; \
-	export COMPILED_OBJECTS='$(PYNOBJFILES)'; \
+	export COMPILE_FLAGS='$(MPFLAGS) $(OFLAGS)' ; \
+	export COMPILED_OBJECTS='$(PYOBJFILES)'; \
+	export LIBRARIES='$(LIBS)'; \
+	export SOURCE_FILES='$(PYSRCFILES)'; \
+	export CC='g++'; \
+	export CXX='g++'; \
 	python setup_corona_sim.py build_ext --inplace
 
 $(OBJDIR)/%.o: %.cpp
@@ -128,35 +118,19 @@ $(OBJDIR)/%.o: %.cpp
 	@mkdir -p '$(@D)'
 	@$(CC) -c $< $(IDIR) $(LIBS) $(OFLAGS) -o $@
 
-py_corona_sim_gpu: $(PYNOBJFILES)
-	@mkdir -p python/build
-
-#	$(NCC) -dlink \
-	$(PYNOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) \
-	-o python/build/observation_fit_wrapper_gpu_device.o
-
-# shared library --- python can't find this at runtime
-#	$(CC) -shared -Wl,-soname,libobservationfit.so \
-	-o build/libobservation_fit.so \
-	build/observation_fit_gpu_host.o \
-	build/observation_fit_gpu_device.o -lc
-
-#	rm -f python/build/libobservation_fit.a
-
-#	ar rs python/build/libobservation_fit.a \
-	python/build/observation_fit_wrapper_gpu_device.o \
-	$(PYNOBJFILES)
-
-#	ranlib python/build/libobservation_fit.a
-
+py_corona_sim_gpu: 
+	@mkdir -p bin
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
 	  -o $(OBJDIR)/ipbackgroundCFR_fun.o
 
 	@cd python; \
-	export IDIR='$(IDIR)'; \
+	export IDIR='$(NIDIR)'; \
+	export COMPILE_FLAGS='$(NFLAGS) $(NOFLAGS)' ; \
 	export CUDA_DLTO='$(NOFLAGS)' ; \
 	export COMPILED_OBJECTS='$(PYNOBJFILES)'; \
+	export LIBRARIES='$(NLIBS)'; \
+	export SOURCE_FILES='$(PYSRCFILES)'; \
 	export CC='nvcc'; \
 	export CXX='nvcc'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT
