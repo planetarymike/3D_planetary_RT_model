@@ -157,6 +157,8 @@ void RT_grid<emission_type,
   //move observation vectors and g values to gpu
   obs.to_device();
 
+  //std::cout << "brightness_blockSize = " << brightness_blockSize << std::endl;
+
   //run kernel on GPU
   int numBlocks = (obs.size() + brightness_blockSize - 1) / brightness_blockSize;
   

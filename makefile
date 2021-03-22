@@ -35,7 +35,7 @@ OFLAGS=-O3 -march=native -DNDEBUG
 
 # Nvidia CUDA Compiler
 #device spec
-CUDA_DEVICE_CODE=61
+CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CUDA Capability Major/Minor version number:.*' | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 
 NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
@@ -78,7 +78,7 @@ generate_source_function_gpu: $(NOBJFILES)
 ifeq ($(CUDA_DLTO),true)
 	$(info Using CUDA 11 link time optimization)
 endif
-	$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
+	@$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
 
 $(OBJDIR)/%.cuda.o: %.cpp
 	@echo "compiling $<..."
