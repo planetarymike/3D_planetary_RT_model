@@ -145,4 +145,4 @@ clean_all:
 	rm -f generate_source_function.x
 	rm -f generate_source_function_gpu.x
 	rm -rf bin
-	rm -rf python/build* python/*.cpp python/*.so
+	rm -rf python/build* python/*.cpp #python/*.so
