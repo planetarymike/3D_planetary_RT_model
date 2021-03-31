@@ -5,7 +5,7 @@
 
 using std::vector;
 
-vector<Real> quemerais_iph_model(Real &g_lya, //Lyman alpha g factor at Mars
-				 std::vector<Real> &marspos, //position of Mars in ecliptic coordinates [AU]
-				 vector<Real> &ra, vector<Real> &dec);
+vector<Real> quemerais_iph_model(const Real &g_lya, //Lyman alpha g factor at Mars
+				 const std::vector<Real> &marspos, //position of Mars in ecliptic coordinates [AU]
+				 const vector<Real> &ra, const vector<Real> &dec);
 

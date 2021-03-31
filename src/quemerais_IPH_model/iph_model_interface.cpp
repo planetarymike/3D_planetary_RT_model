@@ -8,16 +8,16 @@ using std::sin;
 
 //fortran function prototype
 extern "C" {
-  void background_(float *lc,
-		   float *x_pos,float *y_pos,float *z_pos,
-		   int *n_los, 
-		   float *x_look,float *y_look,float *z_look,
+  void background_(const float *lc,
+		   const float *x_pos, const float *y_pos, const float *z_pos,
+		   const int *n_los, 
+		   const float *x_look, const float *y_look, const float *z_look,
 		   float *iph_b);
 }
 
-vector<Real> quemerais_iph_model(Real &g_lya, //Lyman alpha g factor at Mars
-				 std::vector<Real> &marspos, //position of Mars in ecliptic coordinates [AU]
-				 vector<Real> &ra, vector<Real> &dec) {
+vector<Real> quemerais_iph_model(const Real &g_lya, //Lyman alpha g factor at Mars
+				 const std::vector<Real> &marspos, //position of Mars in ecliptic coordinates [AU]
+				 const vector<Real> &ra, const vector<Real> &dec) {
   //this routine computes the ecliptic look direction corresponding to
   //a given RA, dec, and feeds the appropriate parameters to the
   //Quemerais code, which returns a computed brightness.
