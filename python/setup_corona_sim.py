@@ -13,10 +13,6 @@ include_dirs = os.getenv('IDIR')
 include_dirs = include_dirs.replace("-I", "").split()
 include_dirs.append(numpy.get_include())
 
-# extra_objects = os.getenv('COMPILED_OBJECTS')
-# extra_objects = extra_objects.replace('./bin', '../bin').split()
-# extra_objects.append('../bin/ipbackgroundCFR_fun.o')
-
 source_files = os.getenv('SOURCE_FILES')
 source_files =source_files.replace('./src', '../src').split()
 source_files.append("py_corona_sim.pyx")
@@ -32,10 +28,7 @@ print(compile_flags)
 
 extension = Extension("py_corona_sim",
                       sources=source_files,
-                      # sources=["py_corona_sim.pyx"],
-                      # extra_objects=extra_objects,
-                      extra_objects=[#'build/libobservation_fit.a',
-                                     '../bin/ipbackgroundCFR_fun.o'],
+                      extra_objects=['../bin/ipbackgroundCFR_fun.o'],
                       language="c++",
                       extra_link_args=libraries,
                       extra_compile_args=compile_flags,
@@ -48,21 +41,8 @@ if "-RT_FLOAT" in sys.argv:
     cython_compile_time = {'RT_FLOAT': True}
     sys.argv.remove("-RT_FLOAT")
 
-    # CUDA = locate_cuda()
-
-    # extension.extra_compile_args.append('-D RT_FLOAT')
-    # extension.extra_compile_args.append('-x cu')
     for arg in os.getenv('CUDA_DLTO').split():
-#        extension.extra_compile_args.append(arg)
         extension.extra_link_args.append(arg)
-    # extension.extra_link_args.append('--verbose')
-    # extension.libraries.append('cudart')
-    # extension.libraries.append('cudadevrt')
-    # extension.libraries.append('cusolver')
-    # extension.libraries.append('cublas')
-    # extension.library_dirs.append(CUDA['lib64'])
-    #extension.runtime_library_dirs.append(CUDA['lib64'])
-    # extension.include_dirs.append(CUDA['include'])
 
     import distutils.sysconfig as dsc
     dsc.get_config_vars = cuda_get_config_vars
@@ -71,9 +51,6 @@ if "-RT_FLOAT" in sys.argv:
 else:
     print("compiling with Real=double")
     cython_compile_time = {'RT_FLOAT': False}
-
-    # extension.extra_compile_args.append('-fopenmp')
-    # extension.extra_compile_args.append('-march=native')
 
 # monkey-patch for parallel compilation
 def parallelCCompile(self, sources,

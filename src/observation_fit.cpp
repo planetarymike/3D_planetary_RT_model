@@ -24,8 +24,10 @@ void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations,
 }
 
 void observation_fit::set_g_factor(vector<Real> &g) {
-  for (int i_emission=0;i_emission<n_emissions;i_emission++)
-    obs.emission_g_factors[i_emission] = g[i_emission];
+  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+    emissions[i_emission]->set_emission_g_factor(g[i_emission]);
+    emissions_pp[i_emission]->set_emission_g_factor(g[i_emission]);
+  }
 }
 
 void observation_fit::simulate_iph(const bool sim_iphh) {
@@ -33,8 +35,8 @@ void observation_fit::simulate_iph(const bool sim_iphh) {
 }
 
 void observation_fit::add_observation_ra_dec(const std::vector<Real> &mars_ecliptic_coords,
-			    const std::vector<Real> &RAA,
-			    const std::vector<Real> &Decc) {
+					     const std::vector<Real> &RAA,
+					     const std::vector<Real> &Decc) {
   simulate_iph(true);
   obs.add_observation_ra_dec(mars_ecliptic_coords,
 			     RAA,
@@ -44,7 +46,7 @@ void observation_fit::add_observation_ra_dec(const std::vector<Real> &mars_eclip
 
 void observation_fit::get_unextincted_iph() {
   //simulate the IPH brightness using Quemerais' IPH code
-  vector<Real> iph_brightness_lya = quemerais_iph_model(obs.emission_g_factors[0],
+  vector<Real> iph_brightness_lya = quemerais_iph_model(lyman_alpha.get_emission_g_factor(),
 							obs.mars_ecliptic_pos,
 							obs.ra, obs.dec);
   

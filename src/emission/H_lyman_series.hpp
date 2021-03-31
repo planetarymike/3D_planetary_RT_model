@@ -6,13 +6,16 @@
 #include <boost/type_traits/type_identity.hpp> //for type deduction in define
 #include "emission_voxels.hpp"
 #include "atmo_vec.hpp"
+#include "los_tracker.hpp"
 
 template <int N_VOXELS>
 struct H_lyman_series : emission_voxels<N_VOXELS,
-					H_lyman_series<N_VOXELS>,
-					H_lyman_series_tracker> {
+					/*N_STATES_PER_VOXEL = */ 1, // this class tracks only singlet emissions
+					/*emission_type = */ H_lyman_series<N_VOXELS>,
+					/*los_tracker_type = */ H_lyman_series_tracker> {
 protected:
   typedef emission_voxels<N_VOXELS,
+			  1,
 			  H_lyman_series<N_VOXELS>,
 			  H_lyman_series_tracker> parent;
   friend parent;
@@ -35,7 +38,9 @@ public:
   }
 
 protected:
+  using parent::n_elements;
   using parent::n_voxels;
+  using parent::n_states;
   using parent::internal_name;
   using parent::internal_init;
   using parent::internal_solved;
@@ -47,6 +52,8 @@ protected:
                      //as variations are less than a factor of 5ish)
   Real species_sigma_T_ref;//species cross section at this temperature
 
+  Real emission_g_factor; // g-factor for this emission
+  
   //parent RT parameters
   using vv = typename parent::vv;
   using vm = typename parent::vm;
@@ -81,7 +88,7 @@ protected:
 			    const Real &current_dtau_absorber,
 			    const Real &current_abs,
 			    const Real &pathlength,
-			    los<influence,n_voxels> &tracker) const {
+			    los<influence,n_elements> &tracker) const {
     Real tau_species_voxel = current_dtau_species * pathlength;
     tracker.tau_species_final += tau_species_voxel;
     assert(!std::isnan(tracker.tau_species_final)
@@ -93,10 +100,10 @@ protected:
 	   && tracker.tau_absorber_final>=0
 	   && "optical depths must be real numbers");
     
-
-    tracker.holstein_T_final = 0;
     tracker.holstein_T_int = 0;
+    tracker.holstein_T_final = 0;
     tracker.holstein_G_int = 0;
+
     Real holTcoef;
     Real holstein_T_int_coef;
 
@@ -145,7 +152,7 @@ protected:
 	// holstein T final represents a frequency-averaged absorption and
 	// uses lineshape_at_origin
 	tracker.holstein_T_final += (holTcoef * lineshape_at_origin *
-				      transfer_probability_lambda_final);
+					transfer_probability_lambda_final);
 	assert(!std::isnan(tracker.holstein_T_final)
 	       && tracker.holstein_T_final >= 0
 	       && tracker.holstein_T_final <= 1
@@ -178,14 +185,15 @@ protected:
 						     earlier*/
   }
 
-  template<bool influence>
   CUDA_CALLABLE_MEMBER
-  void update_tracker_brightness(const Real sourcefn_temp, los<influence,n_voxels> &tracker) const {
+  void update_tracker_brightness(const Real (&sourcefn_temp)[1], brightness_tracker &tracker) const {
     //bishop formulation
-    tracker.brightness += (sourcefn_temp
-			    * branching_ratio
-			    * tracker.holstein_T_int
-			    / species_sigma_T_ref); 
+    tracker.brightness += (sourcefn_temp[0]
+			      * emission_g_factor
+			      * branching_ratio
+			      * tracker.holstein_T_int
+			      / REAL(1e9) // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
+			      / species_sigma_T_ref); 
     //                        ^^^^^^^^^^^^^^^^^^^
     //                        sigma was multiplied
     //                        out of S0 so we must
@@ -198,13 +206,21 @@ protected:
   
 public:
 
+  void set_emission_g_factor(const Real &g) {
+    emission_g_factor = g;
+  };
+
+  Real get_emission_g_factor() const {
+    return emission_g_factor;
+  };
+  
   //overloads of RT methods
   template<bool influence>
   CUDA_CALLABLE_MEMBER
   void reset_tracker(const int &start_voxel,
-		     los<influence,n_voxels> &tracker) const {
+		     los<influence,n_elements> &tracker) const {
     if (influence)
-      tracker.reset(species_T_ratio[start_voxel]);
+      tracker.reset(species_T_ratio(start_voxel));
     else
       tracker.reset(0.0); // start voxel T_ratio doesn't matter for brightness calculations
   }
@@ -213,7 +229,7 @@ public:
   CUDA_CALLABLE_MEMBER
   void update_tracker_start(const int &current_voxel,
 			    const Real & pathlength,
-			    los<influence,n_voxels> &tracker) const {
+			    los<influence,n_elements> &tracker) const {
     update_tracker_start(species_T_ratio(current_voxel),
 			 dtau_species(current_voxel),
 			 dtau_absorber(current_voxel),
@@ -228,18 +244,82 @@ public:
 				   const int *indices,
 				   const Real *weights,
 				   const Real &pathlength,
-				   los<influence,n_voxels> &tracker) const {
-    update_tracker_start(parent::interp_array(n_interp_points, indices, weights, species_T_ratio_pt),
-			 parent::interp_array(n_interp_points, indices, weights, dtau_species_pt),
-			 parent::interp_array(n_interp_points, indices, weights, dtau_absorber_pt),
-			 parent::interp_array(n_interp_points, indices, weights, abs_pt),
+				   los<influence,n_elements> &tracker) const {
+
+    Real swap_array[1];
+    
+    parent::interp_voxel_vector(n_interp_points, indices, weights, species_T_ratio_pt, swap_array);
+    Real species_T_ratio_interp = swap_array[0];
+
+    parent::interp_voxel_vector(n_interp_points, indices, weights, dtau_species_pt, swap_array);
+    Real dtau_species_interp = swap_array[0];
+
+    parent::interp_voxel_vector(n_interp_points, indices, weights, dtau_absorber_pt, swap_array);
+    Real dtau_absorber_interp = swap_array[0];
+    
+    parent::interp_voxel_vector(n_interp_points, indices, weights, abs_pt, swap_array);
+    Real abs_interp = swap_array[0];
+
+    update_tracker_start(species_T_ratio_interp,
+			 dtau_species_interp,
+			 dtau_absorber_interp,
+			 abs_interp,
 			 pathlength,
 			 tracker);
+
   }
 
   using parent::update_tracker_end;
-  using parent::update_tracker_influence;
-  using parent::compute_single_scattering;
+
+  // update the influence tracker with the contribution from this voxel
+  CUDA_CALLABLE_MEMBER
+  void update_tracker_influence(const int &current_voxel,
+				const Real &pathlength,
+				const Real &domega,
+				influence_tracker &tracker) const {
+    //update influence functions for this voxel
+    update_tracker_start(current_voxel, pathlength, tracker);
+    
+    //see Bishop1999 for derivation of this formula
+    Real coef = domega;
+    coef *= tracker.holstein_G_int;
+    
+    assert(!isnan(coef) && "influence coefficients must be real numbers");
+    assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
+    
+    tracker.influence(current_voxel) += coef;
+    
+    update_tracker_end(tracker);
+  }
+
+  // compute the single scattering from the input tracker
+  CUDA_CALLABLE_MEMBER
+  void compute_single_scattering(const int &start_voxel, influence_tracker &tracker, bool sun_visible = true) {
+    if (!sun_visible) {
+      // single scattering point is behind limb, populate the tracker with the appropriate values
+      tracker.tau_species_final  = REAL(-1.0);
+      tracker.tau_absorber_final = REAL(-1.0);
+      tracker.holstein_T_final   = REAL(0.0);
+    }
+    
+    tau_species_single_scattering(start_voxel) = tracker.tau_species_final;//line center optical depth
+    assert(!isnan(tau_species_single_scattering(start_voxel))
+	   && (tau_species_single_scattering(start_voxel) >= 0
+	       || tau_species_single_scattering(start_voxel) == -1)
+	   && "optical depth must be real and positive, or -1 if point is behind limb");
+    
+    tau_absorber_single_scattering(start_voxel) = tracker.tau_absorber_final;
+    assert(!isnan(tau_absorber_single_scattering(start_voxel))
+	   && (tau_absorber_single_scattering(start_voxel) >= 0
+	       ||  tau_absorber_single_scattering(start_voxel) == -1)
+	   && "optical depth must be real and positive, or -1 if point is behind limb");
+    
+    singlescat(start_voxel) = tracker.holstein_T_final;
+    assert(!isnan(singlescat(start_voxel))
+	   && singlescat(start_voxel) >= 0
+	   && "single scattering coefficient must be real and positive");
+  }
+
   using parent::accumulate_influence;
 
   void pre_solve() {
@@ -277,13 +357,13 @@ public:
     
     for (unsigned int i_voxel=0;i_voxel<N_VOXELS;i_voxel++) {
       (atmosphere.*species_density_function)(voxels[i_voxel],
-					     species_density[i_voxel],
-					     species_density_pt[i_voxel]);
-      assert(!isnan(species_density[i_voxel])
-	     && species_density[i_voxel] >= 0
+					     species_density(i_voxel),
+					     species_density_pt(i_voxel));
+      assert(!isnan(species_density(i_voxel))
+	     && species_density(i_voxel) >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(species_density_pt[i_voxel])
-	     && species_density_pt[i_voxel] >= 0
+      assert(!isnan(species_density_pt(i_voxel))
+	     && species_density_pt(i_voxel) >= 0
 	     && "densities must be real and positive");
       
       Real species_T;
@@ -291,33 +371,33 @@ public:
       (atmosphere.*species_T_function)(voxels[i_voxel],
 				       species_T,
 				       species_T_pt);
-      species_T_ratio[i_voxel] = species_T_ref/species_T;
-      species_T_ratio_pt[i_voxel] = species_T_ref/species_T_pt;
-      assert(!isnan(species_T_ratio[i_voxel])
-	     && species_T_ratio[i_voxel] >= 0
+      species_T_ratio(i_voxel) = species_T_ref/species_T;
+      species_T_ratio_pt(i_voxel) = species_T_ref/species_T_pt;
+      assert(!isnan(species_T_ratio(i_voxel))
+	     && species_T_ratio(i_voxel) >= 0
 	     && "temperatures must be real and positive");
-      assert(!isnan(species_T_ratio_pt[i_voxel])
-	     && species_T_ratio_pt[i_voxel] >= 0
+      assert(!isnan(species_T_ratio_pt(i_voxel))
+	     && species_T_ratio_pt(i_voxel) >= 0
 	     && "temperatures must be real and positive");
       
       (atmosphere.*absorber_density_function)(voxels[i_voxel],
-					      absorber_density[i_voxel],
-					      absorber_density_pt[i_voxel]);
-      assert(!isnan(absorber_density[i_voxel])
-	     && absorber_density[i_voxel] >= 0
+					      absorber_density(i_voxel),
+					      absorber_density_pt(i_voxel));
+      assert(!isnan(absorber_density(i_voxel))
+	     && absorber_density(i_voxel) >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(absorber_density_pt[i_voxel])
-	     && absorber_density_pt[i_voxel] >= 0
+      assert(!isnan(absorber_density_pt(i_voxel))
+	     && absorber_density_pt(i_voxel) >= 0
 	     && "densities must be real and positive");
       
 
-      absorber_sigma[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T);
-      absorber_sigma_pt[i_voxel] = (atmosphere.*absorber_sigma_function)(species_T_pt);
-      assert(!isnan(absorber_sigma[i_voxel])
-	     && absorber_sigma[i_voxel] >= 0
+      absorber_sigma(i_voxel) = (atmosphere.*absorber_sigma_function)(species_T);
+      absorber_sigma_pt(i_voxel) = (atmosphere.*absorber_sigma_function)(species_T_pt);
+      assert(!isnan(absorber_sigma(i_voxel))
+	     && absorber_sigma(i_voxel) >= 0
 	     && "cross sections must be real and positive");
-      assert(!isnan(absorber_sigma_pt[i_voxel])
-	     && absorber_sigma_pt[i_voxel] >= 0
+      assert(!isnan(absorber_sigma_pt(i_voxel))
+	     && absorber_sigma_pt(i_voxel) >= 0
 	     && "cross sections must be real and positive");
     }
     
@@ -334,7 +414,7 @@ public:
     internal_init=true;
   }
 
-  void save(std::ostream &file, VectorX (*function)(VectorX, int), int i) const {
+  void save(std::ostream &file, VectorX (*function)(VectorX, int), const int i) const {
     file << "    Species density [cm-3]: "
 	 <<      function(species_density.eigen(), i).transpose() << "\n"
       
@@ -360,6 +440,21 @@ public:
 	 <<      function(sourcefn.eigen(), i).transpose() << "\n\n";
   }
 
+  void save_brightness(std::ostream &file, const gpu_vector<brightness_tracker> &los_brightness) const {
+    // save a list of brightness trackers to file
+
+    VectorX brightness_write_out;
+    brightness_write_out.resize(los_brightness.size());
+    
+    for (int i=0;i<los_brightness.size();i++)
+      brightness_write_out[i] = los_brightness[i].brightness;
+
+    file << internal_name
+	 << " brightness [kR]: "
+	 << brightness_write_out.transpose()
+	 << "\n";
+  }
+
 #ifdef __CUDACC__
   using parent::device_emission;
   using parent::vector_to_device;
@@ -370,6 +465,7 @@ public:
     copy_trivial_member_to_device(branching_ratio, device_emission->branching_ratio);
     copy_trivial_member_to_device(species_T_ref, device_emission->species_T_ref);
     copy_trivial_member_to_device(species_sigma_T_ref, device_emission->species_sigma_T_ref);
+    copy_trivial_member_to_device(emission_g_factor, device_emission->emission_g_factor);
   }
 
   using parent::copy_trivial_member_to_host;
@@ -378,6 +474,7 @@ public:
     copy_trivial_member_to_host(branching_ratio, device_emission->branching_ratio);
     copy_trivial_member_to_host(species_T_ref, device_emission->species_T_ref);
     copy_trivial_member_to_host(species_sigma_T_ref, device_emission->species_sigma_T_ref);
+    copy_trivial_member_to_host(emission_g_factor, device_emission->emission_g_factor);
   }
   
   void copy_to_device_influence() {
@@ -454,7 +551,7 @@ void H_lyman_series_prepare_for_solution(H_lyman_series<N_VOXELS> *emission)
     emission->influence_matrix(i_vox,i_vox) += 1;
     
     //now copy singlescat to sourcefn, preparing for in-place solution
-    emission->sourcefn[i_vox] = emission->singlescat[i_vox];
+    emission->sourcefn(i_vox) = emission->singlescat(i_vox);
   }
 }
 

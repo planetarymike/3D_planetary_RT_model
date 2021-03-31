@@ -100,11 +100,6 @@ void brightness_kernel(const RT_grid<emission_type, N_EMISSIONS, grid_type> *__r
 
   //shared objects for each thread to do the calculation with lower
   //memory latency --- ~5x speedup
-  __shared__ Real emission_g_factors[N_EMISSIONS];
-  if (threadIdx.x < N_EMISSIONS)   
-    emission_g_factors[threadIdx.x] = obs->emission_g_factors[threadIdx.x];
-  __syncthreads();
-
   __shared__ atmo_vector obs_vecs[brightness_blockSize];
 
   __shared__ typename emission_type::brightness_tracker los[brightness_blockSize][N_EMISSIONS];
@@ -126,7 +121,6 @@ void brightness_kernel(const RT_grid<emission_type, N_EMISSIONS, grid_type> *__r
       los_ptr[i_emission] = &los[threadIdx.x][i_emission];
 
     RT->brightness(obs_vecs[threadIdx.x],
-		   emission_g_factors,
 		   los_ptr,
 		   n_subsamples);
 

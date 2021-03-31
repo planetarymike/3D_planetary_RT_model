@@ -14,9 +14,6 @@ typedef float Real;
 #define STRICTABS REAL(1e-5)
 #define CONEABS REAL(1e-2)
 
-//whether to use CUDA texture objects in read only memory
-//#define USE_CUDA_TEXTURES
-
 #else //default to double
 
 typedef double Real;

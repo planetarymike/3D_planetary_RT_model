@@ -70,8 +70,6 @@ protected:
 public:
   gpu_vector<typename emission_type::brightness_tracker> los[n_emissions];
 
-  Real emission_g_factors[n_emissions];
-
   vector<vector<Real>> iph_brightness_unextincted;
   vector<vector<Real>> iph_brightness_observed;
   vector<Real> ra;
@@ -86,7 +84,6 @@ public:
   {
     for (int i_emission=0;i_emission<n_emissions;i_emission++) {
       emissions[i_emission] = emissionss[i_emission];
-      emission_g_factors[i_emission] = 0;
     }
   }
   ~observation() {
@@ -96,15 +93,6 @@ public:
   }
   observation(const observation<emission_type, n_emissions> &copy) = delete;
   observation<emission_type, n_emissions>& operator=(const observation<emission_type, n_emissions> & rhs) = delete;
-  
-  void set_emission_g_factors(Real (&g)[n_emissions]) {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
-      emission_g_factors[i_emission] = g[i_emission];
-  }
-  void get_emission_g_factors(Real (&g)[n_emissions]) const {
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
-      g[i_emission] = emission_g_factors[i_emission];
-  }
   
   void add_MSO_observation(const vector<vector<Real>> &locations, const vector<vector<Real>> &directions) {
     assert(locations.size() == directions.size() && "location and look direction must have the same length.");
@@ -166,16 +154,8 @@ public:
   void save_brightness(string fname) {
     std::ofstream file(fname.c_str());
     if (file.is_open())
-      {
-	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	  VectorX brightness_write_out;
-	  brightness_write_out.resize(n_obs);
-	  for (int i=0;i<n_obs;i++)
-	    brightness_write_out[i] = los[i_emission][i].brightness;
-
-	  file << emissions[i_emission]->name() << " brightness [kR]: " << brightness_write_out.transpose() << "\n";
-	}
-      }
+      for (int i_emission=0;i_emission<n_emissions;i_emission++)
+	emissions[i_emission]->save_brightness(file, los[i_emission]);
   }
 
   void fake(Real dist,
@@ -223,7 +203,7 @@ public:
 			       sizeof(*this),
 			       cudaMemcpyHostToDevice)
 		    );
-    //static arrays are copied automatically by CUDA, including emission_g_factors
+    //static arrays are copied automatically by CUDA
     
     //move geometry
     obs_vecs.to_device();

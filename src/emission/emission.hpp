@@ -6,6 +6,7 @@
 #include "Real.hpp"
 #include "cuda_compatibility.hpp"
 #include "los_tracker.hpp"
+#include "gpu_vector.hpp"
 
 using std::string;
 using std::isnan;
@@ -60,42 +61,45 @@ public:
 
   // radiative transfer methods
   // override all functions with static_cast to define a new emission type
-  template <bool transmission, int n_voxels>
-  using los = los_tracker_type<transmission, n_voxels>;
+  template <bool transmission, int n_elements>
+  using los = los_tracker_type<transmission, n_elements>;
 
-  typedef los<false, 0> brightness_tracker;
+  template <int n_elements>
+  using influence_tracker = los<true, n_elements>;
 
-  template<int n_voxels>
-  using influence_tracker = los<true, n_voxels>;
+  template <int n_elements>
+  using brightness_tracker = los<false, n_elements>;
+
   
   // TODO: change these to accept stepper instead of voxel number?
   // will require use of std::any, possible performance hit
-  template<bool influence, int n_voxels>
+  template<bool influence, int n_elements>
   CUDA_CALLABLE_MEMBER
   void reset_tracker(const int &start_voxel,
-		     los<influence,n_voxels> &tracker) const {
+		     los<influence, n_elements> &tracker) const {
     static_cast<const emission_type*>(this)->reset_tracker(start_voxel,
 							   tracker);
   }
   
   // update the tracker on voxel entry
-  template<bool influence, int n_voxels>
+  template<bool influence, int n_elements>
   CUDA_CALLABLE_MEMBER
   void update_tracker_start(const int &current_voxel,
 			    const Real & pathlength,
-			    los<influence,n_voxels> &tracker) const {
+			    los<influence,n_elements> &tracker) const {
     static_cast<const emission_type*>(this)->update_tracker_start(current_voxel,
 							    pathlength,
 							    tracker);
   }
   
   // update the tracker using an interpolation point inside a voxel 
+  template <int n_elements>
   CUDA_CALLABLE_MEMBER
   void update_tracker_start_interp(const int &n_interp_points,
 				   const int *indices,
 				   const Real *weights,
 				   const Real &pathlength,
-				   brightness_tracker &tracker) const {
+				   brightness_tracker<n_elements> &tracker) const {
     static_cast<const emission_type*>(this)->update_tracker_start(n_interp_points,
 								  indices,
 								  weights,
@@ -103,19 +107,19 @@ public:
 								  tracker);
   }
   
-  template<bool influence, int n_voxels>
+  template<bool influence, int n_elements>
   CUDA_CALLABLE_MEMBER
-  void update_tracker_end(los<influence,n_voxels> &tracker) const {
+  void update_tracker_end(los<influence,n_elements> &tracker) const {
     tracker.update_end();
   }
   
   // update the influence tracker with the contribution from this voxel
-  template<int n_voxels>
+  template <int n_elements>
   CUDA_CALLABLE_MEMBER
   void update_tracker_influence(const int &current_voxel,
 				const Real &pathlength,
 				const Real &domega,
-				influence_tracker<n_voxels> &tracker) const {
+				influence_tracker<n_elements> &tracker) const {
     static_cast<const emission_type*>(this)->update_tracker_influence(current_voxel,
 								      pathlength,
 								      domega,
@@ -123,20 +127,22 @@ public:
   }
   
   // compute the single scattering from the input tracker
-  template<bool influence, int n_voxels>
+  template <int n_elements>
   CUDA_CALLABLE_MEMBER
   void compute_single_scattering(const int &start_voxel,
-				 los<influence,n_voxels> &tracker) {
+				 influence_tracker<n_elements> &tracker,
+				 bool sun_visible=true) {
     static_cast<emission_type*>(this)->compute_single_scattering(start_voxel,
-								 tracker);
+								 tracker,
+								 sun_visible);
   }
   
-  template<int n_voxels>
+  template <int n_elements>
   CUDA_CALLABLE_MEMBER
   void accumulate_influence(const int &start_voxel,
-			    influence_tracker<n_voxels> &tracker) {
-    static_cast<emission_type*>(this)->compute_single_scattering(start_voxel,
-								 tracker);
+			    influence_tracker<n_elements> &tracker) {
+    static_cast<emission_type*>(this)->accumulate_influence(start_voxel,
+							    tracker);
   }
 
   CUDA_CALLABLE_MEMBER
@@ -150,12 +156,13 @@ public:
   }
   
   // update the brightness using an interpolation point inside a voxel
+  template <int n_elements>
   CUDA_CALLABLE_MEMBER
   void update_tracker_brightness_interp(const int n_interp_points,
 					const int *indices,
 					const Real *weights,
 					const Real &pathlength,
-					brightness_tracker &tracker) const {
+					brightness_tracker<n_elements> &tracker) const {
     static_cast<const emission_type*>(this)->update_tracker_brightness_interp(n_interp_points,
 									      indices,
 									      weights,
@@ -164,21 +171,27 @@ public:
   }
   
   // update the brightness with the contribution from this voxel
+  template <int n_elements>
   CUDA_CALLABLE_MEMBER
   void update_tracker_brightness_nointerp(const int &current_voxel,
 					  const Real &pathlength,
-					  brightness_tracker &tracker) const {
+					  brightness_tracker<n_elements> &tracker) const {
     static_cast<const emission_type*>(this)->update_tracker_brightness_nointerp(current_voxel,
 										pathlength,
 										tracker);
   }
 
   // save routines
-  void save(std::ostream &file, VectorX (*function)(VectorX, int), int i) const {
+  void save(std::ostream &file, VectorX (*function)(VectorX, int), const int i) const {
     static_cast<const emission_type*>(this)->save(file, function, i);
   }
   void save_influence(std::ostream &file) const {
     static_cast<const emission_type*>(this)->save_influence(file);
+  }
+  template<int n_elements>
+  void save_brightness(std::ostream &file,  const gpu_vector<brightness_tracker<n_elements>> &los_brightness) const {
+    // save a list of brightness trackers to file
+    static_cast<const emission_type*>(this)->save_brightness(los_brightness);
   }
 
 #ifdef __CUDACC__

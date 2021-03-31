@@ -6,45 +6,54 @@
 #include "emission.hpp"
 #include "voxel_vector.hpp"
 
-template <int N_VOXELS, typename emission_type, template<bool,int> class los_tracker_type>
+template <int N_VOXELS, // number of grid cells
+	  int N_STATES_PER_VOXEL, // number of states to track in each grid cell
+	  typename emission_type, // typename of derived emission type
+	  template<bool,int> class los_tracker_type> // typename of emission type tracker
+                                                     // (must be a template class with the listed args)
 struct emission_voxels : emission<emission_type, los_tracker_type> {
 protected:
   typedef emission<emission_type, los_tracker_type> parent;
-  typedef emission_voxels<N_VOXELS,emission_type,los_tracker_type> this_emission_type;
+  typedef emission_voxels<N_VOXELS,
+			  N_STATES_PER_VOXEL,
+			  emission_type,
+			  los_tracker_type> this_emission_type;
   
   using parent::internal_name;
   using parent::internal_init;
   using parent::internal_solved;
-  
-  static const unsigned int n_voxels = N_VOXELS;
 
-  //these store physical atmospheric parameters on the grid (dimension n_voxels)
+  //these store physical atmospheric parameters on the grid (dimension n_voxels*n_states_per_voxel)
   //dynamic arrays are required for dim>~32 for Eigen
   //the vectors point to Eigen objects so that these can be used interchangably
-  typedef voxel_vector<N_VOXELS> vv;
-  typedef voxel_matrix<N_VOXELS> vm;
+  typedef voxel_vector<N_VOXELS, N_STATES_PER_VOXEL> vv;
+  typedef voxel_matrix<N_VOXELS, N_STATES_PER_VOXEL> vm;
+  static const int n_elements = vv::n_elements;
+  static const int n_voxels = vv::n_voxels;
+  static const int n_states = vv::n_states;
 
   //Radiative transfer parameters
-  vm influence_matrix; //influence matrix has dimensions n_voxels, n_voxels)
+  vm influence_matrix; //influence matrix has dimensions n_elements, n_elements)
   
-  //vectors to compute the single scattering have dimensions (n_voxels)  
+  //vectors to compute the solution have dimensions (n_elements)  
   vv tau_species_single_scattering;
   vv tau_absorber_single_scattering;
   vv singlescat; 
-  
-  vv sourcefn; //have dimensions (n_voxels)  
+  vv sourcefn;   
 
   template <typename V>
   CUDA_CALLABLE_MEMBER
-  Real interp_array(const int n_interp_points,
-		    const int *indices,
-		    const Real *weights,
-		    const V &arr) const {
+  void interp_voxel_vector(const int n_interp_points,
+			   const int *voxel_indices,
+			   const Real *voxel_weights,
+			   const V &input_arr,
+			   Real (&interp)[n_states]) const {
     //basic interpolation method for use in emission_type class update_interp
-    Real retval=0;
-    for (int i=0;i<n_interp_points;i++)
-      retval+=weights[i]*arr[indices[i]];
-    return retval;
+    for (int i_state=0; i_state<n_states; i_state++) {
+      interp[i_state]=0;
+      for (int i_interp=0;i_interp<n_interp_points;i_interp++)
+	interp[i_state] += voxel_weights[i_interp]*input_arr(voxel_indices[i_interp], i_state);
+    }
   }
 
 #ifdef __CUDACC__
@@ -96,81 +105,39 @@ public:
 #else
     // we are inside a GPU kernel, each block resets one row (specified
     // by i_vox), using all threads
-    for (int j_vox = threadIdx.x; j_vox < n_voxels; j_vox+=blockDim.x)
+    for (int j_vox = threadIdx.x; j_vox < n_elements; j_vox+=blockDim.x)
       influence_matrix(i_vox, j_vox) = 0;
 #endif
     internal_solved=false;
   }
 
-  template <bool transmission, int NV>
-  using los = los_tracker_type<transmission, NV>;
-  typedef los<true, n_voxels> influence_tracker;
-  typedef los<false, n_voxels> brightness_tracker;
+  template <bool transmission>
+  using los = los_tracker_type<transmission, n_elements>;
+  typedef los<true> influence_tracker;
+  typedef los<false> brightness_tracker;
   
   using parent::update_tracker_end;
+  using parent::update_tracker_influence;
+  using parent::compute_single_scattering;
 
-  // update the influence tracker with the contribution from this voxel
   CUDA_CALLABLE_MEMBER
-  void update_tracker_influence(const int &current_voxel,
-				const Real &pathlength,
-				const Real &domega,
-				influence_tracker &tracker) const {
-    //update influence functions for this voxel
-    static_cast<const emission_type*>(this)->update_tracker_start(current_voxel, pathlength, tracker);
-    
-    //see Bishop1999 for derivation of this formula
-    Real coef = domega;
-    coef *= tracker.holstein_G_int;
-    
-    assert(!isnan(coef) && "influence coefficients must be real numbers");
-    assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
-    
-    tracker.influence[current_voxel] += coef;
-    
-    static_cast<const emission_type*>(this)->update_tracker_end(tracker);
-  }
-
-  // compute the single scattering from the input tracker
-  template<bool influence>
-  CUDA_CALLABLE_MEMBER
-  void compute_single_scattering(const int &start_voxel, los<influence,n_voxels> &tracker) {
-    tau_species_single_scattering(start_voxel) = tracker.tau_species_final;//line center optical depth
-    assert(!isnan(tau_species_single_scattering(start_voxel))
-	   && (tau_species_single_scattering(start_voxel) >= 0
-	       || tau_species_single_scattering(start_voxel) == -1)
-	   && "optical depth must be real and positive, or -1 if point is behind limb");
-    
-    tau_absorber_single_scattering(start_voxel) = tracker.tau_absorber_final;
-    assert(!isnan(tau_absorber_single_scattering(start_voxel))
-	   && (tau_absorber_single_scattering(start_voxel) >= 0
-	       ||  tau_absorber_single_scattering(start_voxel) == -1)
-	   && "optical depth must be real and positive, or -1 if point is behind limb");
-    
-    singlescat(start_voxel) = tracker.holstein_T_final;
-    assert(!isnan(singlescat(start_voxel))
-	   && singlescat(start_voxel) >= 0
-	   && "single scattering coefficient must be real and positive");
-  }
-
-  
-  CUDA_CALLABLE_MEMBER
-  void accumulate_influence(const int & start_voxel,
+  void accumulate_influence(const int & start_element,
 			    influence_tracker &tracker,
 			    __attribute__((unused)) const int offset=0) {
     // offset allows parallel kernels to write to the same row without
     // collision, this is only used on the GPU
 #ifndef __CUDA_ARCH__    
     Real rowsum = 0.0;
-    for (unsigned int j_vox = 0; j_vox < n_voxels; j_vox++) {
-      influence_matrix(start_voxel, j_vox) += tracker.influence[j_vox];
-      rowsum += influence_matrix(start_voxel, j_vox);
+    for (unsigned int j_el = 0; j_el < n_elements; j_el++) {
+      influence_matrix(start_element, j_el) += tracker.influence(j_el);
+      rowsum += influence_matrix(start_element, j_el);
     }
-    assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this voxel");
+    assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this element");
 #else
-    for (unsigned int j_vox = 0; j_vox < n_voxels; j_vox++) {
-      int j_vox_offset = (j_vox + offset) % n_voxels; 
+    for (unsigned int j_el = 0; j_el < n_elements; j_el++) {
+      int j_el_offset = (j_el + offset) % n_elements; 
       // ^^^ this starts parallel threads off in different columns
-      influence_matrix(start_voxel, j_vox_offset) += tracker.influence[j_vox_offset];
+      influence_matrix(start_element, j_el_offset) += tracker.influence(j_el_offset);
       __syncthreads();
     }
 #endif
@@ -179,7 +146,7 @@ public:
   void solve() {
     static_cast<emission_type*>(this)->pre_solve();
 
-    MatrixX kernel = MatrixX::Identity(n_voxels, n_voxels);
+    MatrixX kernel = MatrixX::Identity(n_elements, n_elements);
     kernel -= influence_matrix.eigen();
     
     sourcefn = kernel.partialPivLu().solve(singlescat.eigen()); //partialPivLu has multithreading support
@@ -187,7 +154,7 @@ public:
     // // iterative solution.
     // Real err = 1;
     // int it = 0;
-    // VectorX sourcefn_old(n_voxels);
+    // VectorX sourcefn_old(n_elements);
     // sourcefn_old = singlescat;
     // while (err > ABS && it < 500) {
     // 	sourcefn = singlescat.eigen() + influence_matrix.eigen() * sourcefn_old.eigen();
@@ -205,6 +172,23 @@ public:
   void solve_gpu();
   void transpose_influence_gpu();
   
+  // update the brightness with the contribution from this voxel
+  CUDA_CALLABLE_MEMBER
+  void update_tracker_brightness_nointerp(const int &current_voxel,
+					  const Real &pathlength,
+					  brightness_tracker &tracker) const {
+    static_cast<const emission_type*>(this)->update_tracker_start(current_voxel, pathlength, tracker);
+
+
+    Real sourcefn_states[n_states];
+    for (int i_state=0; i_state<n_states; i_state++)
+      sourcefn_states[i_state] = sourcefn(current_voxel, i_state);
+
+    static_cast<const emission_type*>(this)->update_tracker_brightness(sourcefn_states, tracker);
+
+    static_cast<const emission_type*>(this)->update_tracker_end(tracker);
+  }
+
   // update the brightness using an interpolation point inside a voxel
   CUDA_CALLABLE_MEMBER
   void update_tracker_brightness_interp(const int n_interp_points,
@@ -217,23 +201,13 @@ public:
 									 weights,
 									 pathlength,
 									 tracker);
-    
-    Real sourcefn_temp = interp_array(n_interp_points, indices, weights, sourcefn);
-    
-    static_cast<const emission_type*>(this)->update_tracker_brightness(sourcefn_temp, tracker);
+    Real sourcefn_states_interp[n_states];
+    interp_voxel_vector(n_interp_points, indices, weights, sourcefn, sourcefn_states_interp);
+    static_cast<const emission_type*>(this)->update_tracker_brightness(sourcefn_states_interp, tracker);
+
     static_cast<const emission_type*>(this)->update_tracker_end(tracker);
   }
 
-  // update the brightness with the contribution from this voxel
-  CUDA_CALLABLE_MEMBER
-  void update_tracker_brightness_nointerp(const int &current_voxel,
-					  const Real &pathlength,
-					  brightness_tracker &tracker) const {
-    static_cast<const emission_type*>(this)->update_tracker_start(current_voxel, pathlength, tracker);
-    static_cast<const emission_type*>(this)->update_tracker_brightness(sourcefn(current_voxel), tracker);
-    static_cast<const emission_type*>(this)->update_tracker_end(tracker);
-  }
-  
   void save_influence(std::ostream &file) const {
     file << "Here is the influence matrix for " << parent::name() <<":\n" 
 	 << influence_matrix.eigen() << "\n\n";
@@ -307,8 +281,10 @@ public:
 };
 
 #ifdef __CUDACC__
-template <int N_VOXELS, typename emission_type, template<bool,int> class los_tracker_type>
-void emission_voxels<N_VOXELS, emission_type, los_tracker_type>::solve_gpu() {
+template <int N_VOXELS, int N_STATES_PER_VOXEL,
+	  typename emission_type, template<bool,int> class los_tracker_type>
+void emission_voxels<N_VOXELS, N_STATES_PER_VOXEL,
+		     emission_type, los_tracker_type>::solve_gpu() {
   //the CUDA matrix library has a LOT more boilerplate than Eigen
   //this is adapted from the LU dense example here:
   //https://docs.nvidia.com/cuda/pdf/CUSOLVER_Library.pdf
@@ -421,8 +397,10 @@ void emission_voxels<N_VOXELS, emission_type, los_tracker_type>::solve_gpu() {
   if (stream ) cudaStreamDestroy(stream);
 }
 
-template <int N_VOXELS, typename emission_type, template<bool,int> class los_tracker_type>
-void emission_voxels<N_VOXELS, emission_type, los_tracker_type>::transpose_influence_gpu() {
+template <int N_VOXELS, int N_STATES_PER_VOXEL,
+	  typename emission_type, template<bool,int> class los_tracker_type>
+void emission_voxels<N_VOXELS, N_STATES_PER_VOXEL,
+		     emission_type, los_tracker_type>::transpose_influence_gpu() {
   //transpose the influence matrix so it's column major
   const Real unity = 1.0;
   const Real null  = 0.0;
@@ -431,7 +409,7 @@ void emission_voxels<N_VOXELS, emission_type, los_tracker_type>::transpose_influ
   cublasCreate(&handle);
 
   //allocate space for transpose;
-  const int N = n_voxels;
+  const int N = n_elements;
   Real *d_transpose = NULL;
   checkCudaErrors(
 		  cudaMalloc((void **) &d_transpose,

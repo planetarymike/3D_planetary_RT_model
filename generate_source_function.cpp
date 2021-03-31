@@ -125,9 +125,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   observation<emission_type, n_emissions> obs(emissions);
   observation<emission_type, n_emissions> obs_nointerp(emissions);
 
-  Real g[n_emissions] = {lyman_alpha_typical_g_factor, lyman_beta_typical_g_factor};
-  obs.set_emission_g_factors(g);
-  obs_nointerp.set_emission_g_factors(g);
+  lyman_alpha.set_emission_g_factor(lyman_alpha_typical_g_factor);
+  lyman_beta.set_emission_g_factor(lyman_beta_typical_g_factor);
   
   std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
   std::cout << "lyman alpha line center cross section coef is: "

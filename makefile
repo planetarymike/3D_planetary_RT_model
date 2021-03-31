@@ -17,7 +17,7 @@ NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 NOBJFILESDBG := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o))
 
 
-PYSRCFILES = $(SRCFILES) $(wildcard $(SRCDIR)/quemerais_IPH_model/*.cpp)
+PYSRCFILES = $(SRCFILES) ./src/observation_fit.cpp $(wildcard $(SRCDIR)/quemerais_IPH_model/*.cpp)
 PYOBJFILES   := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.o))
 PYNOBJFILES  := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
@@ -37,7 +37,7 @@ OFLAGS=-O3 -march=native -DNDEBUG
 #device spec
 CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CUDA Capability Major/Minor version number:.*' | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 
-NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
+NCC=nvcc -std=c++17 -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
 #            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
 #                                           (needs Eigen git repo     (added this flag by hand as a wrapper
@@ -97,7 +97,7 @@ $(OBJDIR)/%.cuda.debug.o: %.cpp
 
 
 
-py_corona_sim_cpu: # $(PYOBJFILES)
+py_corona_sim_cpu:
 	@mkdir -p bin
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \

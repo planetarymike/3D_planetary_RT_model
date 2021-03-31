@@ -117,10 +117,7 @@ struct RT_grid {
     if (pt.z<0&&pt.x*pt.x+pt.y*pt.y<grid.rmin*grid.rmin) {
       //if the point is behind the planet, no single scattering
       for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-	temp_influence[i_emission].tau_species_final  = REAL(-1.0);
-	temp_influence[i_emission].tau_absorber_final = REAL(-1.0);
-	temp_influence[i_emission].holstein_T_final   = REAL(0.0);
-	emissions[i_emission]->compute_single_scattering(pt.i_voxel, temp_influence[i_emission]);
+	emissions[i_emission]->compute_single_scattering(pt.i_voxel, temp_influence[i_emission], /*sun_visible = */ false);
       }
     } else {
       // compute the RT towards the sun and pass to the emissions
@@ -226,7 +223,7 @@ struct RT_grid {
 
   //interpolated brightness routine
   CUDA_CALLABLE_MEMBER
-  void brightness(const atmo_vector &vec, const Real (&g)[n_emissions],
+  void brightness(const atmo_vector &vec, 
 		  typename emission_type::brightness_tracker* (&los)[n_emissions], // array of pointers to los trackers
 		  const int n_subsamples=5) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
@@ -290,17 +287,11 @@ struct RT_grid {
 
     if (stepper.exits_bottom)
       for (int i_emission=0;i_emission<n_emissions;i_emission++)
-	los[i_emission]->tau_absorber_final = -1;
-
-    // convert to kR
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
-      los[i_emission]->brightness *= g[i_emission]/REAL(1e9); //megaphoton/cm2/s * 1e-3 = kR, see C&H pg 280-282
+	los[i_emission]->exits_bottom();
   }
 
   void brightness(observation<emission_type, n_emissions> &obs, const int n_subsamples=5) const {
     assert(obs.size()>0 && "there must be at least one observation to simulate!");
-    for (int i_emission=0;i_emission<n_emissions;i_emission++)
-      assert(obs.emission_g_factors[i_emission] != 0. && "set emission g factors before simulating brightness");
 
     my_clock clk;
     clk.start();
@@ -310,7 +301,7 @@ struct RT_grid {
       typename emission_type::brightness_tracker *los[n_emissions];
       for (int i_emission=0;i_emission<n_emissions;i_emission++)
 	los[i_emission] = &obs.los[i_emission][i];
-      brightness(obs.get_vec(i), obs.emission_g_factors,
+      brightness(obs.get_vec(i),
 		 los,
 		 n_subsamples);
     }
