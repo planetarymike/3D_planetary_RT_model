@@ -7,7 +7,7 @@ using std::vector;
 
 struct push_back_quantities
 {
-  vector< vector<Real>* > vec_ptrs;
+  vector< vector<double>* > vec_ptrs;
 
   //this is copypasta that makes a variadic constructor that stores an
   //arbitrary number of passed vector pointers in vec_ptrs
@@ -15,16 +15,16 @@ struct push_back_quantities
   template<class... Ts>
   using conjunction = std::is_same<bool_pack<true,Ts::value...>, bool_pack<Ts::value..., true>>;
   template<typename... Ts>
-  using AllVecs = typename std::enable_if<conjunction<std::is_convertible<Ts, vector<Real>*>...>::value>::type;
+  using AllVecs = typename std::enable_if<conjunction<std::is_convertible<Ts, vector<double>*>...>::value>::type;
   template<typename... Ts, typename = AllVecs<Ts...>>
   push_back_quantities(Ts... v0) {
-    vector<vector<Real>*> vecs = { v0... };
+    vector<vector<double>*> vecs = { v0... };
     for (auto&& v : vecs) {
       vec_ptrs.push_back(v);
     }
   }
 
-  void operator()( const vector<Real> &x , Real r );
+  void operator()( const vector<double> &x , double r );
 };
 
 

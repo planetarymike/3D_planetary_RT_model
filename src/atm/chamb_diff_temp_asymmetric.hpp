@@ -87,26 +87,26 @@ public:
 
   bool spherical = true;
 
-  Real H_Temp(const atmo_point &pt) const;
+  double H_Temp(const atmo_point &pt) const;
   void H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-  Real Temp(const atmo_point &pt) const;
+  double Temp(const atmo_point &pt) const;
   void Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real n_absorber(const atmo_point &pt) const; 
+  double n_absorber(const atmo_point &pt) const; 
   void n_absorber(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-  Real nCO2(const atmo_point &pt) const;
+  double nCO2(const atmo_point &pt) const;
   void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real n_species(const atmo_point &pt) const;
+  double n_species(const atmo_point &pt) const;
   void n_species(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-  Real nH(const atmo_point &pt) const;
+  double nH(const atmo_point &pt) const;
   void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
   //stuff required by atmosphere base class
-  Real n_species(const Real &r) const;
-  Real r_from_n_species(const Real &n_species) const;
-  Real Temp(const Real &r) const;
-  Real n_absorber(const Real &r) const;
+  double n_species(const double &r) const;
+  double r_from_n_species(const double &n_species) const;
+  double Temp(const double &r) const;
+  double n_absorber(const double &r) const;
 };
 
 #endif

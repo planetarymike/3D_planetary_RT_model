@@ -8,22 +8,22 @@ temperature::temperature() : T_internal(0.0),
 			     last_r(0.0)
 {}
 
-Real temperature::T(const Real &r) {
+double temperature::T(const double &r) {
   if (r != last_r)
     get(r);
   return T_internal;
 }
 
-Real temperature::Tprime(const Real &r) {
+double temperature::Tprime(const double &r) {
   if (r != last_r)
     get(r);
   return Tprime_internal;
 }
 
-krasnopolsky_temperature::krasnopolsky_temperature(Real T_exoo/* = 200*/,
-						   Real T_tropoo/* = 125*/,
-						   Real r_tropoo/* = rMars + 90e5 */,
-						   Real shape_parameterr/* = 11.4*/,
+krasnopolsky_temperature::krasnopolsky_temperature(double T_exoo/* = 200*/,
+						   double T_tropoo/* = 125*/,
+						   double r_tropoo/* = rMars + 90e5 */,
+						   double shape_parameterr/* = 11.4*/,
 						   bool shape_parameter_Texo/* = true*/) {
   T_exo = T_exoo; 
   T_tropo = T_tropoo; 
@@ -34,10 +34,10 @@ krasnopolsky_temperature::krasnopolsky_temperature(Real T_exoo/* = 200*/,
     shape_parameter = shape_parameterr * shape_parameterr;
 }
 
-void krasnopolsky_temperature::get(const Real &r) {
+void krasnopolsky_temperature::get(const double &r) {
   last_r = r;
   
-  const Real rdiff = (r - r_tropo)*1e-5;
+  const double rdiff = (r - r_tropo)*1e-5;
   if (rdiff > 0) {
     T_internal      = T_exo - (T_exo - T_tropo)*exp(-rdiff*rdiff/shape_parameter);
     Tprime_internal = ( T_exo - T_internal ) * ( 2*rdiff / shape_parameter ) * 1e-5;

@@ -1,8 +1,8 @@
 #include "chamb_diff_1d.hpp"
 using std::vector;
 
-chamb_diff_1d::chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
-			     Real nCO2exoo, //a good number is 10^9 (?)
+chamb_diff_1d::chamb_diff_1d(double nHexoo, // a good number is 10^5-6
+			     double nCO2exoo, //a good number is 10^9 (?)
 			     temperature &tempp)
   : chamb_diff_1d(/*          rmin = */rMars + 80e5,
 		  /*          rexo = */rexo_typical,
@@ -13,12 +13,12 @@ chamb_diff_1d::chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
 		  tempp,
 		  method_nHmin_nCO2exo)   { }
 
-chamb_diff_1d::chamb_diff_1d(Real rminn,
-			     Real rexoo,
-			     Real rmaxx_or_nHmin,
-                             Real rmindiffusionn,
-                             Real nHexoo,   // a good number is 10^5-6
-                             Real nCO2rmin_or_nCO2exoo, // a good number is 10^9 (?)
+chamb_diff_1d::chamb_diff_1d(double rminn,
+			     double rexoo,
+			     double rmaxx_or_nHmin,
+                             double rmindiffusionn,
+                             double nHexoo,   // a good number is 10^5-6
+                             double nCO2rmin_or_nCO2exoo, // a good number is 10^9 (?)
                              temperature &tempp,
 			     const int method)
   : atmosphere(rminn,rexoo,rmaxx_or_nHmin),

@@ -11,13 +11,13 @@ struct tabular_1d: public tabular_atmosphere,
 		   public H_cross_sections
 {
   tabular_1d();
-  tabular_1d(Real rminn, Real rexoo, Real rmaxx, bool compute_exospheree = false);
+  tabular_1d(double rminn, double rexoo, double rmaxx, bool compute_exospheree = false);
 
   //wrapper functions for the stuff in tabular_atmosphere to ensure
   //atmosphere_average_1d is always accurate
-  void load_log_species_density(const vector<Real> &alt, const vector<Real> &log_n_species);
-  void load_log_absorber_density(const vector<Real> &alt, const vector<Real> &log_n_absorber);
-  void load_temperature(const vector<Real> &alt, const vector<Real> &temp);
+  void load_log_species_density(const vector<double> &alt, const vector<double> &log_n_species);
+  void load_log_absorber_density(const vector<double> &alt, const vector<double> &log_n_absorber);
+  void load_temperature(const vector<double> &alt, const vector<double> &temp);
 
   using tabular_atmosphere::n_species;
   using tabular_atmosphere::n_absorber;

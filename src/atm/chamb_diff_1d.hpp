@@ -10,16 +10,16 @@ struct chamb_diff_1d : public thermosphere_exosphere,
 		       public atmosphere_average_1d,
 		       public H_cross_sections
 {
-  chamb_diff_1d(Real nHexoo, // a good number is 10^5-6
-		Real nCO2exoo, //a good number is 10^9 (?)
+  chamb_diff_1d(double nHexoo, // a good number is 10^5-6
+		double nCO2exoo, //a good number is 10^9 (?)
 		temperature &tempp);
 
-  chamb_diff_1d(Real rminn,
-		Real rexoo,
-		Real rmaxx_or_nHmin,
-		Real rmindiffusionn,
-		Real nHexoo, // a good number is 10^5-6
-		Real nCO2exo_or_nCO2rmin, //a good number is 10^9 (?)
+  chamb_diff_1d(double rminn,
+		double rexoo,
+		double rmaxx_or_nHmin,
+		double rmindiffusionn,
+		double nHexoo, // a good number is 10^5-6
+		double nCO2exo_or_nCO2rmin, //a good number is 10^9 (?)
 		temperature &tempp,
 		const int method = thermosphere_exosphere::method_nHmin_nCO2exo);
 

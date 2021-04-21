@@ -9,33 +9,33 @@ using std::vector;
 
 struct chamb_diff_1d_asymmetric : public chamb_diff_1d {
 
-  Real asymmetry;//multiplicative factor, how much more H there is at
+  double asymmetry;//multiplicative factor, how much more H there is at
 		 //midnight than at noon
 
   //we use a linear model from noon to midnight to create the anisotropy
-  Real nslope;
-  Real n0;
+  double nslope;
+  double n0;
   
-  chamb_diff_1d_asymmetric(Real nHexoo, // a good number is 10^5-6
-			   Real nCO2exoo, //a good number is 10^9 (?)
+  chamb_diff_1d_asymmetric(double nHexoo, // a good number is 10^5-6
+			   double nCO2exoo, //a good number is 10^9 (?)
 			   temperature &tempp);
 
-  chamb_diff_1d_asymmetric(Real rminn,
-			   Real rexoo,
-			   Real nHmin,
-			   Real rmindiffusionn,
-			   Real nHexoo, // a good number is 10^5-6
-			   Real nCO2exoo, //a good number is 10^9 (?)
+  chamb_diff_1d_asymmetric(double rminn,
+			   double rexoo,
+			   double nHmin,
+			   double rmindiffusionn,
+			   double nHexoo, // a good number is 10^5-6
+			   double nCO2exoo, //a good number is 10^9 (?)
 			   temperature &tempp);
 
-  void set_asymmetry(const Real &a);
+  void set_asymmetry(const double &a);
 
-  Real theta_average_factor(const Real &t0, const Real &t1) const;
+  double theta_average_factor(const double &t0, const double &t1) const;
 
-  Real nCO2(const atmo_point &pt) const;
+  double nCO2(const atmo_point &pt) const;
   void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real nH(const atmo_point &pt) const;
+  double nH(const atmo_point &pt) const;
   void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 };
 

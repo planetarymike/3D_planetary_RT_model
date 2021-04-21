@@ -7,39 +7,39 @@
 //generic temperature class
 struct temperature {
 protected:
-  Real T_internal;
-  Real Tprime_internal;
-  Real last_r;
+  double T_internal;
+  double Tprime_internal;
+  double last_r;
 
   // a function to define T, Tprime, and last_r
-  virtual void get(const Real &r) = 0;
+  virtual void get(const double &r) = 0;
 
 public:
   temperature();
   virtual ~temperature() = default;
   
-  Real T_exo;
+  double T_exo;
 
-  Real T(const Real &r);
-  Real Tprime(const Real &r);
+  double T(const double &r);
+  double Tprime(const double &r);
 };
 
 struct krasnopolsky_temperature : virtual public temperature {
   // computes the analytic thermospheric temperature as given by Krasnopolsky (2002)
 
 protected:
-  Real T_tropo;
-  Real r_tropo;
-  Real shape_parameter;
+  double T_tropo;
+  double r_tropo;
+  double shape_parameter;
 
   //implementation of pure virtual from parent
-  void get(const Real &r) override;
+  void get(const double &r) override;
 
 public:
-  krasnopolsky_temperature(Real T_exoo = 200.0,
-			   Real T_tropoo = 125.0,
-			   Real r_tropoo = rMars + 90e5,
-			   Real shape_parameterr = 11.4,
+  krasnopolsky_temperature(double T_exoo = 200.0,
+			   double T_tropoo = 125.0,
+			   double r_tropoo = rMars + 90e5,
+			   double shape_parameterr = 11.4,
 			   bool shape_parameter_Texo = true);
 
 };

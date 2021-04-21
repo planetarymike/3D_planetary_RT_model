@@ -173,13 +173,13 @@ double chamb_diff_temp_asymmetric::avg(const Bilinear_interp<double> &terp,
 
 
 
-Real chamb_diff_temp_asymmetric::H_Temp(const atmo_point &pt) const {
+double chamb_diff_temp_asymmetric::H_Temp(const atmo_point &pt) const {
   return Temp(pt);
 }
 void chamb_diff_temp_asymmetric::H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   Temp(vox, ret_avg, ret_pt);
 }
-Real chamb_diff_temp_asymmetric::Temp(const atmo_point &pt) const {
+double chamb_diff_temp_asymmetric::Temp(const atmo_point &pt) const {
   if (!temp_dependent_sH)
     return constant_temp_sH;
   else {
@@ -224,13 +224,13 @@ void chamb_diff_temp_asymmetric::Temp(const atmo_voxel &vox, Real &ret_avg, Real
   }
 }
 
-Real chamb_diff_temp_asymmetric::n_absorber(const atmo_point &pt) const {
+double chamb_diff_temp_asymmetric::n_absorber(const atmo_point &pt) const {
   return nCO2(pt);
 } 
 void chamb_diff_temp_asymmetric::n_absorber(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   nCO2(vox, ret_avg, ret_pt);
 }
-Real chamb_diff_temp_asymmetric::nCO2(const atmo_point &pt) const {
+double chamb_diff_temp_asymmetric::nCO2(const atmo_point &pt) const {
   int isza;
   double szawt;
   sza_interp(pt.t, isza, szawt);
@@ -267,13 +267,13 @@ void chamb_diff_temp_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real
   ret_pt = nCO2(vox.pt);
 }
 
-Real chamb_diff_temp_asymmetric::n_species(const atmo_point &pt) const {
+double chamb_diff_temp_asymmetric::n_species(const atmo_point &pt) const {
   return nH(pt);
 }
 void chamb_diff_temp_asymmetric::n_species(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   nH(vox, ret_avg, ret_pt);
 }
-Real chamb_diff_temp_asymmetric::nH(const atmo_point &pt) const {
+double chamb_diff_temp_asymmetric::nH(const atmo_point &pt) const {
   int isza;
   double szawt;
   sza_interp(pt.t, isza, szawt);
@@ -310,18 +310,18 @@ void chamb_diff_temp_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &
   ret_pt = nH(vox.pt);
 }
 
-Real chamb_diff_temp_asymmetric::n_species(const Real &r) const {
+double chamb_diff_temp_asymmetric::n_species(const double &r) const {
   return atm_sza[0]->thermosphere_exosphere::n_species(r);
 }
 
-Real chamb_diff_temp_asymmetric::r_from_n_species(const Real &n_species) const {
+double chamb_diff_temp_asymmetric::r_from_n_species(const double &n_species) const {
   return atm_sza[0]->r_from_n_species(n_species);
 }
 
-Real chamb_diff_temp_asymmetric::Temp(const Real &r) const {
+double chamb_diff_temp_asymmetric::Temp(const double &r) const {
   return atm_sza[0]->thermosphere_exosphere::Temp(r);
 }
 
-Real chamb_diff_temp_asymmetric::n_absorber(const Real &r) const {
+double chamb_diff_temp_asymmetric::n_absorber(const double &r) const {
   return atm_sza[0]->thermosphere_exosphere::n_absorber(r);
 }

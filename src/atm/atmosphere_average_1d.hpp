@@ -48,22 +48,25 @@ struct atmosphere_average_1d : virtual public atmosphere {
   atmosphere_average_1d();
 
   void setup();
-  void check_integrated(vector<double> &vec, double &diff, int &i_int);
+  void add_integrated(vector<double> &vec,
+		      double q0, double q1,
+		      double r0, double r1,
+		      bool spherical);
 
-  Real ravg(const double &r0, const double &r1,
+  double ravg(const double &r0, const double &r1,
 	    const double &q0, const double &q1) const;
   
-  Real n_absorber_avg(const Real &r0, const Real &r1) const;
+  double n_absorber_avg(const double &r0, const double &r1) const;
   using atmosphere::n_absorber;
-  Real n_absorber(const atmo_point &pt) const; 
+  double n_absorber(const atmo_point &pt) const; 
   void n_absorber(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  Real n_species_avg(const Real &r0, const Real &r1) const;
+  double n_species_avg(const double &r0, const double &r1) const;
   using atmosphere::n_species;
-  Real n_species(const atmo_point &pt) const;
+  double n_species(const atmo_point &pt) const;
   void n_species(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
   
-  Real Temp_avg(const Real &r0, const Real &r1) const;
+  double Temp_avg(const double &r0, const double &r1) const;
   using atmosphere::Temp;
   void Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 };

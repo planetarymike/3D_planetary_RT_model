@@ -15,9 +15,9 @@ using boost::math::quadrature::tanh_sinh;
 
 #include <fstream>
 
-thermosphere_exosphere::thermosphere_exosphere(Real nHexoo, // a good number is 10^5-6
-			     Real nCO2exoo, //a good number is 10^9 (?)
-			     temperature &tempp)
+thermosphere_exosphere::thermosphere_exosphere(double nHexoo, // a good number is 10^5-6
+					       double nCO2exoo, //a good number is 10^9 (?)
+					       temperature &tempp)
   : thermosphere_exosphere(/*          rmin = */rMars + 80e5,
 			   /*          rexo = */rexo_typical,
 			   /*         nHmin = */10,
@@ -26,12 +26,12 @@ thermosphere_exosphere::thermosphere_exosphere(Real nHexoo, // a good number is 
 			   nCO2exoo,
 			   tempp)   { }
 
-thermosphere_exosphere::thermosphere_exosphere(Real rminn,
-					       Real rexoo,
-					       Real rmaxx_or_nHmin,
-					       Real rmindiffusionn,
-					       Real nHexoo, // a good number is 10^5-6
-					       Real nCO2rmin_or_nCO2exoo, //a good number is 10^9 (?)
+thermosphere_exosphere::thermosphere_exosphere(double rminn,
+					       double rexoo,
+					       double rmaxx_or_nHmin,
+					       double rmindiffusionn,
+					       double nHexoo, // a good number is 10^5-6
+					       double nCO2rmin_or_nCO2exoo, //a good number is 10^9 (?)
 					       temperature &tempp,
 					       const int method)
   : atmosphere(rminn, rexoo, -1), // -1 is immediately overwritten
@@ -56,16 +56,16 @@ thermosphere_exosphere::thermosphere_exosphere(Real rminn,
 			      tempp);
 }
 
-void thermosphere_exosphere::setup_nHmin_nCO2exo(Real rminn,
-						 Real rexoo,
-						 Real nHmin,
-						 Real rmindiffusionn,
-						 Real nHexoo, // a good number is 10^5-6
-						 Real nCO2exoo, //a good number is 10^9 (?)
+void thermosphere_exosphere::setup_nHmin_nCO2exo(double rminn,
+						 double rexoo,
+						 double nHmin,
+						 double rmindiffusionn,
+						 double nHexoo, // a good number is 10^5-6
+						 double nCO2exoo, //a good number is 10^9 (?)
 						 temperature &tempp)
 {
   //set the max altitude by finding the density at which the exosphere = nHmin
-  Real rmaxx = exosphere.r(nHmin);
+  double rmaxx = exosphere.r(nHmin);
   
   setup_rmax_nCO2exo(rminn,
 		     rexoo,
@@ -76,24 +76,24 @@ void thermosphere_exosphere::setup_nHmin_nCO2exo(Real rminn,
 		     tempp);
 }
 
-void thermosphere_exosphere::setup_rmax_nCO2rmin(Real rminn,
-						 Real rexoo,
-						 Real rmaxx,
-						 Real rmindiffusionn,
-						 Real nHexoo, // a good number is 10^5-6
-						 Real nCO2rmin, //a good number is 2.6e13 (Chaufray 2008)
+void thermosphere_exosphere::setup_rmax_nCO2rmin(double rminn,
+						 double rexoo,
+						 double rmaxx,
+						 double rmindiffusionn,
+						 double nHexoo, // a good number is 10^5-6
+						 double nCO2rmin, //a good number is 2.6e13 (Chaufray 2008)
 						 temperature &tempp)
 {
   //integrate from rmin upward to rexo to get nCO2exo
-  vector<Real> n80km(2);
+  vector<double> n80km(2);
   n80km[0] = log(nCO2rmin);
   n80km[1] = log(1);//H density is arbitrary, not used later on
 
   //use a constant stepper for easy interpolation
-  Real initial_step = (rexo-rmin)/200.;
+  double initial_step = (rexo-rmin)/200.;
   integrate( diffeq , n80km, rmin , rexo , initial_step);
 
-  Real nCO2exoo = exp(n80km[0]);
+  double nCO2exoo = exp(n80km[0]);
   
   setup_rmax_nCO2exo(rminn,
 		     rexoo,
@@ -104,12 +104,12 @@ void thermosphere_exosphere::setup_rmax_nCO2rmin(Real rminn,
 		     tempp);
 }
 
-void thermosphere_exosphere::setup_rmax_nCO2exo(Real rminn,
-						Real rexoo,
-						Real rmaxx,
-						Real rmindiffusionn,
-						Real nHexoo, // a good number is 10^5-6
-						Real nCO2exoo, //a good number is 10^9 (?)
+void thermosphere_exosphere::setup_rmax_nCO2exo(double rminn,
+						double rexoo,
+						double rmaxx,
+						double rmindiffusionn,
+						double nHexoo, // a good number is 10^5-6
+						double nCO2exoo, //a good number is 10^9 (?)
 						temperature &tempp)
 {
   rmin = rminn;
@@ -127,12 +127,12 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(Real rminn,
 
   //integrate the differential equation to get the species densities
   //in the thermosphere
-  vector<Real> nexo(2);
+  vector<double> nexo(2);
   nexo[0] = log(nCO2exo);
   nexo[1] = log(nHexo);
 
   //use a constant stepper for easy interpolation
-  runge_kutta4< vector<Real> > stepper;
+  runge_kutta4< vector<double> > stepper;
   thermosphere_step_r = -(rexo-rmin)/(n_thermosphere_steps-1.);
   integrate_const( stepper , diffeq ,
 		   nexo , rexo , rmin , thermosphere_step_r,
@@ -150,18 +150,18 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(Real rminn,
 #endif
   
   //interpolate the densities in the thermosphere
-  // lognCO2_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognCO2thermosphere.rbegin(),
+  // lognCO2_thermosphere_spline = cardinal_cubic_b_spline<double>(lognCO2thermosphere.rbegin(),
   // 							      lognCO2thermosphere.rend(),
   // 							      rmin,
   // 							      -thermosphere_step_r);
-  lognCO2_thermosphere_spline = Linear_interp<Real>(r_thermosphere,lognCO2thermosphere);
-  invlognCO2_thermosphere = Linear_interp<Real>(lognCO2thermosphere,r_thermosphere);
-  // lognH_thermosphere_spline = cardinal_cubic_b_spline<Real>(lognHthermosphere.rbegin(),
+  lognCO2_thermosphere_spline = Linear_interp<double>(r_thermosphere,lognCO2thermosphere);
+  invlognCO2_thermosphere = Linear_interp<double>(lognCO2thermosphere,r_thermosphere);
+  // lognH_thermosphere_spline = cardinal_cubic_b_spline<double>(lognHthermosphere.rbegin(),
   // 							    lognHthermosphere.rend(),
   // 							    rmin,
   // 							    -thermosphere_step_r);
-  lognH_thermosphere_spline = Linear_interp<Real>(r_thermosphere,lognHthermosphere);
-  invlognH_thermosphere = Linear_interp<Real>(lognHthermosphere,r_thermosphere);
+  lognH_thermosphere_spline = Linear_interp<double>(r_thermosphere,lognHthermosphere);
+  invlognH_thermosphere = Linear_interp<double>(lognHthermosphere,r_thermosphere);
 
   nHrmindiffusion = nH(rmindiffusion);
   nCO2rmindiffusion = nCO2(rmindiffusion);
@@ -174,18 +174,18 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(Real rminn,
     lognHexosphere.push_back( log( exosphere( exp( logr_exosphere[iexo] ) ) ) );
     assert(exp(lognHexosphere.back()) > 0 && "densities must be positive");
   }
-  // lognH_exosphere_spline = cardinal_cubic_b_spline<Real>(lognHexosphere.begin(),
+  // lognH_exosphere_spline = cardinal_cubic_b_spline<double>(lognHexosphere.begin(),
   // 							 lognHexosphere.end(),
   // 							 log(rexo),
   // 							 exosphere_step_logr);
-  lognH_exosphere_spline = Linear_interp<Real>(logr_exosphere,lognHexosphere);
-  invlognH_exosphere = Linear_interp<Real>(lognHexosphere,logr_exosphere);
+  lognH_exosphere_spline = Linear_interp<double>(logr_exosphere,lognHexosphere);
+  invlognH_exosphere = Linear_interp<double>(lognHexosphere,logr_exosphere);
 
   init=true;
 }
 
 
-Real thermosphere_exosphere::nCO2(const Real &r) const {
+double thermosphere_exosphere::nCO2(const double &r) const {
   if (r>rexo)
     return 0.0;
   else {
@@ -193,11 +193,11 @@ Real thermosphere_exosphere::nCO2(const Real &r) const {
     return exp(lognCO2_thermosphere_spline(r));
   }
 }
-Real thermosphere_exosphere::n_absorber(const Real &r) const  {
+double thermosphere_exosphere::n_absorber(const double &r) const  {
   return nCO2(r);
 }
 
-Real thermosphere_exosphere::nH(const Real &r) const {
+double thermosphere_exosphere::nH(const double &r) const {
   if (r>=rexo)
     return exp(lognH_exosphere_spline(log(r)));
   else {
@@ -209,15 +209,15 @@ Real thermosphere_exosphere::nH(const Real &r) const {
     }
   }
 }
-Real thermosphere_exosphere::n_species(const Real &r) const {
+double thermosphere_exosphere::n_species(const double &r) const {
   return nH(r);
 }
 
-Real thermosphere_exosphere::Temp(const Real &r) const {
+double thermosphere_exosphere::Temp(const double &r) const {
   return temp->T(r);
 }
 
-Real thermosphere_exosphere::r_from_nH(const Real &nHtarget) const {
+double thermosphere_exosphere::r_from_nH(const double &nHtarget) const {
   if (nHtarget==nHexo) {
     return rexo;
   } else if (nHtarget<nHexo) {
@@ -228,20 +228,20 @@ Real thermosphere_exosphere::r_from_nH(const Real &nHtarget) const {
     return invlognH_thermosphere(log(nHtarget));
   }
 }
-Real thermosphere_exosphere::r_from_n_species(const Real &n_species) const {
+double thermosphere_exosphere::r_from_n_species(const double &n_species) const {
   return r_from_nH(n_species);
 }
 
-Real thermosphere_exosphere::nCO2_exact(const Real &r) const {
+double thermosphere_exosphere::nCO2_exact(const double &r) const {
   if (r>rexo)
     return 0.0;
   else {
     assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
-    vector<Real> lognCO2thermosphere_tmp;
-    vector<Real> lognHthermosphere_tmp;
-    vector<Real> r_thermosphere_tmp;
+    vector<double> lognCO2thermosphere_tmp;
+    vector<double> lognHthermosphere_tmp;
+    vector<double> r_thermosphere_tmp;
 
-    vector<Real> nexo(2);
+    vector<double> nexo(2);
     nexo[0] = log(nCO2exo);
     nexo[1] = log(nHexo);
     integrate( diffeq , nexo , rexo , r , thermosphere_step_r,
@@ -252,17 +252,17 @@ Real thermosphere_exosphere::nCO2_exact(const Real &r) const {
   }
 }
 
-Real thermosphere_exosphere::nH_exact(const Real &r) const {
+double thermosphere_exosphere::nH_exact(const double &r) const {
   if (r>=rexo)
     return exosphere(r);
   else {
     assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
     if (r>=rmindiffusion) {
-      vector<Real> lognCO2thermosphere_tmp;
-      vector<Real> lognHthermosphere_tmp;
-      vector<Real> r_thermosphere_tmp;
+      vector<double> lognCO2thermosphere_tmp;
+      vector<double> lognHthermosphere_tmp;
+      vector<double> r_thermosphere_tmp;
 	
-      vector<Real> nexo(2);
+      vector<double> nexo(2);
       nexo[0] = log(nCO2exo);
       nexo[1] = log(nHexo);
       integrate( diffeq , nexo , rexo , r , thermosphere_step_r,
@@ -278,9 +278,9 @@ Real thermosphere_exosphere::nH_exact(const Real &r) const {
 
 
 void thermosphere_exosphere::write_vector(std::ofstream &file, const std::string &preamble,
-				 const vector<Real> &data) const {
-  VectorX write_out = Eigen::Map<const VectorX>(data.data(),
-						data.size());
+					  const vector<double> &data) const {
+  VectorXd write_out = Eigen::Map<const VectorXd>(data.data(),
+						  data.size());
 
   file << preamble << write_out.transpose() << "\n";
 }

@@ -13,13 +13,13 @@ using std::vector;
 struct thermosphere_diffeq {
   diffusion_coefs diff;
   temperature *temp;
-  Real H_escape_flux;
-  Real rexo;
+  double H_escape_flux;
+  double rexo;
 
-  thermosphere_diffeq(temperature &tempp, Real &H_escape_fluxx, Real &rexoo);
+  thermosphere_diffeq(temperature &tempp, double &H_escape_fluxx, double &rexoo);
 
   //returns the diffeq derivatives
-  void operator()( const vector<Real> &x , vector<Real> &dxdr , const Real &r );
+  void operator()( const vector<double> &x , vector<double> &dxdr , const double &r );
 
 };
 

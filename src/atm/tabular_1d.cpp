@@ -6,7 +6,7 @@ tabular_1d::tabular_1d()
       tabular_atmosphere(-1, -1, -1)
 { }
 
-tabular_1d::tabular_1d(Real rminn, Real rexoo, Real rmaxx,
+tabular_1d::tabular_1d(double rminn, double rexoo, double rmaxx,
 		       bool compute_exospheree/* = false*/)
   : atmosphere(rminn,rexoo,rmaxx),
     tabular_atmosphere(rminn,rexoo,rmaxx,compute_exospheree)
@@ -16,20 +16,20 @@ tabular_1d::tabular_1d(Real rminn, Real rexoo, Real rmaxx,
 
 //wrapper functions for the stuff in tabular_atmosphere to ensure
 //atmosphere_average_1d is always accurate
-void tabular_1d::load_log_species_density(const vector<Real> &alt,
-                                          const vector<Real> &log_n_species) {
+void tabular_1d::load_log_species_density(const vector<double> &alt,
+                                          const vector<double> &log_n_species) {
   tabular_atmosphere::load_log_species_density(alt,log_n_species);
   atmosphere_average_1d::setup();
   
 }
-void tabular_1d::load_log_absorber_density(const vector<Real> &alt,
-					   const vector<Real> &log_n_absorber) {
+void tabular_1d::load_log_absorber_density(const vector<double> &alt,
+					   const vector<double> &log_n_absorber) {
   tabular_atmosphere::load_log_absorber_density(alt,log_n_absorber);
   atmosphere_average_1d::setup();
 
 }
-void tabular_1d::load_temperature(const vector<Real> &alt,
-				  const vector<Real> &temp) {
+void tabular_1d::load_temperature(const vector<double> &alt,
+				  const vector<double> &temp) {
   tabular_atmosphere::load_temperature(alt,temp);
   atmosphere_average_1d::setup();
 }

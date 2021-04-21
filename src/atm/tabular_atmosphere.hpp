@@ -13,28 +13,28 @@ using std::vector;
 
 struct tabular_atmosphere : virtual public atmosphere {
 protected:
-  Linear_interp<Real> log_n_species_spline;
-  Linear_interp<Real> inv_log_n_species_spline;
-  Linear_interp<Real> Temp_spline;
-  Linear_interp<Real> log_n_absorber_spline;
+  Linear_interp<double> log_n_species_spline;
+  Linear_interp<double> inv_log_n_species_spline;
+  Linear_interp<double> Temp_spline;
+  Linear_interp<double> log_n_absorber_spline;
 
   bool compute_exosphere;
   chamberlain_exosphere exosphere; 
   
 public:
-  tabular_atmosphere(Real rminn, Real rexoo, Real rmaxx, bool compute_exospheree = false);
+  tabular_atmosphere(double rminn, double rexoo, double rmaxx, bool compute_exospheree = false);
 
-  void load_log_species_density(const vector<Real> &alt, const vector<Real> &log_n_species);
-  void load_log_absorber_density(const vector<Real> &alt, const vector<Real> &log_n_absorber);
-  void load_temperature(const vector<Real> &alt, const vector<Real> &temp);
+  void load_log_species_density(const vector<double> &alt, const vector<double> &log_n_species);
+  void load_log_absorber_density(const vector<double> &alt, const vector<double> &log_n_absorber);
+  void load_temperature(const vector<double> &alt, const vector<double> &temp);
   void check_init();
   void init_exosphere();
 
-  Real r_from_n_species(const Real &n_species_target) const override;
+  double r_from_n_species(const double &n_species_target) const override;
 
-  Real n_species(const Real &r) const override;
+  double n_species(const double &r) const override;
 
-  Real Temp(const Real &r) const override;
+  double Temp(const double &r) const override;
 
-  Real n_absorber(const Real &r) const override;
+  double n_absorber(const double &r) const override;
 };
