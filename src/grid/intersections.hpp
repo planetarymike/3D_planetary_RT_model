@@ -14,7 +14,7 @@ class geom_primitive {
   CUDA_CALLABLE_MEMBER
   bool samesign(Real a, Real b) const;
   CUDA_CALLABLE_MEMBER
-  bool is_zero(Real a, Real tol=STRICTABS) const;
+  bool is_zero(Real a, Real tol=STRICTEPS) const;
 };
 
 

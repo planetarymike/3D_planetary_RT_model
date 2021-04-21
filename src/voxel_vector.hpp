@@ -22,7 +22,12 @@ struct voxel_array {
   static const int n_states = N_STATES_PER_VOXEL;
   static const int n_elements = N_VOXELS*N_STATES_PER_VOXEL;
 
+  //#ifndef __CUDA_ARCH__ //shared memory version
   Real vec[N_VOXELS*N_STATES_PER_VOXEL];
+  // #else
+  //   Real *vec; // needs to be set by kernel to the address of an
+  // 	     // allocated pointer in shared memory
+  // #endif
 
   // element fetch
   CUDA_CALLABLE_MEMBER
@@ -37,6 +42,15 @@ struct voxel_array {
   CUDA_CALLABLE_MEMBER
   Real operator()(const int n_voxel, const int n_state = 0) const {
     return vec[get_element_num(n_voxel, n_state)];
+  }
+
+  CUDA_CALLABLE_MEMBER
+  Real & operator[](const int i_el) {
+    return vec[i_el];
+  }
+  CUDA_CALLABLE_MEMBER
+  Real operator()(const int i_el) const {
+    return vec[i_el];
   }
 };
 

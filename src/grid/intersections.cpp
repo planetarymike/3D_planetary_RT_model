@@ -85,7 +85,7 @@ void sphere::intersections(const atmo_vector & vec,
 
   for (int i=0;i<n_hits;i++) {
     atmo_point ipt = vec.extend(distances[i]);
-    assert(is_zero(ipt.r/r/scale-1.0,ABS)
+    assert(is_zero(ipt.r/r/scale-1.0,EPS)
 	   && "vector must intersect sphere at specified distance.");
   }
 }
@@ -165,7 +165,7 @@ void cone::intersections(const atmo_vector & vec,
       //This conditional solves a floating point rounding issue when
       //intersections are near the origin and far from the original
       //location
-      assert(is_zero(ipt.t/angle-1,CONEABS)
+      assert(is_zero(ipt.t/angle-1,CONEEPS)
 	     && "vector must intersect cone at specified distance.");
     //we don't need to discard intersections with r<rmin because the
     //integration code does this automatically

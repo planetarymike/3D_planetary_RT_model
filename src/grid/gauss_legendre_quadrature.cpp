@@ -35,7 +35,7 @@ void gauleg(const Real x1, const Real x2, vector<Real> &x, vector<Real> &w)
 	pp = n * (z*p1 - p2)/(z*z - 1.0);
 	z1 = z;
 	z = z1 - p1/pp; // Newton's method
-      } while (std::abs(z-z1) > STRICTABS);
+      } while (std::abs(z-z1) > STRICTEPS);
 
 
       x[i] = xm - xl*z; // scale the root to the interval

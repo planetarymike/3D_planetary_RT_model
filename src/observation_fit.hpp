@@ -14,7 +14,7 @@
 #include "RT_grid.hpp"
 #include "grid/grid_plane_parallel.hpp"
 #include "grid/grid_spherical_azimuthally_symmetric.hpp"
-#include "emission/H_lyman_series.hpp"
+#include "emission/singlet_CFR.hpp"
 
 class observation_fit {
 protected:
@@ -47,25 +47,19 @@ protected:
   grid_type grid;
 
   // define emissions
-  static const int n_emissions = 2;
+  static const int n_emissions = 1;
 
-  typedef H_lyman_series<plane_parallel_grid_type::n_voxels> emission_type_pp;
+  typedef singlet_CFR<plane_parallel_grid_type::n_voxels> emission_type_pp;
   emission_type_pp lyman_alpha_pp, lyman_beta_pp;
-  emission_type_pp *emissions_pp[n_emissions] = {&lyman_alpha_pp, &lyman_beta_pp};
+  emission_type_pp *emissions_pp[n_emissions] = {&lyman_alpha_pp}; //, &lyman_beta_pp};
 
-  RT_grid<emission_type_pp,
-	  n_emissions,
-	  plane_parallel_grid_type> RT_pp;
-  
+  RT_grid<emission_type_pp, n_emissions, plane_parallel_grid_type> RT_pp;
 
-
-  typedef H_lyman_series<grid_type::n_voxels> emission_type;
+  typedef singlet_CFR<grid_type::n_voxels> emission_type;
   emission_type lyman_alpha, lyman_beta;
-  emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
+  emission_type *emissions[n_emissions] = {&lyman_alpha}; //, &lyman_beta};
 
-  RT_grid<emission_type,
-	  n_emissions,
-	  grid_type> RT;
+  RT_grid<emission_type, n_emissions, grid_type> RT;
 
   observation<emission_type, n_emissions> obs;
 
@@ -153,9 +147,9 @@ public:
 
   
   void generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
-						   const std::vector<Real> &alt_nH, const std::vector<Real> &log_nH,
-						   const std::vector<Real> &alt_nCO2, const std::vector<Real> &log_nCO2,
-						   const std::vector<Real> &alt_temp, const std::vector<Real> &temp,
+ 						   const std::vector<double> &alt_nH, const std::vector<double> &log_nH,
+						   const std::vector<double> &alt_nCO2, const std::vector<double> &log_nCO2,
+						   const std::vector<double> &alt_temp, const std::vector<double> &temp,
 						   const bool compute_exosphere = false,
 						   const bool plane_parallel = false,
 						   const string sourcefn_fname="");

@@ -90,7 +90,7 @@ template<typename emission_type, int N_EMISSIONS, typename grid_type>
 __global__
 void brightness_kernel(const RT_grid<emission_type, N_EMISSIONS, grid_type> *__restrict__ RT, 
 		       observation<emission_type, N_EMISSIONS> *obs,
-		       const int n_subsamples = 5)
+		       const int n_subsamples = 10)
 {
   if (threadIdx.x==0 && blockIdx.x==0)
     printf("size of RT grid: %i\n",(int) sizeof(*RT));
@@ -200,33 +200,40 @@ void influence_kernel(RT_grid<emission_type,N_EMISSIONS,grid_type> *RT)
 
   // reset each emission's solution
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++)
-    RT->emissions[i_emission]->reset_solution();
+    RT->emissions[i_emission]->reset_solution(i_vox);
   __syncthreads();
 
   //initialize objects 
   atmo_vector vec;
   typename emission_type::influence_tracker temp_influence[N_EMISSIONS];
-  //placing vec and temp_influence in shared memory may speed up the
-  //calculation, but temp_influence is large and a 40x20x6x12 grid
-  //won't fit in the 48kB shared buffer
+
+  // __shared__ atmo_vector vec[grid_type::n_rays];
+  // __shared__ typename emission_type::influence_tracker temp_influence[grid_type::n_rays][N_EMISSIONS];
+  // __shared__ Real voxel_influence[N_EMISSIONS][emission_type::n_elements];
+  // // voxel_influence is shared across all trackers and updated using an atomic add
 
   vec.ptray(RT->grid.voxels[i_vox].pt, RT->grid.rays[i_ray]);
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++) {
+    //temp_influence[i_ray][i_emission].influence.vec = voxel_influence[i_emission];
     temp_influence[i_emission].init();
     RT->emissions[i_emission]->reset_tracker(i_vox, temp_influence[i_emission]);
   }
 
+  //__syncthreads();
+  
   //integrate
   RT->voxel_traverse(vec,
   		     &RT_grid<emission_type,N_EMISSIONS,grid_type>::influence_update,
   		     temp_influence);
 
-  __syncthreads();
+  //__syncthreads();
   
   // reduce temp_influence across the thread block
   for (int i_emission=0; i_emission < N_EMISSIONS; i_emission++) 
     RT->emissions[i_emission]->accumulate_influence(i_vox, temp_influence[i_emission], threadIdx.x);
 
+  //__syncthreads();
+  
   //now compute the single scattering function:
   //only one thread needs to do this
   if (threadIdx.x == 0) {
@@ -234,6 +241,8 @@ void influence_kernel(RT_grid<emission_type,N_EMISSIONS,grid_type> *RT)
       RT->emissions[i_emission]->reset_tracker(i_vox, temp_influence[i_emission]);
     RT->get_single_scattering(RT->grid.voxels[i_vox].pt, temp_influence);
   }
+
+  //__syncthreads();
 }
 
 
@@ -250,8 +259,8 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
   RT_to_device_influence();
   
   //run kernel on GPU
-  int blockSize = grid.n_rays;
   int numBlocks = grid.n_voxels;
+  int blockSize = grid.n_rays;
   
   my_clock kernel_clk;
   kernel_clk.start();
@@ -267,7 +276,8 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
   kernel_clk.print_elapsed("influence matrix generation takes ");
 
   // //solve on CPU with Eigen
-  // emissions_influence_to_host();
+  emissions_influence_to_host();
+  save_influence();
   // solve();
 
   //solve on GPU (~2.5x slower for first call)

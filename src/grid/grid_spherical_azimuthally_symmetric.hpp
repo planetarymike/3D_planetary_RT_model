@@ -4,6 +4,7 @@
 #define __grid_spherical_azimuthally_symmetric
 
 #include "Real.hpp"
+#include "constants.hpp"
 #include "cuda_compatibility.hpp"
 #include "grid.hpp"
 #include "coordinate_generation.hpp"
@@ -40,6 +41,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   int rmethod;
   static const int rmethod_altitude = 0;
   static const int rmethod_log_n_species = 1;
+  static const int rmethod_log_n_species_tau_absorber = 2;
     
   Real radial_boundaries[n_radial_boundaries];
   Real pts_radii[n_radial_boundaries-1];
@@ -158,7 +160,9 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
     
-    assert((rmethod == rmethod_altitude || rmethod == rmethod_log_n_species)
+    assert((rmethod == rmethod_altitude
+	    || rmethod == rmethod_log_n_species
+	    || rmethod == rmethod_log_n_species_tau_absorber)
 	   && "rmethod must match a defined radial points method");
     // don't define a tau radial points method; tau < 0.1 is
     // important and max(tau) > 10; this leads to many required
@@ -179,6 +183,87 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 	Real n_species_target=exp(log_n_species_max-i*log_n_species_step);
 	radial_boundaries[i]=atm.r_from_n_species(n_species_target);
       }
+    }
+    if (rmethod == rmethod_log_n_species_tau_absorber) {
+      // warn the user about this method
+      std::cout << "Warning: using CO2 cross section at Lyman alpha to define grid points." << std::endl;
+      
+      //construct the integral of log_n_species * exp(-tau_absorber)
+      const int n_int_steps = 1000;
+      const double deriv_step = 0.0001;
+      
+      const double log_r_int_step = (
+				     (log(atm.rmax-rMars) - log(atm.rmin-rMars))
+				     /
+				     (n_int_steps - 1.)
+				     );
+      
+      const double abs_xsec = CO2_lyman_alpha_absorption_cross_section;
+      
+      vector<double> log_r_int;
+      vector<double> n_absorber_int;
+      vector<double> int_lognH_exp_tauabs;
+      
+      log_r_int.push_back(log((atm.rmax-rMars)*(1-ATMEPS)));
+      n_absorber_int.push_back(0);
+      int_lognH_exp_tauabs.push_back(0);
+      for (int i_int=1; i_int<n_int_steps; i_int++) {
+	log_r_int.push_back(log_r_int[0]-i_int*log_r_int_step);
+	if (exp(log_r_int.back()) < (atm.rmin-rMars))
+	  log_r_int.back() = log((atm.rmin-rMars)*(1+ATMEPS));
+	
+	//unscaled quantities
+	double r0 = exp(log_r_int[i_int-1])+rMars;
+	double r1 = exp(log_r_int[i_int])+rMars;
+	double dr = r0-r1;
+
+	double n_absorber_diff = 0.5*(atm.n_absorber(r0) + atm.n_absorber(r1))*dr;
+	n_absorber_int.push_back(n_absorber_int.back() + n_absorber_diff );
+
+	double r0up = r0*(1+deriv_step);
+	double r0dn = r0*(1-deriv_step);
+	double dr0 = r0up-r0dn;
+
+	double r1up = r1*(1+deriv_step);
+	double r1dn = r1*(1-deriv_step);
+	r1dn = r1dn < atm.rmin ? atm.rmin : r1dn;
+	double dr1 = r1up-r1dn;
+	
+	double int_diff = 0.5*(
+			       (
+				log(atm.n_species(r0dn))
+				-
+				log(atm.n_species(r0up))
+				)
+			       /dr0
+			       *exp(-abs_xsec*n_absorber_int[i_int-1])
+			       +
+			       (
+				log(atm.n_species(r1dn))
+				-
+				log(atm.n_species(r1up))
+				)
+			       /dr1
+			       *exp(-abs_xsec*n_absorber_int[i_int])
+			       )*dr;
+
+	int_lognH_exp_tauabs.push_back(int_lognH_exp_tauabs.back() + int_diff );
+      }
+
+      // now subdivide the integral and find the appropriate grid points
+      double int_step = int_lognH_exp_tauabs.back() / (n_radial_boundaries - 1);
+      double target = int_step;
+      radial_boundaries[n_radial_boundaries-1] = atm.rmax;
+      int boundary = n_radial_boundaries-2;
+      for (int i_int=1; i_int<n_int_steps; i_int++) {
+	if (int_lognH_exp_tauabs[i_int] > target) {
+	  radial_boundaries[boundary] = exp(log_r_int[i_int])+rMars;
+	  target += int_step;
+	  boundary--;
+	}
+      }
+      assert(boundary==0 && "we must have found all boundaries");
+      radial_boundaries[0] = atm.rmin;
     }
     
     for (int i=0; i<n_radial_boundaries-1; i++) {
@@ -226,7 +311,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     int i_voxel;
     for (unsigned int i=0; i<n_radial_boundaries-1; i++) {
       for (unsigned int j=0;j<n_sza_boundaries-1;j++) {
-	i_voxel = i*(n_sza_boundaries-1) + j;
+	indices_to_voxel(i, j, i_voxel);
 
 	this->voxels[i_voxel].rbounds[0] = radial_boundaries[i];
 	this->voxels[i_voxel].rbounds[1] = radial_boundaries[i+1];
@@ -237,7 +322,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 	this->voxels[i_voxel].i_voxel = i_voxel;
 	// this->voxels[i_voxel].init = true;
 
-	this->voxels[i_voxel].pt.rtp(pts_radii[i], pts_sza[j],0.);
+	this->voxels[i_voxel].pt.rtp(pts_radii[i], pts_sza[j], 0.);
 	this->voxels[i_voxel].pt.set_voxel_index(i_voxel);
       }
     }
@@ -284,7 +369,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 	omega += this->rays[iray].domega;
       }
     }
-    assert(std::abs(omega - 1.0) < ABS && "omega must = 4*pi\n");
+    assert(std::abs(omega - 1.0) < EPS && "omega must = 4*pi\n");
   }
 
   CUDA_CALLABLE_MEMBER 
@@ -407,18 +492,18 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     int sza_idx;
     sza_idx = coord_indices[sza_dimension];
 
-    if (pt.r < radial_boundaries[r_idx] && radial_boundaries[r_idx]/pt.r>(1-ABS))
-      pt.r = radial_boundaries[r_idx]+ABS;
-    if (radial_boundaries[r_idx+1]<pt.r && pt.r/radial_boundaries[r_idx+1]<(1+ABS))
-      pt.r = radial_boundaries[r_idx+1]-ABS;
+    if (pt.r < radial_boundaries[r_idx] && radial_boundaries[r_idx]/pt.r>(1-EPS))
+      pt.r = radial_boundaries[r_idx]+EPS;
+    if (radial_boundaries[r_idx+1]<pt.r && pt.r/radial_boundaries[r_idx+1]<(1+EPS))
+      pt.r = radial_boundaries[r_idx+1]-EPS;
     assert(radial_boundaries[r_idx] <= pt.r &&
 	   pt.r <= radial_boundaries[r_idx+1]
 	   && "pt must be in identified voxel.");
 
-    if (pt.t<sza_boundaries[sza_idx] && sza_boundaries[sza_idx]/pt.t>(1-CONEABS))
-      pt.t = sza_boundaries[sza_idx]+CONEABS;
-    if (sza_boundaries[sza_idx+1]<pt.t && pt.t/sza_boundaries[sza_idx+1]<(1+CONEABS))
-      pt.t = sza_boundaries[sza_idx+1]-CONEABS;
+    if (pt.t<sza_boundaries[sza_idx] && sza_boundaries[sza_idx]/pt.t>(1-CONEEPS))
+      pt.t = sza_boundaries[sza_idx]+CONEEPS;
+    if (sza_boundaries[sza_idx+1]<pt.t && pt.t/sza_boundaries[sza_idx+1]<(1+CONEEPS))
+      pt.t = sza_boundaries[sza_idx+1]-CONEEPS;
     assert(sza_boundaries[sza_idx] <= pt.t &&
 	   pt.t <= sza_boundaries[sza_idx+1] &&
 	   "pt must be in identified voxel.");
@@ -489,7 +574,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     indices_to_voxel(r_upper_pt_idx, sza_upper_pt_idx, indices[3]);
     weights[3] =      r_wt    *      sza_wt     ;
 
-    assert(std::abs(weights[0]+weights[1]+weights[2]+weights[3] - 1.0) < ABS
+    assert(std::abs(weights[0]+weights[1]+weights[2]+weights[3] - 1.0) < EPS
 	   && "interpolation weights must sum to 1.");
   }
 

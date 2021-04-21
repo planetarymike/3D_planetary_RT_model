@@ -10,21 +10,26 @@
 
 typedef float Real;
 #define REAL(N) (N##f)
-#define ABS REAL(1e-3)
-#define STRICTABS REAL(1e-5)
-#define CONEABS REAL(1e-2)
+#define EPS REAL(1e-3)
+#define STRICTEPS REAL(1e-5)
+#define CONEEPS REAL(1e-2)
 
 #else //default to double
 
 typedef double Real;
 #define REAL(N) (N)
-#define ABS 1e-6
-#define STRICTABS 1e-10
-#define CONEABS ABS
+#define EPS 1e-6
+#define STRICTEPS 1e-10
+#define CONEEPS EPS
 
 #endif
 
+#define ATMEPS 1e-10
+
 typedef Eigen::Matrix<Real, Eigen::Dynamic, 1> VectorX;
+typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorXd;
+typedef Eigen::Matrix<float, Eigen::Dynamic, 1> VectorXf;
+
 
 //if EIGEN_ROWMAJOR is defined then row-major ordering is used for the
 //influence matrix instead of Eigen's default Column major ordering

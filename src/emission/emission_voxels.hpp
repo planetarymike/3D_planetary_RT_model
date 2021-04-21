@@ -28,10 +28,11 @@ protected:
   //the vectors point to Eigen objects so that these can be used interchangably
   typedef voxel_vector<N_VOXELS, N_STATES_PER_VOXEL> vv;
   typedef voxel_matrix<N_VOXELS, N_STATES_PER_VOXEL> vm;
+public:
   static const int n_elements = vv::n_elements;
   static const int n_voxels = vv::n_voxels;
   static const int n_states = vv::n_states;
-
+protected:
   //Radiative transfer parameters
   vm influence_matrix; //influence matrix has dimensions n_elements, n_elements)
   
@@ -97,7 +98,7 @@ public:
   }
 
   CUDA_CALLABLE_MEMBER
-  void reset_solution(__attribute__((unused)) const int i_vox=0) {
+  void reset_solution(__attribute__((unused)) const int i_vox=-1) {
     //we only need to reset influence_matrix
 #ifndef __CUDA_ARCH__
     //we are running on the CPU, reset using Eigen
@@ -105,6 +106,7 @@ public:
 #else
     // we are inside a GPU kernel, each block resets one row (specified
     // by i_vox), using all threads
+    assert(i_vox!=-1 && "initialization error in reset_solution");
     for (int j_vox = threadIdx.x; j_vox < n_elements; j_vox+=blockDim.x)
       influence_matrix(i_vox, j_vox) = 0;
 #endif
@@ -134,12 +136,17 @@ public:
     }
     assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this element");
 #else
+    // with seperate influence trackers for each thread
     for (unsigned int j_el = 0; j_el < n_elements; j_el++) {
       int j_el_offset = (j_el + offset) % n_elements; 
-      // ^^^ this starts parallel threads off in different columns
-      influence_matrix(start_element, j_el_offset) += tracker.influence(j_el_offset);
-      __syncthreads();
+      // ^^^ this starts parallel threads off in different columns to avoid a collision
+      atomicAdd(&influence_matrix(start_element, j_el_offset), tracker.influence(j_el_offset));
+      //__syncthreads();
     }
+
+    // // with one influence tracker shared across threads
+    // for (unsigned int j_el = threadIdx.x; j_el < n_elements; j_el+=blockDim.x)
+    //   influence_matrix(start_element, j_el) += tracker.influence(j_el);
 #endif
   }
 
@@ -156,7 +163,7 @@ public:
     // int it = 0;
     // VectorX sourcefn_old(n_elements);
     // sourcefn_old = singlescat;
-    // while (err > ABS && it < 500) {
+    // while (err > EPS && it < 500) {
     // 	sourcefn = singlescat.eigen() + influence_matrix.eigen() * sourcefn_old.eigen();
 
     // 	err=((sourcefn.eigen()-sourcefn_old.eigen().array().abs()/sourcefn_old.eigen().array()).maxCoeff();

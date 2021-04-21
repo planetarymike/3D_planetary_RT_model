@@ -6,7 +6,7 @@
 #include "atm/temperature.hpp"
 #include "atm/chamb_diff_1d.hpp"
 #include "RT_grid.hpp"
-#include "emission/H_lyman_series.hpp"
+#include "emission/singlet_CFR.hpp"
 #include "grid_plane_parallel.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
 
@@ -35,37 +35,43 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
   // atm.temp_dependent_sH=false;
   // atm.constant_temp_sH=exobase_temp;
-  // atm.no_CO2_absorption = true;
+  //atm.no_CO2_absorption = true;
   atm.save("test/test_atmosphere.dat");
   
 
 
   // define the geometry of the grid
+  //#define PLANE_PARALLEL
+#ifdef PLANE_PARALLEL
+  static const int n_radial_boundaries = 40;
+  static const int n_rays_theta = 6;
+  static const int n_rays_phi = 12;
+  typedef plane_parallel_grid<n_radial_boundaries,
+			      n_rays_theta> grid_type;
+  atm.spherical = false;
   
-  // static const int n_radial_boundaries = 40;
-  // static const int n_rays_theta = 6;
-  // static const int n_rays_phi = 12;
-  // typedef plane_parallel_grid<n_radial_boundaries,
-  // 		                 n_rays_theta> grid_type;
-  // atm.spherical = false;
-
+  grid_type grid;
+  grid.rmethod = grid.rmethod_log_n_species;
+#else
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
   static const int n_rays_theta = 6;
   static const int n_rays_phi = 12;
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
-					       n_sza_boundaries,
-					       n_rays_phi,
-					       n_rays_theta> grid_type;
+  					       n_sza_boundaries,
+  					       n_rays_phi,
+  					       n_rays_theta> grid_type;
 
   grid_type grid;
   
   //grid.rmethod = grid.rmethod_altitude;
-  grid.rmethod = grid.rmethod_log_n_species;
+  //grid.rmethod = grid.rmethod_log_n_species;
+  grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
   //grid.szamethod = grid.szamethod_uniform; //requires CONEABS = 1e-2 in Real.hpp
   grid.szamethod = grid.szamethod_uniform_cos;
 
   grid.raymethod_theta = grid.raymethod_theta_uniform;
+#endif
   
   grid.setup_voxels(atm);
   grid.setup_rays();
@@ -76,7 +82,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   static const int n_emissions = 2;
 
   //solve for H lyman alpha
-  typedef H_lyman_series<grid_type::n_voxels> emission_type;
+  typedef singlet_CFR<grid_type::n_voxels> emission_type;
   emission_type lyman_alpha;
   lyman_alpha.define("H Lyman alpha",
 		     /*emission branching ratio = */1.0,
@@ -102,9 +108,9 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   std::cout << "size of RT grid: " << sizeof(RT) << "\n";
 
   //solve for the source function
-  //  RT.save_influence = true;
 #ifndef __CUDACC__
   RT.generate_S();
+  // RT.save_influence();
 #else
   //RT.generate_S();
   RT.generate_S_gpu();
@@ -115,12 +121,14 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   string sfn_name = "test/test_source_function_";
   sfn_name += std::to_string(n_radial_boundaries) + "x";
+#ifndef PLANE_PARALLEL
   sfn_name += std::to_string(n_sza_boundaries) + "x";
+#endif
   sfn_name += std::to_string(n_rays_phi) + "x";
   sfn_name += std::to_string(n_rays_theta) + ".dat";
   RT.save_S(sfn_name);
-
-
+  
+#ifndef PLANE_PARALLEL
   //simulate a fake observation
   observation<emission_type, n_emissions> obs(emissions);
   observation<emission_type, n_emissions> obs_nointerp(emissions);
@@ -180,6 +188,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
     std::cout << std::endl;
   }
 #endif
-
+#endif
+  
   return 0; 
 }

@@ -1,7 +1,7 @@
-//H_lyman_series.hpp --- routines to compute H lyman series emissions
+//singlet_CFR.hpp --- routines to compute singlet emissions with complete frequency redistribution
 
-#ifndef __H_lyman_series_h
-#define __H_lyman_series_h
+#ifndef __singlet_CFR_h
+#define __singlet_CFR_h
 
 #include <boost/type_traits/type_identity.hpp> //for type deduction in define
 #include "emission_voxels.hpp"
@@ -9,38 +9,38 @@
 #include "los_tracker.hpp"
 
 template <int N_VOXELS>
-struct H_lyman_series : emission_voxels<N_VOXELS,
+struct singlet_CFR : emission_voxels<N_VOXELS,
 					/*N_STATES_PER_VOXEL = */ 1, // this class tracks only singlet emissions
-					/*emission_type = */ H_lyman_series<N_VOXELS>,
-					/*los_tracker_type = */ H_lyman_series_tracker> {
+					/*emission_type = */ singlet_CFR<N_VOXELS>,
+					/*los_tracker_type = */ singlet_CFR_tracker> {
 protected:
   typedef emission_voxels<N_VOXELS,
 			  1,
-			  H_lyman_series<N_VOXELS>,
-			  H_lyman_series_tracker> parent;
+			  singlet_CFR<N_VOXELS>,
+			  singlet_CFR_tracker> parent;
   friend parent;
 
   // wavelength info and line shape routines are stored in tracker
   // object b/c this compiles to code that is 30% faster
-  static const int n_lambda = H_lyman_series_tracker<true, N_VOXELS>::n_lambda;
+  static const int n_lambda = singlet_CFR_tracker<true, N_VOXELS>::n_lambda;
 
 public:
   template <bool transmission, int NV>
-  using los = H_lyman_series_tracker<transmission,NV>;
+  using los = singlet_CFR_tracker<transmission,NV>;
   using typename parent::brightness_tracker;
   using typename parent::influence_tracker;
 
+  using parent::n_elements;
+  using parent::n_voxels;
+  using parent::n_states;
   
-  ~H_lyman_series() {
+  ~singlet_CFR() {
 #if defined(__CUDACC__) and not defined(__CUDA_ARCH__)
     device_clear();
 #endif
   }
 
 protected:
-  using parent::n_elements;
-  using parent::n_voxels;
-  using parent::n_states;
   using parent::internal_name;
   using parent::internal_init;
   using parent::internal_solved;
@@ -101,6 +101,10 @@ protected:
 	   && "optical depths must be real numbers");
     
     tracker.holstein_T_int = 0;
+#ifndef NDEBUG
+    Real holstein_T_initial = tracker.holstein_T_final;
+    Real test_holstein_T_int = 0;
+#endif
     tracker.holstein_T_final = 0;
     tracker.holstein_G_int = 0;
 
@@ -108,8 +112,7 @@ protected:
     Real holstein_T_int_coef;
 
     for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
-      Real lambda2 = tracker.lambda(i_lambda) * tracker.lambda(i_lambda);
-      Real lineshape = tracker.line_shape_function(lambda2, current_species_T_ratio);
+      Real lineshape = tracker.line_shape_function(i_lambda, current_species_T_ratio);
       assert(!std::isnan(lineshape) && lineshape > 0 &&
 	     "lineshape must be real and positive");
 
@@ -127,10 +130,14 @@ protected:
       Real transfer_probability_lambda_final = (tracker.transfer_probability_lambda_initial[i_lambda]
 						* transfer_probability_lambda_voxel);
 
-      holTcoef = (two_over_sqrt_pi * tracker.weight(i_lambda));
+      // emission for holstein T int happens at current voxel, use the
+      // normalization there
+      holTcoef = tracker.weight(i_lambda);
 
-      // holstein_T_int represents a frequency averaged emission and
-      // therefore uses lineshape in this voxel
+      // holstein_T_int represents a frequency averaged emission in
+      // this voxel observed at the start location
+
+      // therefore, we use the lineshape in this voxel to compute holstein T int
       holstein_T_int_coef = (holTcoef
 			     * lineshape
 			     * tracker.transfer_probability_lambda_initial[i_lambda]
@@ -138,44 +145,85 @@ protected:
 			     / (current_abs + lineshape));
       tracker.holstein_T_int += holstein_T_int_coef;
       assert(!std::isnan(tracker.holstein_T_int) && tracker.holstein_T_int >= 0 &&
-	     (tracker.holstein_T_int <= tau_species_voxel ||
-	      std::abs(tracker.holstein_T_int - tau_species_voxel) < ABS)
+	     (tracker.holstein_T_int*tracker.line_shape_normalization(current_species_T_ratio) <= tau_species_voxel ||
+	      std::abs(tracker.holstein_T_int*tracker.line_shape_normalization(current_species_T_ratio) - tau_species_voxel) < EPS)
 	     //  ^^ this allows for small rounding errors
 	     && "holstein integral must be between 0 and Delta tau b/c 0<=HolT<=1");
 
       if (influence) {
-	Real lineshape_at_origin = tracker.line_shape_function_normalized(lambda2,
-									  tracker.species_T_ratio_at_origin);
+	// for single scattering calculation, we want the frequency
+	// integrated absorption probability in the start voxel.
+
+	// we need the lineshape at the start voxel
+	Real lineshape_at_origin = tracker.line_shape_function(i_lambda,
+							       tracker.species_T_ratio_at_origin);
 	assert(!std::isnan(lineshape_at_origin) && lineshape_at_origin>0 &&
 	       "lineshape must be real and positive");
 
+	// we also need to remove the normalization used before and
+	// replace it with the appropriate normalization in this voxel
+	Real renormalize_to_origin = tracker.line_shape_normalization(tracker.species_T_ratio_at_origin);
+
 	// holstein T final represents a frequency-averaged absorption and
 	// uses lineshape_at_origin
-	tracker.holstein_T_final += (holTcoef * lineshape_at_origin *
-					transfer_probability_lambda_final);
+	tracker.holstein_T_final += (holTcoef
+				     * renormalize_to_origin // this is needed so T=1 when tau = 0
+				     * lineshape_at_origin
+				     * transfer_probability_lambda_final);
 	assert(!std::isnan(tracker.holstein_T_final)
 	       && tracker.holstein_T_final >= 0
 	       && tracker.holstein_T_final <= 1
 	       && "holstein function represents a probability");
 
-	// holstein_G_int represents the frequency averaged emission
-	// followed by absorption and uses both lineshape in this voxel
-	// (via holstein_T_int_coef) and the lineshape at origin
-	tracker.holstein_G_int += holstein_T_int_coef * lineshape_at_origin;
+	// finally, the influence coefficient represents emission at
+	// the start voxel followed by absorption in the current
+	// voxel. Because the emission happens in the start voxel we
+	// need to use the start voxel normalization as well as the
+	// lineshape in the current voxel.
+
+	// note: even though this is the influence coefficient for
+	// emission in the start voxel and absorption in the current
+	// voxel, this coefficient should be added to the influence
+	// matrix at (row, col) = (start_voxel, current_voxel),
+	// because Anderson&Hord1977 say so (it's a result of the
+	// expression of the source function in terms of piecewise
+	// constant basis functions --- upon substitution back into
+	// the original integral equation this inverts the expected
+	// relationship of absorber / emitter)
+	tracker.holstein_G_int += (holstein_T_int_coef
+				   * renormalize_to_origin
+				   * lineshape_at_origin);
 	assert(!std::isnan(tracker.holstein_G_int)
 	       && tracker.holstein_G_int >= 0
 	       && tracker.holstein_G_int <= 1
 	       && "holstein G integral represents a probability");
-      }
 
+
+#ifndef NDEBUG
+	// a test value computing holstein T integral this voxel so we
+	// can check that integral(G) = T0 - T1 - a*integral(T)
+	
+	// We use lineshape_at_origin on top because it's on top in
+	// holstein T, which is normalized to the origin, and
+	// lineshape on the bottom because the integral is over the
+	// current voxel
+	test_holstein_T_int += (holTcoef
+				* lineshape_at_origin
+				* renormalize_to_origin
+				* tracker.transfer_probability_lambda_initial[i_lambda]
+				* (REAL(1.0) - transfer_probability_lambda_voxel)
+				/ (current_abs + lineshape));
+#endif
+      }
+      
       // update the initial values
       tracker.transfer_probability_lambda_initial[i_lambda] = transfer_probability_lambda_final;
     }
 
     //check that the last element is not contributing too much to the integral
-    assert(!((tracker.holstein_T_int > STRICTABS)
+    assert(!((holstein_T_int_coef > 1e-6)
 	     && (holstein_T_int_coef/tracker.holstein_T_int > 1e-2))
-	   && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in H_lyman_series_tracker.");
+	   && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in singlet_CFR_tracker.");
 
     //if holstein T is larger than physically possible due to rounding errors, reduce it to the physical limit
     if (tracker.holstein_T_int > tau_species_voxel)
@@ -183,21 +231,31 @@ protected:
 						     about rounding errors
 						     here because we checked
 						     earlier*/
+
+#ifndef NDEBUG
+    if (influence) {
+      // check that the integral(G) = (T0-T1) - abs*integral(T) 
+      Real holTdiff = (tracker.holstein_G_int
+		       + (test_holstein_T_int*current_abs)
+		       - (holstein_T_initial-tracker.holstein_T_final));
+      assert(std::abs(holTdiff) < EPS
+	     && "Integral of holstein G must equal delta holstein T");
+    }
+#endif
   }
 
   CUDA_CALLABLE_MEMBER
   void update_tracker_brightness(const Real (&sourcefn_temp)[1], brightness_tracker &tracker) const {
     //bishop formulation
-    tracker.brightness += (sourcefn_temp[0]
-			      * emission_g_factor
-			      * branching_ratio
-			      * tracker.holstein_T_int
-			      / REAL(1e9) // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
-			      / species_sigma_T_ref); 
-    //                        ^^^^^^^^^^^^^^^^^^^
-    //                        sigma was multiplied
-    //                        out of S0 so we must
-    //                        divide by it here
+    tracker.brightness += (sourcefn_temp[0] // unitless
+			   * emission_g_factor / species_sigma_T_ref * one_over_sqrt_pi// ph / cm2
+			   /* ^^^
+			      g-factor = (solar flux)*(total cross section) = (solar flux)*(line center sigma @ Tref)*(sqrt(pi)*doppler width @ Tref)
+			      therefore (g-factor)/(sqrt(pi)*line center sigma @ Tref) = (solar flux)*(doppler width at Tref), which is what we need.
+			   */
+			   * branching_ratio // unitless
+			   * tracker.holstein_T_int // unitless, carries information about path length in this voxel
+			   / REAL(1e9)); // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
     assert(!isnan(tracker.brightness) && "brightness must be a real number");
     assert(tracker.brightness>=0 && "brightness must be positive");
   }
@@ -286,9 +344,11 @@ public:
     
     assert(!isnan(coef) && "influence coefficients must be real numbers");
     assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
-    
+    // #ifndef __CUDA_ARCH__ // shared memory
     tracker.influence(current_voxel) += coef;
-    
+    // #else
+    //     atomicAdd(&tracker.influence(current_voxel), coef);
+    // #endif
     update_tracker_end(tracker);
   }
 
@@ -329,7 +389,7 @@ public:
 protected:
 #ifdef __CUDACC__
   template <int NV>
-  friend __global__ void H_lyman_series_prepare_for_solution(H_lyman_series<NV> *emission);
+  friend __global__ void singlet_CFR_prepare_for_solution(singlet_CFR<NV> *emission);
 #endif
 public:
 
@@ -403,7 +463,7 @@ public:
     
     //define differential optical depths by coefficientwise multiplication
     dtau_species = species_density.eigen().array() * species_sigma_T_ref * species_T_ratio.eigen().array().sqrt();
-    dtau_species_pt = species_density_pt.eigen().array() * species_sigma_T_ref * species_T_ratio_pt.eigen().array().sqrt();;
+    dtau_species_pt = species_density_pt.eigen().array() * species_sigma_T_ref * species_T_ratio_pt.eigen().array().sqrt();
     dtau_absorber = absorber_density.eigen().array() * absorber_sigma.eigen().array();
     dtau_absorber_pt = absorber_density_pt.eigen().array() * absorber_sigma_pt.eigen().array();
     abs = dtau_absorber.eigen().array() / dtau_species.eigen().array();
@@ -537,7 +597,7 @@ public:
 
 template<int N_VOXELS>
 __global__
-void H_lyman_series_prepare_for_solution(H_lyman_series<N_VOXELS> *emission)
+void singlet_CFR_prepare_for_solution(singlet_CFR<N_VOXELS> *emission)
 {
   //each block prepares one row of the influence matrix
   int i_vox = blockIdx.x;
@@ -557,9 +617,9 @@ void H_lyman_series_prepare_for_solution(H_lyman_series<N_VOXELS> *emission)
 
 
 template <int N_VOXELS>
-void H_lyman_series<N_VOXELS>::pre_solve_gpu() {
+void singlet_CFR<N_VOXELS>::pre_solve_gpu() {
   const int n_threads = 32;
-  H_lyman_series_prepare_for_solution<<<n_voxels, n_threads>>>(device_emission);
+  singlet_CFR_prepare_for_solution<<<n_voxels, n_threads>>>(device_emission);
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
 }

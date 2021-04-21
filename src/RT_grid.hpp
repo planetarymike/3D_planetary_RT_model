@@ -183,7 +183,7 @@ struct RT_grid {
 	  }
 	}
 	
-	assert(std::abs(omega - 1.0) < ABS && "omega must = 4*pi\n");
+	assert(std::abs(omega - 1.0) < EPS && "omega must = 4*pi\n");
 	
 	// now compute the single scattering function:
 	for (int i_emission = 0; i_emission < n_emissions; i_emission++)
@@ -225,7 +225,7 @@ struct RT_grid {
   CUDA_CALLABLE_MEMBER
   void brightness(const atmo_vector &vec, 
 		  typename emission_type::brightness_tracker* (&los)[n_emissions], // array of pointers to los trackers
-		  const int n_subsamples=5) const {
+		  const int n_subsamples=10) const {
     assert(n_subsamples!=1 && "choose either 0 or n>1 voxel subsamples.");
     
     boundary_intersection_stepper<grid_type::n_dimensions,
@@ -258,7 +258,7 @@ struct RT_grid {
       Real d_step=(stepper.boundaries[i_bound].distance-d_start)/(n_subsamples_distance-1);
 
       //account for small rounding errors in boundary crossings
-      const Real eps = ABS;
+      const Real eps = EPS;
       d_start += REAL(0.5)*eps*d_step;
       d_step *= REAL(1.0)-eps;
 
@@ -314,7 +314,7 @@ struct RT_grid {
   }
   
   //hooks for porting to gpu
-  void brightness_gpu(observation<emission_type, N_EMISSIONS> &obs, const int n_subsamples=5);
+  void brightness_gpu(observation<emission_type, N_EMISSIONS> &obs, const int n_subsamples=10);
 };
 
 //import the CUDA code if NVCC is the compiler

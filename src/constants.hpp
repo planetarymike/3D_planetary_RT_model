@@ -18,14 +18,16 @@ const Real kB = 1.38e-16;// erg K^-1, Boltzmann constant
 const Real clight = 3e10;// cm s^-1, speed of light
 const Real mH = 1.673e-24;// gm, mass of hydrogen atom
 const Real mCO2 = 44 * mH;// gm, mass of CO2 molecule
+constexpr Real line_f_coeff = 2.647e-2; // cm2/s, integrated absorption coefficient per atom for unit f-value (pi*e^2/mc)
 
 //mathematical constants
 const Real pi = M_PI;
 const Real two_over_sqrt_pi = M_2_SQRTPI;
+const Real one_over_sqrt_pi = two_over_sqrt_pi/2.0;
 
 //radiative transfer parameters
 const Real lyman_alpha_lambda = 121.6e-7;// cm
-const Real lyman_alpha_cross_section_total = 2.647e-2 * 0.416;// cm^2 Hz
+const Real lyman_alpha_cross_section_total = line_f_coeff * 0.416;// cm^2 Hz
 // ^^^ total cross section of Ly alpha pi*e^2/(m c) * f
 const Real lyman_alpha_line_center_cross_section_coef = lyman_alpha_cross_section_total/std::sqrt(2.0*pi*kB/mH)*lyman_alpha_lambda; // cm^2
 // ^^^line center cross section coefficient, needs to be divided by sqrt(temp) to yield line center cross section
@@ -43,7 +45,7 @@ const Real lyman_alpha_typical_g_factor = lyman_alpha_flux_Mars_typical*lyman_al
 
 
 const Real lyman_beta_lambda = 102.6e-7;// cm
-const Real lyman_beta_cross_section_total = 2.647e-2 * 0.079142;// cm^2 Hz
+const Real lyman_beta_cross_section_total = line_f_coeff * 0.079142;// cm^2 Hz
 // ^^^ total cross section of Ly beta pi*e^2/(m c) * f
 const Real lyman_beta_branching_ratio = 0.8819;
 const Real lyman_beta_line_center_cross_section_coef = lyman_beta_cross_section_total/std::sqrt(2.0*pi*kB/mH)*lyman_beta_lambda; // cm^2

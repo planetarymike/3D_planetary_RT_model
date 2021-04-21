@@ -208,7 +208,7 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
 
 	for (int i_emission=0;i_emission<n_emissions;i_emission++) {
 	  file << "For " << emissions[i_emission]->name() << ",\n";
-	  emissions[i_emission]->save(file,[](VectorX vec, int i) {return vec;},0);
+	  emissions[i_emission]->save(file,[](VectorX vec, __attribute__((unused)) int i) {return vec;},0);
         }
       }
   }

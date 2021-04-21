@@ -53,8 +53,12 @@ public:
 
   void resize(const int nn) {
     n = nn;
-    if (v)
+    if (v) {
       delete [] v;
+#ifdef __CUDACC__
+      device_clear();
+#endif
+    }
     v = new T[n];
   }
   void resize(const int nn, const T& val) {
@@ -86,13 +90,12 @@ public:
 
 #ifdef __CUDACC__  
   void to_device(bool transfer = true) {
-    if (d_v != NULL)
-      checkCudaErrors(cudaFree(d_v));
-    //allocate the host's d_v to point at device memory
-    checkCudaErrors(
-		    cudaMalloc((void **) &d_v,
-			       n*sizeof(T))
-		    );
+    if (d_v == NULL)
+      //allocate the host's d_v to point at device memory
+      checkCudaErrors(
+		      cudaMalloc((void **) &d_v,
+				 n*sizeof(T))
+		      );
     if (transfer)
       //copy from host to host's device pointer
       checkCudaErrors(

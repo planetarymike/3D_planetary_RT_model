@@ -88,9 +88,9 @@ cdef extern from "observation_fit.hpp":
                                                 string sourcefn_fname)
 
         void generate_source_function_tabular_atmosphere(Real rmin, Real rexo, Real rmax,
-							 vector[Real] &alt_nH, vector[Real] &log_nH,
-							 vector[Real] &alt_nCO2, vector[Real] &log_nCO2,
-							 vector[Real] &alt_temp, vector[Real] &temp,
+							 vector[double] &alt_nH, vector[double] &log_nH,
+							 vector[double] &alt_nCO2, vector[double] &log_nCO2,
+							 vector[double] &alt_temp, vector[double] &temp,
 							 bool compute_exosphere,
                                                          bool plane_parallel,
                                                          string sourcefn_fname)
@@ -285,22 +285,22 @@ cdef class Pyobservation_fit:
                                                     compute_exosphere = False,
                                                     plane_parallel = False,
                                                     sourcefn_fname = ""):
-        cdef vector[Real] alt_nH, log_nH, alt_nCO2, log_nCO2, alt_Temp, Temp
+        cdef vector[double] alt_nH, log_nH, alt_nCO2, log_nCO2, alt_Temp, Temp
         alt_nH.resize(atm_dict['alt_nH'].shape[0])
         log_nH.resize(atm_dict['log_nH'].shape[0])
         for i in range(atm_dict['alt_nH'].shape[0]):
-            alt_nH[i] = realconvert(atm_dict['alt_nH'][i])
-            log_nH[i] = realconvert(atm_dict['log_nH'][i])
+            alt_nH[i] =  np.float64(atm_dict['alt_nH'][i])
+            log_nH[i] =  np.float64(atm_dict['log_nH'][i])
         alt_nCO2.resize(atm_dict['alt_nCO2'].shape[0])
         log_nCO2.resize(atm_dict['log_nCO2'].shape[0])
         for i in range(atm_dict['alt_nCO2'].shape[0]):
-            alt_nCO2[i] = realconvert(atm_dict['alt_nCO2'][i])
-            log_nCO2[i] = realconvert(atm_dict['log_nCO2'][i])
+            alt_nCO2[i] =  np.float64(atm_dict['alt_nCO2'][i])
+            log_nCO2[i] =  np.float64(atm_dict['log_nCO2'][i])
         alt_Temp.resize(atm_dict['alt_Temp'].shape[0])
         Temp.resize(atm_dict['Temp'].shape[0])
         for i in range(atm_dict['alt_Temp'].shape[0]):
-            alt_Temp[i] = realconvert(atm_dict['alt_Temp'][i])
-            Temp[i] = realconvert(atm_dict['Temp'][i])
+            alt_Temp[i] =  np.float64(atm_dict['alt_Temp'][i])
+            Temp[i] =  np.float64(atm_dict['Temp'][i])
         
         self.thisptr.generate_source_function_tabular_atmosphere(atm_dict['rmin'],
                                                                  atm_dict['rexo'],

@@ -13,9 +13,9 @@ observation_fit::observation_fit()
     obs(emissions),
     sim_iph(false)
 {
-  RT.grid.rmethod = grid_pp.rmethod_log_n_species;
+  RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
 
-  RT.grid.rmethod = grid.rmethod_log_n_species;
+  RT.grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
   RT.grid.szamethod = grid.szamethod_uniform_cos;
 }
 
@@ -170,13 +170,13 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
 			&A::nH,   &A::H_Temp,
 			&A::nCO2, &A::sCO2_lya,
 			RT_pp.grid.voxels);
-  lyman_beta_pp.define("H Lyman beta",
-		       lyman_beta_branching_ratio,
-		       Texo, atmm.sH_lyb(Texo),
-		       atmm,
-		       &A::nH,   &A::H_Temp,
-		       &A::nCO2, &A::sCO2_lyb,
-		       RT_pp.grid.voxels);
+  // lyman_beta_pp.define("H Lyman beta",
+  // 		       lyman_beta_branching_ratio,
+  // 		       Texo, atmm.sH_lyb(Texo),
+  // 		       atmm,
+  // 		       &A::nH,   &A::H_Temp,
+  // 		       &A::nCO2, &A::sCO2_lyb,
+  // 		       RT_pp.grid.voxels);
 
   atmm.spherical = atmm_spherical;  
 
@@ -213,13 +213,13 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya,
 		     RT.grid.voxels);
-  lyman_beta.define("H Lyman beta",
-		    lyman_beta_branching_ratio,
-		    Texo, atmm.sH_lyb(Texo),
-		    atmm,
-		    &A::nH,   &A::H_Temp,
-		    &A::nCO2, &A::sCO2_lyb,
-		    RT.grid.voxels);
+  // lyman_beta.define("H Lyman beta",
+  // 		    lyman_beta_branching_ratio,
+  // 		    Texo, atmm.sH_lyb(Texo),
+  // 		    atmm,
+  // 		    &A::nH,   &A::H_Temp,
+  // 		    &A::nCO2, &A::sCO2_lyb,
+  // 		    RT.grid.voxels);
 
   if (change_spherical)
     atmm.spherical = false;    
@@ -305,9 +305,9 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 }
 
 void observation_fit::generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
-								  const std::vector<Real> &alt_nH, const std::vector<Real> &log_nH,
-								  const std::vector<Real> &alt_nCO2, const std::vector<Real> &log_nCO2,
-								  const std::vector<Real> &alt_temp, const std::vector<Real> &temp,
+								  const std::vector<double> &alt_nH, const std::vector<double> &log_nH,
+								  const std::vector<double> &alt_nCO2, const std::vector<double> &log_nCO2,
+								  const std::vector<double> &alt_temp, const std::vector<double> &temp,
 								  const bool compute_exosphere/* = false*/,
 								  const bool plane_parallel/*= false*/,
 								  const string sourcefn_fname/* = ""*/) {
