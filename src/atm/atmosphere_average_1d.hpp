@@ -23,7 +23,7 @@ using boost::math::interpolators::cardinal_cubic_b_spline;
 
 struct atmosphere_average_1d : virtual public atmosphere {
   //integrated quantities to get averages
-  static const int n_int_steps = 1000;
+  static const int n_int_steps = 5000;
   static constexpr double r_int_scale = 1e8;
 
   //use doubles internally or risk losing precision in computing averages

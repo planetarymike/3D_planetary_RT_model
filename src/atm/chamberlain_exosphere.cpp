@@ -72,7 +72,7 @@ double chamberlain_exosphere::r(const double &nHtarget) const {
   double guess = kB*Texo/G/mMars/mH*log(nHexo/nHtarget)+rexo;
   double factor = 2;
 
-  const boost::uintmax_t maxit = 20;
+  const boost::uintmax_t maxit = 40;
   boost::uintmax_t it = maxit;      
   bool is_rising = false;
   int get_digits = 8;
@@ -80,7 +80,7 @@ double chamberlain_exosphere::r(const double &nHtarget) const {
 
   nHfinder<chamberlain_exosphere> find(this,nHtarget);
   std::pair<double, double> r = bracket_and_solve_root(find,
-						   guess, factor, is_rising, tol, it);
+						       guess, factor, is_rising, tol, it);
 
 
   assert(it < maxit && "we must find the value we want in less than the maximum number of iterations.");

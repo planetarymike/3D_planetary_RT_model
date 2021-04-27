@@ -4,6 +4,7 @@
 #define __grid_plane_parallel
 
 #include "Real.hpp"
+#include "constants.hpp"
 #include "grid.hpp"
 #include "coordinate_generation.hpp"
 #include "boundaries.hpp"
@@ -29,6 +30,8 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
   int rmethod;
   static const int rmethod_altitude = 0;
   static const int rmethod_log_n_species= 1;
+  static const int rmethod_log_n_species_tau_absorber = 2;
+  static const int rmethod_log_n_species_int = 3;
 
   static const int n_radial_boundaries = N_RADIAL_BOUNDARIES;
   Real radial_boundaries[n_radial_boundaries];
@@ -39,11 +42,14 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
     this->n_pts[0] = n_radial_boundaries-1;
  }
   
-  void setup_voxels(const atmosphere &atm) {
+  void setup_voxels(const atmosphere_average_1d &atm) {
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
 
-    assert((rmethod == rmethod_altitude || rmethod == rmethod_log_n_species)
+    assert((rmethod == rmethod_altitude
+	    || rmethod == rmethod_log_n_species
+	    || rmethod == rmethod_log_n_species_tau_absorber
+	    || rmethod == rmethod_log_n_species_int)
 	   && "rmethod must match a defined radial points method");
     // don't define a tau radial points method; tau < 0.1 is
     // important and max(tau) > 10; this leads to many required
@@ -65,6 +71,117 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
 	radial_boundaries[i]=atm.r_from_n_species(n_species_target);
       }
     }
+    if (rmethod == rmethod_log_n_species_tau_absorber) {
+      // warn the user about this method
+      std::cout << "Warning: using CO2 cross section at Lyman alpha to define grid points." << std::endl;
+      
+      //construct the integral of log_n_species * exp(-tau_absorber)
+      const int n_int_steps = 1000;
+      const double deriv_step = 0.0001;
+      
+      const double log_r_int_step = (
+				     (log(atm.rmax-rMars) - log(atm.rmin-rMars))
+				     /
+				     (n_int_steps - 1.)
+				     );
+      
+      const double abs_xsec = CO2_lyman_alpha_absorption_cross_section;
+      
+      vector<double> log_r_int;
+      vector<double> n_absorber_int;
+      vector<double> int_lognH_exp_tauabs;
+      
+      log_r_int.push_back(log((atm.rmax-rMars)*(1-ATMEPS)));
+      n_absorber_int.push_back(0);
+      int_lognH_exp_tauabs.push_back(0);
+      for (int i_int=1; i_int<n_int_steps; i_int++) {
+	log_r_int.push_back(log_r_int[0]-i_int*log_r_int_step);
+	if (exp(log_r_int.back()) < (atm.rmin-rMars))
+	  log_r_int.back() = log((atm.rmin-rMars)*(1+ATMEPS));
+	
+	//unscaled quantities
+	double r0 = exp(log_r_int[i_int-1])+rMars;
+	double r1 = exp(log_r_int[i_int])+rMars;
+	double dr = r0-r1;
+
+	double n_absorber_diff = 0.5*(atm.n_absorber(r0) + atm.n_absorber(r1))*dr;
+	n_absorber_int.push_back(n_absorber_int.back() + n_absorber_diff );
+
+	double r0up = r0*(1+deriv_step);
+	double r0dn = r0*(1-deriv_step);
+	double dr0 = r0up-r0dn;
+
+	double r1up = r1*(1+deriv_step);
+	double r1dn = r1*(1-deriv_step);
+	r1dn = r1dn < atm.rmin ? atm.rmin : r1dn;
+	double dr1 = r1up-r1dn;
+	
+	double int_diff = 0.5*(
+			       (
+				log(atm.n_species(r0dn))
+				-
+				log(atm.n_species(r0up))
+				)
+			       /dr0
+			       *exp(-abs_xsec*n_absorber_int[i_int-1])
+			       +
+			       (
+				log(atm.n_species(r1dn))
+				-
+				log(atm.n_species(r1up))
+				)
+			       /dr1
+			       *exp(-abs_xsec*n_absorber_int[i_int])
+			       )*dr;
+
+	int_lognH_exp_tauabs.push_back(int_lognH_exp_tauabs.back() + int_diff );
+      }
+
+      // now subdivide the integral and find the appropriate grid points
+      double int_step = int_lognH_exp_tauabs.back() / (n_radial_boundaries - 1);
+      double target = int_step;
+      radial_boundaries[n_radial_boundaries-1] = atm.rmax;
+      int boundary = n_radial_boundaries-2;
+      for (int i_int=1; i_int<n_int_steps; i_int++) {
+	if (int_lognH_exp_tauabs[i_int] > target) {
+	  radial_boundaries[boundary] = exp(log_r_int[i_int])+rMars;
+	  target += int_step;
+	  boundary--;
+	}
+      }
+      assert(boundary==0 && "we must have found all boundaries");
+      radial_boundaries[0] = atm.rmin;
+    }
+    if (rmethod == rmethod_log_n_species_int) {
+      const double logtaumax = std::log(atm.n_species_int.back());
+      const double logtaumin = std::log(atm.n_species_int[1]);
+      const double logtaumax_step = (logtaumax-logtaumin)/ (n_radial_boundaries-1);
+
+      double target = logtaumax_step+logtaumin;
+      radial_boundaries[n_radial_boundaries-1] = atm.rmax;
+      int boundary = n_radial_boundaries-2;
+      for (int i_int=1; i_int<(int)atm.n_species_int.size(); i_int++) {
+	while (std::log(atm.n_species_int[i_int]) > target && boundary>-1) {
+	  double upper = log(atm.n_species_int[i_int-1]);
+	  double lower = log(atm.n_species_int[i_int]);
+	  if (!isfinite(upper))
+	    upper = lower - 10;
+
+	  double frac = ((target - upper)
+			 /
+			 (lower - upper));
+	  double altfrac = (     frac *exp(atm.log_r_int[i_int])
+			    + (1-frac)*exp(atm.log_r_int[i_int-1]));
+	  
+	  radial_boundaries[boundary] = altfrac*atm.r_int_scale+rMars;
+	  target += logtaumax_step;
+	  boundary--;
+	}
+      }
+      assert((boundary==0 || boundary==-1) && "we must have found all boundaries");
+      radial_boundaries[0] = atm.rmin;
+    }
+
 
     for (int i=0; i<n_radial_boundaries-1; i++) {
       this->voxels[i].rbounds[0] = radial_boundaries[i];

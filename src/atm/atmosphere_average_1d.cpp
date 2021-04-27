@@ -102,9 +102,9 @@ void atmosphere_average_1d::setup() {
 }
 
 void atmosphere_average_1d::add_integrated(vector<double> &vec,
-					   double q0, double q1,
-					   double r0s, double r1s,
-					   bool spherical) {
+					   const double q0,  const double q1,
+					   const double r0s, const double r1s,
+					   const bool spherical) {
 
   double rfactor0, rfactor1;
   double diff;

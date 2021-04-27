@@ -109,8 +109,8 @@ struct singlet_CFR_tracker : std::conditional<influence, influence_tracker<N_VOX
   //holstein function tracker with absorption
 
   typedef typename std::conditional<influence, influence_tracker<N_VOXELS>, brightness_tracker>::type parent;
-  static constexpr int n_lambda = 20; //number of wavelength bins
-  static constexpr Real lambda_max = 4.0; //max wavelength from line center (units of Doppler width)
+  static constexpr int n_lambda = 20; //number of wavelength bins (I usually use 20)
+  static constexpr Real lambda_max = 4.0; //max wavelength from line center (units of Doppler width) (4.0 is usually enough)
   static constexpr Real delta_lambda = lambda_max/(n_lambda-1);
   
   Real species_T_ratio_at_origin;
