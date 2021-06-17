@@ -52,6 +52,13 @@ struct voxel_array {
   Real operator()(const int i_el) const {
     return vec[i_el];
   }
+  
+  CUDA_CALLABLE_MEMBER
+  voxel_array & operator=(const Real rhs) {
+    for (int j=0;j<n_elements;j++)
+      vec[j] = rhs;
+    return *this;
+  }
 };
 
 template <int N_VOXELS, int N_STATES_PER_VOXEL>
