@@ -47,17 +47,17 @@ protected:
   grid_type grid;
 
   // define emissions
-  static const int n_emissions = 1;
+  static const int n_emissions = 2;
 
   typedef singlet_CFR<plane_parallel_grid_type::n_voxels> emission_type_pp;
   emission_type_pp lyman_alpha_pp, lyman_beta_pp;
-  emission_type_pp *emissions_pp[n_emissions] = {&lyman_alpha_pp}; //, &lyman_beta_pp};
+  emission_type_pp *emissions_pp[n_emissions] = {&lyman_alpha_pp, &lyman_beta_pp};
 
   RT_grid<emission_type_pp, n_emissions, plane_parallel_grid_type> RT_pp;
 
   typedef singlet_CFR<grid_type::n_voxels> emission_type;
   emission_type lyman_alpha, lyman_beta;
-  emission_type *emissions[n_emissions] = {&lyman_alpha}; //, &lyman_beta};
+  emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
 
   RT_grid<emission_type, n_emissions, grid_type> RT;
 

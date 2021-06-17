@@ -170,13 +170,13 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
 			&A::nH,   &A::H_Temp,
 			&A::nCO2, &A::sCO2_lya,
 			RT_pp.grid.voxels);
-  // lyman_beta_pp.define("H Lyman beta",
-  // 		       lyman_beta_branching_ratio,
-  // 		       Texo, atmm.sH_lyb(Texo),
-  // 		       atmm,
-  // 		       &A::nH,   &A::H_Temp,
-  // 		       &A::nCO2, &A::sCO2_lyb,
-  // 		       RT_pp.grid.voxels);
+  lyman_beta_pp.define("H Lyman beta",
+  		       lyman_beta_branching_ratio,
+  		       Texo, atmm.sH_lyb(Texo),
+  		       atmm,
+  		       &A::nH,   &A::H_Temp,
+  		       &A::nCO2, &A::sCO2_lyb,
+  		       RT_pp.grid.voxels);
 
   atmm.spherical = atmm_spherical;  
 
@@ -213,13 +213,13 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 		     &A::nH,   &A::H_Temp,
 		     &A::nCO2, &A::sCO2_lya,
 		     RT.grid.voxels);
-  // lyman_beta.define("H Lyman beta",
-  // 		    lyman_beta_branching_ratio,
-  // 		    Texo, atmm.sH_lyb(Texo),
-  // 		    atmm,
-  // 		    &A::nH,   &A::H_Temp,
-  // 		    &A::nCO2, &A::sCO2_lyb,
-  // 		    RT.grid.voxels);
+  lyman_beta.define("H Lyman beta",
+  		    lyman_beta_branching_ratio,
+  		    Texo, atmm.sH_lyb(Texo),
+  		    atmm,
+  		    &A::nH,   &A::H_Temp,
+  		    &A::nCO2, &A::sCO2_lyb,
+  		    RT.grid.voxels);
 
   if (change_spherical)
     atmm.spherical = false;    
