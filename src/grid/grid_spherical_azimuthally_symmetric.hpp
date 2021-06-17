@@ -156,7 +156,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
   //   return *this;
   // }
 
-  void setup_voxels(const atmosphere_average_1d &atm) {
+  void setup_voxels(const atmosphere &atm) {
     this->rmin = atm.rmin;
     this->rmax = atm.rmax;
 
@@ -267,33 +267,36 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
       radial_boundaries[0] = atm.rmin;
     }
     if (rmethod == rmethod_log_n_species_int) {
-      const double logtaumax = std::log(atm.n_species_int.back());
-      const double logtaumin = std::log(atm.n_species_int[1]);
+      const atmosphere_average_1d *atm_avg = dynamic_cast<const atmosphere_average_1d*>(&atm);
+      assert((atm_avg != NULL) && "This radial points method only works with a class derived from atmosphere_average_1d");
+      
+      const double logtaumax = std::log(atm_avg->n_species_int.back());
+      const double logtaumin = std::log(atm_avg->n_species_int[1]);
       const double logtaumax_step = (logtaumax-logtaumin)/ (n_radial_boundaries-1);
 
       double target = logtaumax_step+logtaumin;
-      radial_boundaries[n_radial_boundaries-1] = atm.rmax;
+      radial_boundaries[n_radial_boundaries-1] = atm_avg->rmax;
       int boundary = n_radial_boundaries-2;
-      for (int i_int=1; i_int<(int)atm.n_species_int.size(); i_int++) {
-	while (std::log(atm.n_species_int[i_int]) > target && boundary>-1) {
-	  double upper = log(atm.n_species_int[i_int-1]);
-	  double lower = log(atm.n_species_int[i_int]);
+      for (int i_int=1; i_int<(int)atm_avg->n_species_int.size(); i_int++) {
+	while (std::log(atm_avg->n_species_int[i_int]) > target && boundary>-1) {
+	  double upper = log(atm_avg->n_species_int[i_int-1]);
+	  double lower = log(atm_avg->n_species_int[i_int]);
 	  if (!isfinite(upper))
 	    upper = lower - 10;
 
 	  double frac = ((target - upper)
 			 /
 			 (lower - upper));
-	  double altfrac = (     frac *exp(atm.log_r_int[i_int])
-			    + (1-frac)*exp(atm.log_r_int[i_int-1]));
+	  double altfrac = (     frac *exp(atm_avg->log_r_int[i_int])
+			    + (1-frac)*exp(atm_avg->log_r_int[i_int-1]));
 	  
-	  radial_boundaries[boundary] = altfrac*atm.r_int_scale+rMars;
+	  radial_boundaries[boundary] = altfrac*atm_avg->r_int_scale+rMars;
 	  target += logtaumax_step;
 	  boundary--;
 	}
       }
       assert((boundary==0 || boundary==-1) && "we must have found all boundaries");
-      radial_boundaries[0] = atm.rmin;
+      radial_boundaries[0] = atm_avg->rmin;
     }
     
     for (int i=0; i<n_radial_boundaries-1; i++) {
