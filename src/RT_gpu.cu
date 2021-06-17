@@ -276,8 +276,8 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
   kernel_clk.print_elapsed("influence matrix generation takes ");
 
   // //solve on CPU with Eigen
-  emissions_influence_to_host();
-  save_influence();
+  // emissions_influence_to_host();
+  // save_influence();
   // solve();
 
   //solve on GPU (~2.5x slower for first call)
