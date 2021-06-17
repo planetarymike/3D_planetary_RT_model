@@ -15,10 +15,11 @@ const Real aMars_typical = 1.41; // AU, typical Mars-Sun distance
 //physical  constants
 const Real G = 6.67e-8;// dyn cm^2 gm^-2, Cavendish constant
 const Real kB = 1.38e-16;// erg K^-1, Boltzmann constant
+const Real erg_per_eV = 1.60218e-12; // erg / eV
 const Real clight = 3e10;// cm s^-1, speed of light
 const Real mH = 1.673e-24;// gm, mass of hydrogen atom
 const Real mCO2 = 44 * mH;// gm, mass of CO2 molecule
-constexpr Real line_f_coeff = 2.647e-2; // cm2/s, integrated absorption coefficient per atom for unit f-value (pi*e^2/mc)
+constexpr Real line_f_coeff = 2.647e-2; // cm2 Hz, integrated absorption coefficient per atom for unit f-value (pi*e^2/mc)
 
 //mathematical constants
 const Real pi = M_PI;
