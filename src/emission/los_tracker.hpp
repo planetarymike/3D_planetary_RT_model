@@ -10,6 +10,11 @@
 
 struct los_tracker {
   // base class for radiative transfer influence calculations.
+
+  // by default this tracker is for a singlet
+  static const int n_lines = 1; 
+  static const int n_lower = 1; 
+  static const int n_upper = 1; 
   
   // populated by update_start
   // final optical depths
@@ -78,7 +83,8 @@ protected:
   typedef voxel_array<N_VOXELS, 1> vv;
 
 public:
-  vv influence;
+  vv influence[n_upper]; // array needed here even for n_upper = 1
+			 // for compatibility with multiplet code
   
   CUDA_CALLABLE_MEMBER
   void init() {
@@ -89,7 +95,7 @@ public:
   CUDA_CALLABLE_MEMBER
   void reset_influence() {
     for (int j_pt = 0; j_pt < N_VOXELS; j_pt++)
-      influence(j_pt) = 0.0;
+      influence[0](j_pt) = 0.0;
   }
 
   CUDA_CALLABLE_MEMBER

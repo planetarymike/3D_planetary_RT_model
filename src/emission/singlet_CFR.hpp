@@ -10,12 +10,10 @@
 
 template <int N_VOXELS>
 struct singlet_CFR : emission_voxels<N_VOXELS,
-					/*N_STATES_PER_VOXEL = */ 1, // this class tracks only singlet emissions
-					/*emission_type = */ singlet_CFR<N_VOXELS>,
-					/*los_tracker_type = */ singlet_CFR_tracker> {
+				     /*emission_type = */ singlet_CFR<N_VOXELS>,
+				     /*los_tracker_type = */ singlet_CFR_tracker> {
 protected:
   typedef emission_voxels<N_VOXELS,
-			  1,
 			  singlet_CFR<N_VOXELS>,
 			  singlet_CFR_tracker> parent;
   friend parent;
@@ -30,9 +28,7 @@ public:
   using typename parent::brightness_tracker;
   using typename parent::influence_tracker;
 
-  using parent::n_elements;
   using parent::n_voxels;
-  using parent::n_states;
   
   ~singlet_CFR() {
 #if defined(__CUDACC__) and not defined(__CUDA_ARCH__)
@@ -88,7 +84,7 @@ protected:
 			    const Real &current_dtau_absorber,
 			    const Real &current_abs,
 			    const Real &pathlength,
-			    los<influence,n_elements> &tracker) const {
+			    los<influence,n_voxels> &tracker) const {
     Real tau_species_voxel = current_dtau_species * pathlength;
     tracker.tau_species_final += tau_species_voxel;
     assert(!std::isnan(tracker.tau_species_final)
@@ -246,6 +242,8 @@ protected:
 
   CUDA_CALLABLE_MEMBER
   void update_tracker_brightness(const Real (&sourcefn_temp)[1], brightness_tracker &tracker) const {
+    // called by parent method that specifies interp or nointerp
+
     //bishop formulation
     tracker.brightness += (sourcefn_temp[0] // unitless
 			   * emission_g_factor / species_sigma_T_ref * one_over_sqrt_pi// ph / cm2
@@ -276,7 +274,7 @@ public:
   template<bool influence>
   CUDA_CALLABLE_MEMBER
   void reset_tracker(const int &start_voxel,
-		     los<influence,n_elements> &tracker) const {
+		     los<influence,n_voxels> &tracker) const {
     if (influence)
       tracker.reset(species_T_ratio(start_voxel));
     else
@@ -287,7 +285,7 @@ public:
   CUDA_CALLABLE_MEMBER
   void update_tracker_start(const int &current_voxel,
 			    const Real & pathlength,
-			    los<influence,n_elements> &tracker) const {
+			    los<influence,n_voxels> &tracker) const {
     update_tracker_start(species_T_ratio(current_voxel),
 			 dtau_species(current_voxel),
 			 dtau_absorber(current_voxel),
@@ -302,7 +300,7 @@ public:
 				   const int *indices,
 				   const Real *weights,
 				   const Real &pathlength,
-				   los<influence,n_elements> &tracker) const {
+				   los<influence,n_voxels> &tracker) const {
 
     Real swap_array[1];
     
@@ -341,14 +339,11 @@ public:
     //see Bishop1999 for derivation of this formula
     Real coef = domega;
     coef *= tracker.holstein_G_int;
-    
     assert(!isnan(coef) && "influence coefficients must be real numbers");
     assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
-    // #ifndef __CUDA_ARCH__ // shared memory
-    tracker.influence(current_voxel) += coef;
-    // #else
-    //     atomicAdd(&tracker.influence(current_voxel), coef);
-    // #endif
+
+    tracker.influence[0](current_voxel) += coef;
+
     update_tracker_end(tracker);
   }
 
