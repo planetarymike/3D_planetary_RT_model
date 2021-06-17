@@ -65,8 +65,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   grid_type grid;
   
   //grid.rmethod = grid.rmethod_altitude;
-  //grid.rmethod = grid.rmethod_log_n_species;
-  grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
+  grid.rmethod = grid.rmethod_log_n_species;
+  //grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
   //grid.szamethod = grid.szamethod_uniform; //requires CONEABS = 1e-2 in Real.hpp
   grid.szamethod = grid.szamethod_uniform_cos;
 
