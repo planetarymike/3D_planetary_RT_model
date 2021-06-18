@@ -19,10 +19,13 @@ protected:
   Linear_interp<double> log_n_absorber_spline;
 
   bool compute_exosphere;
+  double m_species;
   chamberlain_exosphere exosphere; 
   
 public:
-  tabular_atmosphere(double rminn, double rexoo, double rmaxx, bool compute_exospheree = false);
+  tabular_atmosphere(const double rminn, const double rexoo, const double rmaxx,
+		     const bool compute_exospheree = false,
+		     const double m_species = mH);
 
   void load_log_species_density(const vector<double> &alt, const vector<double> &log_n_species);
   void load_log_absorber_density(const vector<double> &alt, const vector<double> &log_n_absorber);

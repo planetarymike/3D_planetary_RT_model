@@ -10,15 +10,16 @@ using std::pow;
 chamberlain_exosphere::chamberlain_exosphere() { }
 chamberlain_exosphere::chamberlain_exosphere(const double rexoo,
 					     const double Texoo,
-					     const double nHexoo)
-  : rexo(rexoo), Texo(Texoo), nHexo(nHexoo)
+					     const double nexoo,
+					     const double m_speciess)
+  : rexo(rexoo), Texo(Texoo), nexo(nexoo), m_species(m_speciess)
 {
-  lambdac = G*mMars*mH/(kB*Texo*rexo);//chamberlain lambda @ rexo
-  effusion_velocity = 0.5 * sqrt( 2.0*kB*Texo / (mH*pi) ) * (1.0 + lambdac) * exp(-lambdac); // effusion velocity
-  H_escape_flux = nHexo * effusion_velocity;
+  lambdac = G*mMars*m_species/(kB*Texo*rexo);//chamberlain lambda @ rexo
+  effusion_velocity = 0.5 * sqrt( 2.0*kB*Texo / (m_species*pi) ) * (1.0 + lambdac) * exp(-lambdac); // effusion velocity
+  escape_flux = nexo * effusion_velocity;
 }
 
-double chamberlain_exosphere::nH(const double rr) const {
+double chamberlain_exosphere::n(const double rr) const {
   // computes hydrogen number density as a function of altitude above
   // the exobase, assuming a chamberlain exosphere w/o satellite particles
   double r = rr;
@@ -31,7 +32,7 @@ double chamberlain_exosphere::nH(const double rr) const {
     //fix the issue
     r = rexo;
     
-  const double lambda = G*mMars*mH/(kB*Texo*r);//chamberlain lambda
+  const double lambda = G*mMars*m_species/(kB*Texo*r);//chamberlain lambda
   const double psione = lambda*lambda/(lambda+lambdac);
 
   //gamma_p = complementary normalized incomplete gamma function
@@ -51,25 +52,25 @@ double chamberlain_exosphere::nH(const double rr) const {
   frac /= norm;
 
   // multiply by the exobase density and return
-  double retval = nHexo*frac*exp(lambda-lambdac);
-  assert(retval > 0 && "nH must be positive");
+  double retval = nexo*frac*exp(lambda-lambdac);
+  assert(retval > 0 && "n must be positive");
   
   return retval;
 }
 double chamberlain_exosphere::operator()(const double r) const {
-  return this->nH(r);
+  return this->n(r);
 }
 
-//find r corresponding to a given nH
-double chamberlain_exosphere::r(const double &nHtarget) const {  
-  assert(nHtarget<nHexo && "exosphere nH must be less than nHexo");
+//find r corresponding to a given n
+double chamberlain_exosphere::r(const double &ntarget) const {  
+  assert(ntarget<nexo && "exosphere n must be less than nexo");
 
 
   using boost::math::tools::bracket_and_solve_root;
   using boost::math::tools::eps_tolerance;
 
     
-  double guess = kB*Texo/G/mMars/mH*log(nHexo/nHtarget)+rexo;
+  double guess = kB*Texo/G/mMars/m_species*log(nexo/ntarget)+rexo;
   double factor = 2;
 
   const boost::uintmax_t maxit = 40;
@@ -78,7 +79,7 @@ double chamberlain_exosphere::r(const double &nHtarget) const {
   int get_digits = 8;
   eps_tolerance<double> tol(get_digits);
 
-  nHfinder<chamberlain_exosphere> find(this,nHtarget);
+  nfinder<chamberlain_exosphere> find(this, ntarget);
   std::pair<double, double> r = bracket_and_solve_root(find,
 						       guess, factor, is_rising, tol, it);
 
@@ -101,8 +102,8 @@ double chamberlain_exosphere::r(const double &nHtarget) const {
 
 
 
-Temp_converter::Temp_converter(double rexoo)
-  : rexo(rexoo)
+Temp_converter::Temp_converter(const double rexoo/* = rexo_typical*/, const double m_speciess/* = mH*/)
+  : rexo(rexoo), m_species(m_speciess)
 {
   for (int iT = 0;iT<nT;iT++) {
     T_list[iT]   = Tmin  + iT*Tstep; 
@@ -110,14 +111,14 @@ Temp_converter::Temp_converter(double rexoo)
     eff_list[iT] = eff_from_T_exact(T_list[iT]);
   }
   eff_spline = cardinal_cubic_b_spline<double>(eff_list,
-					     nT,
-					     Tmin,
-					     Tstep);
-
+					       nT,
+					       Tmin,
+					       Tstep);
+  
   lc_spline = cardinal_cubic_b_spline<double>(lc_list,
-					    nT,
-					    Tmin,
-					    Tstep);
+					      nT,
+					      Tmin,
+					      Tstep);
 
   vector<double> Tvec(T_list,T_list+nT);
   vector<double> lcvec(lc_list,lc_list+nT);
@@ -127,11 +128,11 @@ Temp_converter::Temp_converter(double rexoo)
 }
 
 double Temp_converter::lc_from_T_exact(const double T) const {
-  return G*mMars*mH/(kB*T*rexo);
+  return G*mMars*m_species/(kB*T*rexo);
 }
 double Temp_converter::eff_from_T_exact(const double T) const {
   double lambdac = lc_from_T_exact(T);
-  return 0.5 * sqrt( 2.0*kB*T / (mH*pi) ) * (1.0 + lambdac) * exp(-lambdac);
+  return 0.5 * sqrt( 2.0*kB*T / (m_species*pi) ) * (1.0 + lambdac) * exp(-lambdac);
 }
 
 double Temp_converter::eff_from_T(const double T) const {

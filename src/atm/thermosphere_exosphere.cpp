@@ -35,8 +35,8 @@ thermosphere_exosphere::thermosphere_exosphere(double rminn,
 					       temperature &tempp,
 					       const int method)
   : atmosphere(rminn, rexoo, -1), // -1 is immediately overwritten
-    exosphere(rexoo, tempp.T_exo, nHexoo),// overwritten in setup()
-    diffeq(tempp, exosphere.H_escape_flux, rexoo) //overwritten in setup()
+    exosphere(rexoo, tempp.T_exo, nHexoo, mH),// overwritten in setup()
+    diffeq(tempp, exosphere.escape_flux, rexoo) //overwritten in setup()
 {
   if (method == method_nHmin_nCO2exo)
     this->setup_nHmin_nCO2exo(rminn,
@@ -122,8 +122,8 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(double rminn,
 
   temp = &tempp;
 
-  exosphere = chamberlain_exosphere(rexoo, temp->T_exo, nHexo);
-  diffeq = thermosphere_diffeq(tempp, exosphere.H_escape_flux, rexo);
+  exosphere = chamberlain_exosphere(rexoo, temp->T_exo, nHexo, mH);
+  diffeq = thermosphere_diffeq(tempp, exosphere.escape_flux, rexo);
 
   //integrate the differential equation to get the species densities
   //in the thermosphere

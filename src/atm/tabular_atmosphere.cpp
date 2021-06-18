@@ -1,8 +1,10 @@
 //tabular_atmosphere.cpp -- conpute densities from a table of atmospheric parameters
 #include "tabular_atmosphere.hpp"
 
-tabular_atmosphere::tabular_atmosphere(double rminn, double rexoo, double rmaxx, bool compute_exospheree/* = false*/)
-  : atmosphere(rminn,rexoo,rmaxx), compute_exosphere(compute_exospheree)
+tabular_atmosphere::tabular_atmosphere(const double rminn, const double rexoo, const double rmaxx, 
+				       const bool compute_exospheree/* = false*/,
+				       const double m_speciess /* = mH */)
+  : atmosphere(rminn,rexoo,rmaxx), compute_exosphere(compute_exospheree), m_species(m_speciess)
 { }
 
 void tabular_atmosphere::load_log_species_density(const vector<double> &alt,
@@ -48,14 +50,14 @@ void tabular_atmosphere::init_exosphere() {
     double T_exo = Temp(rexo);
     
     //set up the exosphere from the values at the exobase
-    exosphere = chamberlain_exosphere(rexo, T_exo, n_species_exo);
+    exosphere = chamberlain_exosphere(rexo, T_exo, n_species_exo, m_species);
 };
 
 double tabular_atmosphere::n_species(const double &r) const {
   assert(log_n_species_spline.n > 0 && "n_species must be initialized!");
 
   if (compute_exosphere && r>rexo) {
-    return exosphere.nH(r);
+    return exosphere.n(r);
   } else  
     return exp(log_n_species_spline((r-rMars)/1e5));
 }
