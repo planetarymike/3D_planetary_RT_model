@@ -11,7 +11,7 @@ using std::vector;
 // define the differential equation used to solve for the CO2 and H
 // number densities in the themosphere
 struct thermosphere_diffeq {
-  diffusion_coefs diff;
+  diffusion_coefs_H diff;
   temperature *temp;
   double H_escape_flux;
   double rexo;

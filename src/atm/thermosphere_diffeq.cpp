@@ -4,7 +4,10 @@ using std::vector;
 using std::exp;
 
 thermosphere_diffeq::thermosphere_diffeq(temperature &tempp, double &H_escape_fluxx, double &rexoo)
-  : temp(&tempp), H_escape_flux(H_escape_fluxx), rexo(rexoo) { }
+  : temp(&tempp), H_escape_flux(H_escape_fluxx), rexo(rexoo)
+{
+
+}
 
   //returns the diffeq derivatives
 void thermosphere_diffeq::operator()( const vector<double> &x , vector<double> &dxdr , const double &r ) {
