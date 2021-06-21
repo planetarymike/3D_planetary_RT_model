@@ -1,26 +1,29 @@
 #include "chamb_diff_1d_asymmetric.hpp"
 
-chamb_diff_1d_asymmetric::chamb_diff_1d_asymmetric(double nHexoo, // a good number is 10^5-6
-						   double nCO2exoo, //a good number is 10^9 (?)
-						   temperature &tempp)
+chamb_diff_1d_asymmetric::chamb_diff_1d_asymmetric(double n_species_exoo, // a good number is 10^5-6
+						   double nCO2exoo, 
+						   temperature *tempp,
+						   species_density_parameters *species_thermospheree)
   : chamb_diff_1d_asymmetric(/*          rmin = */rMars + 80e5,
 			     /*          rexo = */rexo_typical,
-			     /*         nHmin = */10,
+			     /* n_species_min = */10,
 			     /* rmindiffusion = */rMars + 80e5,
-			     nHexoo,
+			     n_species_exoo,
 			     nCO2exoo,
-			     tempp)
+			     tempp,
+			     species_thermospheree)
 { }
 
 chamb_diff_1d_asymmetric::chamb_diff_1d_asymmetric(double rminn,
 						   double rexoo,
-						   double nHmin,
+						   double n_species_min,
 						   double rmindiffusionn,
-						   double nHexoo, // a good number is 10^5-6
+						   double n_species_exoo, 
 						   double nCO2exoo, //a good number is 10^9 (?)
-						   temperature &tempp)
+						   temperature *tempp,
+						   species_density_parameters *species_thermospheree)
   : atmosphere(rminn, rexoo, -1),
-    chamb_diff_1d(rminn,rexoo,nHmin,rmindiffusionn,nHexoo,nCO2exoo,tempp),
+    chamb_diff_1d(rminn,rexoo,n_species_min,rmindiffusionn,n_species_exoo,nCO2exoo,tempp, species_thermospheree),
     asymmetry(1.0)
 { }
 
@@ -65,12 +68,12 @@ void chamb_diff_1d_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &
 }
 
 
-double chamb_diff_1d_asymmetric::nH(const atmo_point &pt) const {
-  return chamb_diff_1d::thermosphere_exosphere::nH(pt.r)*(pt.t*nslope+n0);
-}
-void chamb_diff_1d_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+// double chamb_diff_1d_asymmetric::n_species(const atmo_point &pt) const {
+//   return chamb_diff_1d::thermosphere_exosphere::n_species(pt.r)*(pt.t*nslope+n0);
+// }
+void chamb_diff_1d_asymmetric::n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   double tint=theta_average_factor(vox.tbounds[0],vox.tbounds[1]);
 
   ret_avg = tint*chamb_diff_1d::atmosphere_average_1d::n_species_avg(vox.rbounds[0],vox.rbounds[1]);
-  ret_pt  =      chamb_diff_1d::thermosphere_exosphere::nH(vox.pt.r)*(nslope*vox.pt.t+n0);
+  ret_pt  =      chamb_diff_1d::thermosphere_exosphere::n_species(vox.pt.r)*(nslope*vox.pt.t+n0);
 }

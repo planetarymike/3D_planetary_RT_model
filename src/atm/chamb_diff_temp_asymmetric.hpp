@@ -20,7 +20,7 @@ protected:
   //other input parameters
   double nCO2rmin; //CO2 density at rmin
 
-  double nHmin;// minimum H density to track, sets upper boundary
+  //  double n_species_min;// minimum H density to track, sets upper boundary
   double rmindiffusion; // minimum altitude to solve H diffusion equation
 		      // (constant below)
   
@@ -41,8 +41,8 @@ protected:
 
   //setup helper routines
   double T_sza(const double & sza) const; //exobase temperature at this SZA
-  double nH_sza(const double  sza) const; //exobase density at this SZA
-  double nH_sza(const double & sza, double AA) const; //exobase density at SZA with different normalization AA
+  double n_species_sza(const double  sza) const; //exobase density at this SZA
+  double n_species_sza(const double & sza, double AA) const; //exobase density at SZA with different normalization AA
 
   double sza_int(const double &f0, const double &f1,
 		 const double &t0, const double &t1) const;
@@ -64,11 +64,13 @@ protected:
 
 public:
 
-  chamb_diff_temp_asymmetric(const double n00,
+  chamb_diff_temp_asymmetric(species_density_parameters *species_thermospheree,
+			     const double n00,
 			     const double T00,
 			     const double T11);
 
-  chamb_diff_temp_asymmetric(const double n00,
+  chamb_diff_temp_asymmetric(species_density_parameters *species_thermospheree,
+			     const double n00,
 			     const double T00,
 			     const double T11,
 			     const double nCO2rminn, //a good number is 2.6e13 (Chaufray2008)
@@ -87,20 +89,18 @@ public:
 
   bool spherical = true;
 
-  double H_Temp(const atmo_point &pt) const;
-  void H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  //  double H_Temp(const atmo_point &pt) const;
+  //  void H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
   double Temp(const atmo_point &pt) const;
-  void Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  void Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
   double n_absorber(const atmo_point &pt) const; 
-  void n_absorber(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  void n_absorber_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
   double nCO2(const atmo_point &pt) const;
-  void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  void nCO2_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
   double n_species(const atmo_point &pt) const;
-  void n_species(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
-  double nH(const atmo_point &pt) const;
-  void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  void n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
   //stuff required by atmosphere base class
   double n_species(const double &r) const;
@@ -108,5 +108,4 @@ public:
   double Temp(const double &r) const;
   double n_absorber(const double &r) const;
 };
-
 #endif

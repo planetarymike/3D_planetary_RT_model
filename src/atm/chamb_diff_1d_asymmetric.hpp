@@ -16,17 +16,19 @@ struct chamb_diff_1d_asymmetric : public chamb_diff_1d {
   double nslope;
   double n0;
   
-  chamb_diff_1d_asymmetric(double nHexoo, // a good number is 10^5-6
+  chamb_diff_1d_asymmetric(double n_species_exoo, 
 			   double nCO2exoo, //a good number is 10^9 (?)
-			   temperature &tempp);
+			   temperature *tempp,
+			   species_density_parameters *species_thermospheree);
 
   chamb_diff_1d_asymmetric(double rminn,
 			   double rexoo,
-			   double nHmin,
+			   double n_species_min,
 			   double rmindiffusionn,
-			   double nHexoo, // a good number is 10^5-6
+			   double n_species_exoo, 
 			   double nCO2exoo, //a good number is 10^9 (?)
-			   temperature &tempp);
+			   temperature *tempp,
+			   species_density_parameters *species_thermospheree);
 
   void set_asymmetry(const double &a);
 
@@ -35,8 +37,8 @@ struct chamb_diff_1d_asymmetric : public chamb_diff_1d {
   double nCO2(const atmo_point &pt) const;
   void nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  double nH(const atmo_point &pt) const;
-  void nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  //double n_species(const atmo_point &pt) const;
+  void n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 };
 
 #endif

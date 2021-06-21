@@ -4,11 +4,11 @@ double chamb_diff_temp_asymmetric::T_sza(const double &sza) const {
   return T0 + (T1-T0)*sza/pi;
 }
 
-double chamb_diff_temp_asymmetric::nH_sza(const double sza) const {
-  return nH_sza(sza,A);
+double chamb_diff_temp_asymmetric::n_species_sza(const double sza) const {
+  return n_species_sza(sza, A);
 }
 
-double chamb_diff_temp_asymmetric::nH_sza(const double &sza, const double AA/*=A*/) const {
+double chamb_diff_temp_asymmetric::n_species_sza(const double &sza, const double AA/*=A*/) const {
   return AA*std::pow(T_sza(sza),-Tpower);
 }
 
@@ -22,10 +22,12 @@ double chamb_diff_temp_asymmetric::sza_int(const double &f0, const double &f1,
   return m*(sin(t1)-sin(t0))-(f1*cos(t1)-f0*cos(t0));
 }
 
-chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
+chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(species_density_parameters *species_thermospheree,
+						       const double navgg,
 						       const double T00,
 						       const double T11)
-  : chamb_diff_temp_asymmetric(navgg,
+  : chamb_diff_temp_asymmetric(species_thermospheree,
+			       navgg,
 			       T00,
 			       T11,
 			       /*      nCO2rmin = */2.6e13,			       
@@ -35,7 +37,8 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
 			       /* rmindiffusion = */rMars + 80e5)
 { }
 
-chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
+chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(species_density_parameters *species_thermospheree,
+						       const double navgg,
 						       const double T00,
 						       const double T11,
 						       const double nCO2rminn, //a good number is 2.6e13 (80km) [Chaufray+2008]
@@ -56,18 +59,18 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
   const int n_sza_int=100;
   const double dtheta = M_PI/n_sza_int;
   double theta = 0.0;
-  double Atemp = 0.5*nH_sza(theta, 1.0)*std::sin(theta); // I know it's zero but for completeness
+  double Atemp = 0.5*n_species_sza(theta, 1.0)*std::sin(theta); // I know it's zero but for completeness
   double Anorm = 0.5*std::sin(theta);
   for (int i=1;i<n_sza_int;i++) {
     theta+=dtheta;
-    Atemp+=nH_sza(theta,1.0)*std::sin(theta);
+    Atemp+=n_species_sza(theta,1.0)*std::sin(theta);
     Anorm+=std::sin(theta);
   }
   theta+=dtheta;//now theta = pi
-  Atemp+=0.5*nH_sza(theta,1.0)*std::sin(theta);
+  Atemp+=0.5*n_species_sza(theta,1.0)*std::sin(theta);
   Anorm+=0.5*std::sin(theta);
   
-  A = navg*Anorm/Atemp;//now we can call nH_sza(sza) and get the correct result
+  A = navg*Anorm/Atemp;//now we can call n_species_sza(sza) and get the correct result
 
   //set up each of the temperatures and atmospheres
   sza_vec.resize(n_sza);
@@ -83,9 +86,10 @@ chamb_diff_temp_asymmetric::chamb_diff_temp_asymmetric(const double navgg,
 				      rexo,
 				      rmax,
 				      rmindiffusion,
-				      nH_sza(sza_vec[isza]),
+				      n_species_sza(sza_vec[isza]),
 				      nCO2rmin,
-				      Temp_sza[isza],
+				      &Temp_sza[isza],
+				      species_thermospheree,
 				      thermosphere_exosphere::method_rmax_nCO2rmin);
   }
 
@@ -173,12 +177,12 @@ double chamb_diff_temp_asymmetric::avg(const Bilinear_interp<double> &terp,
 
 
 
-double chamb_diff_temp_asymmetric::H_Temp(const atmo_point &pt) const {
-  return Temp(pt);
-}
-void chamb_diff_temp_asymmetric::H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  Temp(vox, ret_avg, ret_pt);
-}
+// double chamb_diff_temp_asymmetric::H_Temp(const atmo_point &pt) const {
+//   return Temp(pt);
+// }
+// void chamb_diff_temp_asymmetric::H_Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+//   Temp(vox, ret_avg, ret_pt);
+// }
 double chamb_diff_temp_asymmetric::Temp(const atmo_point &pt) const {
   if (!temp_dependent_sH)
     return constant_temp_sH;
@@ -193,7 +197,7 @@ double chamb_diff_temp_asymmetric::Temp(const atmo_point &pt) const {
 	      + (1.0-szawt)*(atm_sza[isza+1]->thermosphere_exosphere::Temp(pt.r)));
   }
 }
-void chamb_diff_temp_asymmetric::Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+void chamb_diff_temp_asymmetric::Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   if (!temp_dependent_sH)
     ret_avg = ret_pt = constant_temp_sH;
   else {
@@ -227,8 +231,8 @@ void chamb_diff_temp_asymmetric::Temp(const atmo_voxel &vox, Real &ret_avg, Real
 double chamb_diff_temp_asymmetric::n_absorber(const atmo_point &pt) const {
   return nCO2(pt);
 } 
-void chamb_diff_temp_asymmetric::n_absorber(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  nCO2(vox, ret_avg, ret_pt);
+void chamb_diff_temp_asymmetric::n_absorber_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+  nCO2_voxel_avg(vox, ret_avg, ret_pt);
 }
 double chamb_diff_temp_asymmetric::nCO2(const atmo_point &pt) const {
   int isza;
@@ -240,7 +244,7 @@ double chamb_diff_temp_asymmetric::nCO2(const atmo_point &pt) const {
     return (       szawt *(atm_sza[isza  ]->thermosphere_exosphere::nCO2(pt.r))
 	    + (1.0-szawt)*(atm_sza[isza+1]->thermosphere_exosphere::nCO2(pt.r)));
 }
-void chamb_diff_temp_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+void chamb_diff_temp_asymmetric::nCO2_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   double szamin = vox.tbounds[0];
   if (szamin < 0)
     szamin=0;
@@ -268,22 +272,16 @@ void chamb_diff_temp_asymmetric::nCO2(const atmo_voxel &vox, Real &ret_avg, Real
 }
 
 double chamb_diff_temp_asymmetric::n_species(const atmo_point &pt) const {
-  return nH(pt);
-}
-void chamb_diff_temp_asymmetric::n_species(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
-  nH(vox, ret_avg, ret_pt);
-}
-double chamb_diff_temp_asymmetric::nH(const atmo_point &pt) const {
   int isza;
   double szawt;
   sza_interp(pt.t, isza, szawt);
   if (isza==n_sza-1)
-    return atm_sza[isza]->thermosphere_exosphere::nH(pt.r);
+    return atm_sza[isza]->thermosphere_exosphere::n_species(pt.r);
   else
-    return (       szawt *(atm_sza[isza  ]->thermosphere_exosphere::nH(pt.r))
-	    + (1.0-szawt)*(atm_sza[isza+1]->thermosphere_exosphere::nH(pt.r)));
+    return (       szawt *(atm_sza[isza  ]->thermosphere_exosphere::n_species(pt.r))
+	    + (1.0-szawt)*(atm_sza[isza+1]->thermosphere_exosphere::n_species(pt.r)));
 }
-void chamb_diff_temp_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+void chamb_diff_temp_asymmetric::n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   double szamin = vox.tbounds[0];
   if (szamin < 0)
     szamin=0;
@@ -295,19 +293,19 @@ void chamb_diff_temp_asymmetric::nH(const atmo_voxel &vox, Real &ret_avg, Real &
   // double test_avg[4];
   // atmo_point my_pt;
   // my_pt.rtp(vox.rbounds[0],szamin,0);
-  // test_avg[0] = nH(my_pt);
+  // test_avg[0] = n_species(my_pt);
   // my_pt.rtp(vox.rbounds[1],szamin,0);
-  // test_avg[1] = nH(my_pt);
+  // test_avg[1] = n_species(my_pt);
   // my_pt.rtp(vox.rbounds[0],szamax,0);
-  // test_avg[2] = nH(my_pt);
+  // test_avg[2] = n_species(my_pt);
   // my_pt.rtp(vox.rbounds[1],szamax,0);
-  // test_avg[3] = nH(my_pt);
+  // test_avg[3] = n_species(my_pt);
 
   ret_avg = avg( n_species_int_interp,
 		 vox.rbounds[0], vox.rbounds[1],
 		 szamin        , szamax);
 
-  ret_pt = nH(vox.pt);
+  ret_pt = n_species(vox.pt);
 }
 
 double chamb_diff_temp_asymmetric::n_species(const double &r) const {

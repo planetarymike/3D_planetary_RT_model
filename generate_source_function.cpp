@@ -29,9 +29,11 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   Real H_exobase_density = input_exobase_density;//cm-3
   Real CO2_exobase_density = 2e8;//cm-3
+  hydrogen_density_parameters H_thermosphere;
   chamb_diff_1d atm(H_exobase_density,
 		    CO2_exobase_density,
-		    temp);
+		    &temp,
+		    &H_thermosphere);
   // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
   // atm.temp_dependent_sH=false;
   // atm.constant_temp_sH=exobase_temp;
@@ -78,7 +80,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
 
   //define the emissions to be solved for
-  
   static const int n_emissions = 2;
 
   //solve for H lyman alpha
@@ -88,8 +89,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 		     /*emission branching ratio = */1.0,
 		     H_T_ref, atm.sH_lya(H_T_ref),
 		     atm,
-		     &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
-		     &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lya,
+		     &chamb_diff_1d::n_species_voxel_avg,   &chamb_diff_1d::Temp_voxel_avg,
+		     &chamb_diff_1d::n_absorber_voxel_avg,  &chamb_diff_1d::sCO2_lya,
 		     grid.voxels);
   //solve for H lyman beta
   emission_type lyman_beta;
@@ -97,8 +98,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 		    /*emission branching ratio = */lyman_beta_branching_ratio,
 		    H_T_ref, atm.sH_lyb(H_T_ref),
 		    atm,
-		    &chamb_diff_1d::nH,   &chamb_diff_1d::H_Temp,
-		    &chamb_diff_1d::nCO2, &chamb_diff_1d::sCO2_lyb,
+		    &chamb_diff_1d::n_species_voxel_avg,   &chamb_diff_1d::Temp_voxel_avg,
+		    &chamb_diff_1d::n_absorber_voxel_avg,  &chamb_diff_1d::sCO2_lyb,
 		    grid.voxels);
 
   emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};

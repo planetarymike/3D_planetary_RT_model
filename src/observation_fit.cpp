@@ -66,7 +66,7 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
   std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
 
   temp = krasnopolsky_temperature(Texo);
-  chamb_diff_1d atm(nHexo,CO2_exobase_density,temp);
+  chamb_diff_1d atm(nHexo,CO2_exobase_density,&temp,&H_thermosphere);
   atm.copy_H_options(H_cross_section_options);
   
   if (atmosphere_fname !="")
@@ -134,7 +134,8 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
 		    rmindiffusionn,
 		    nHexo,
 		    nCO2rminn,
-		    temp,
+		    &temp,
+		    &H_thermosphere,
 		    thermosphere_exosphere::method_rmax_nCO2rmin);
   atm.copy_H_options(H_cross_section_options);
   
@@ -167,15 +168,15 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
 			1.0,
 			Texo, atmm.sH_lya(Texo),
 			atmm,
-			&A::nH,   &A::H_Temp,
-			&A::nCO2, &A::sCO2_lya,
+			&A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+			&A::n_absorber_voxel_avg,  &A::sCO2_lya,
 			RT_pp.grid.voxels);
   lyman_beta_pp.define("H Lyman beta",
   		       lyman_beta_branching_ratio,
   		       Texo, atmm.sH_lyb(Texo),
   		       atmm,
-  		       &A::nH,   &A::H_Temp,
-  		       &A::nCO2, &A::sCO2_lyb,
+		       &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+		       &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
   		       RT_pp.grid.voxels);
 
   atmm.spherical = atmm_spherical;  
@@ -210,15 +211,15 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 		     1.0,
 		     Texo, atmm.sH_lya(Texo),
 		     atmm,
-		     &A::nH,   &A::H_Temp,
-		     &A::nCO2, &A::sCO2_lya,
+		     &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+		     &A::n_absorber_voxel_avg,  &A::sCO2_lya,
 		     RT.grid.voxels);
   lyman_beta.define("H Lyman beta",
   		    lyman_beta_branching_ratio,
   		    Texo, atmm.sH_lyb(Texo),
   		    atmm,
-  		    &A::nH,   &A::H_Temp,
-  		    &A::nCO2, &A::sCO2_lyb,
+		    &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+		    &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
   		    RT.grid.voxels);
 
   if (change_spherical)
@@ -241,7 +242,7 @@ void observation_fit::generate_source_function_nH_asym(const Real &nHexo, const 
 						       const string sourcefn_fname/* = ""*/) {
   
   temp = krasnopolsky_temperature(Texo);
-  chamb_diff_1d_asymmetric atm_asym(nHexo,CO2_exobase_density,temp);
+  chamb_diff_1d_asymmetric atm_asym(nHexo,CO2_exobase_density,&temp,&H_thermosphere);
   atm_asym.copy_H_options(H_cross_section_options);
   atm_asym.set_asymmetry(asym);
 
@@ -286,7 +287,8 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
   std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
   std::cout << "Tpower = " << Tpowerr << ".\n";
 
-  chamb_diff_temp_asymmetric atm_asym(nHavg,
+  chamb_diff_temp_asymmetric atm_asym(&H_thermosphere,
+				      nHavg,
 				      Tnoon, Tmidnight,
 				      nCO2rminn,
 				      rexoo,

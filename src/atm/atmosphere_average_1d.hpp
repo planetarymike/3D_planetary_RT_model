@@ -58,17 +58,17 @@ struct atmosphere_average_1d : virtual public atmosphere {
   
   double n_absorber_avg(const double &r0, const double &r1) const;
   using atmosphere::n_absorber;
-  double n_absorber(const atmo_point &pt) const; 
-  void n_absorber(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  //  double n_absorber(const atmo_point &pt) const; 
+  void n_absorber_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
   double n_species_avg(const double &r0, const double &r1) const;
   using atmosphere::n_species;
-  double n_species(const atmo_point &pt) const;
-  void n_species(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  //  double n_species(const atmo_point &pt) const;
+  void n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
   
   double Temp_avg(const double &r0, const double &r1) const;
   using atmosphere::Temp;
-  void Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
+  void Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 };
 
 #endif

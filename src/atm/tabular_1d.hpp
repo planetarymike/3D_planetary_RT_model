@@ -23,10 +23,8 @@ struct tabular_1d: public tabular_atmosphere,
   using tabular_atmosphere::n_absorber;
   using tabular_atmosphere::Temp;
 
-  //these functions are shared with chamb_diff_1d
-  void nH(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const;
-  void nCO2(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const;
-  void H_Temp(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const;
+  //this function is also used in chamb_diff_1d
+  void Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const;
 };
 
 #endif

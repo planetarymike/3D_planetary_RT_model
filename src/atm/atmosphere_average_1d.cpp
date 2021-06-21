@@ -169,7 +169,7 @@ double atmosphere_average_1d::n_absorber_avg(const double &r0, const double &r1)
 		n_absorber_int_spline(log((r1-rMars)/r_int_scale)));
   }
 }
-void atmosphere_average_1d::n_absorber(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+void atmosphere_average_1d::n_absorber_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   ret_avg = n_absorber_avg(vox.rbounds[0], vox.rbounds[1]);
   assert(!isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
   ret_pt  = n_absorber(vox.pt.r);
@@ -189,7 +189,7 @@ double atmosphere_average_1d::n_species_avg(const double &r0, const double &r1) 
 		n_species_int_spline(log((r1-rMars)/r_int_scale)));
   }
 }
-void atmosphere_average_1d::n_species(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+void atmosphere_average_1d::n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   ret_avg = n_species_avg(vox.rbounds[0],vox.rbounds[1]);
   assert(!isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
   ret_pt  = n_species(vox.pt.r);
@@ -210,7 +210,7 @@ double atmosphere_average_1d::Temp_avg(const double &r0, const double &r1) const
 		  Tint_spline(log((r1-rMars)/r_int_scale)));
   }
 }
-void atmosphere_average_1d::Temp(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
+void atmosphere_average_1d::Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   ret_avg = Temp_avg(vox.rbounds[0], vox.rbounds[1]);
   assert(!isnan(ret_avg) && ret_avg >= 0 && "temperatures must be real and positive");
   ret_pt = Temp(vox.pt.r);

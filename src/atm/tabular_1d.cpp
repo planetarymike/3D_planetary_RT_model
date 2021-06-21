@@ -35,20 +35,10 @@ void tabular_1d::load_temperature(const vector<double> &alt,
 }
 
 
-//alias functions
-void tabular_1d::nH(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const {
-  //shared with chamb_diff_1d
-  atmosphere_average_1d::n_species(vox, ret_avg, ret_pt);
-}
-void tabular_1d::nCO2(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const {
-  //shared with chamb_diff_1d
-  atmosphere_average_1d::n_absorber(vox, ret_avg, ret_pt);
-}
-
-void tabular_1d::H_Temp(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const {
-  //shared with chamb_diff_1d
+void tabular_1d::Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const {
+  // this code is also used in tabular_1d.cpp
   if (temp_dependent_sH) {
-    atmosphere_average_1d::Temp(vox, ret_avg, ret_pt);
+    atmosphere_average_1d::Temp_voxel_avg(vox, ret_avg, ret_pt);
   } else {
     ret_avg = ret_pt = constant_temp_sH;
   }

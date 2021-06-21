@@ -18,6 +18,8 @@
 
 class observation_fit {
 protected:
+  hydrogen_density_parameters H_thermosphere;
+  
   krasnopolsky_temperature temp;
   const Real CO2_exobase_density = 2e8;//cm-3
   //chamb_diff_1d atm;//make sure to use the same exobase alt as in Tconv
