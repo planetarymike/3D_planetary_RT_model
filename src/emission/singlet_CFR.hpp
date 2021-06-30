@@ -23,8 +23,8 @@ protected:
   static const int n_lambda = singlet_CFR_tracker<true, N_VOXELS>::n_lambda;
 
 public:
-  template <bool transmission, int NV>
-  using los = singlet_CFR_tracker<transmission,NV>;
+  template <bool influence>
+  using los = singlet_CFR_tracker<influence, N_VOXELS>;
   using typename parent::brightness_tracker;
   using typename parent::influence_tracker;
 
@@ -84,7 +84,7 @@ protected:
 			    const Real &current_dtau_absorber,
 			    const Real &current_abs,
 			    const Real &pathlength,
-			    los<influence,n_voxels> &tracker) const {
+			    los<influence> &tracker) const {
     Real tau_species_voxel = current_dtau_species * pathlength;
     tracker.tau_species_final += tau_species_voxel;
     assert(!std::isnan(tracker.tau_species_final)
@@ -274,7 +274,7 @@ public:
   template<bool influence>
   CUDA_CALLABLE_MEMBER
   void reset_tracker(const int &start_voxel,
-		     los<influence,n_voxels> &tracker) const {
+		     los<influence> &tracker) const {
     if (influence)
       tracker.reset(species_T_ratio(start_voxel));
     else
@@ -285,7 +285,7 @@ public:
   CUDA_CALLABLE_MEMBER
   void update_tracker_start(const int &current_voxel,
 			    const Real & pathlength,
-			    los<influence,n_voxels> &tracker) const {
+			    los<influence> &tracker) const {
     update_tracker_start(species_T_ratio(current_voxel),
 			 dtau_species(current_voxel),
 			 dtau_absorber(current_voxel),
@@ -300,7 +300,7 @@ public:
 				   const int *indices,
 				   const Real *weights,
 				   const Real &pathlength,
-				   los<influence,n_voxels> &tracker) const {
+				   los<influence> &tracker) const {
 
     Real swap_array[1];
     

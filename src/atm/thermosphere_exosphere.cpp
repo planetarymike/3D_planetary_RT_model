@@ -124,8 +124,8 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(double rminn,
 #ifndef DNDEBUG
   //check the thermosphere values for any negatives
   for (unsigned int i=0; i < log_nCO2_thermosphere.size(); i++) {
-    assert(exp(log_nCO2_thermosphere[i]) > 0 && "densities must be positive.");
-    assert(exp(log_n_species_thermosphere[i]) > 0 && "densities must be positive.");
+    assert(exp(log_nCO2_thermosphere[i]) >= 0 && "densities must be positive.");
+    assert(exp(log_n_species_thermosphere[i]) >= 0 && "densities must be positive.");
     assert(r_thermosphere[i] > 0 && "radii must be positive.");
   }
 #endif

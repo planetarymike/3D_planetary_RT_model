@@ -14,7 +14,6 @@ using std::vector;
 struct species_density_parameters {
   const double mass; // species mass
   const double alpha; // thermal diffusion coefficient
-  const int n_vars; // number of variables tracked in the thermosphere
   diffusion_coefs diff; // object to calculate diffusion coefficients
 
   double escape_flux; // boundary condition for differential equation
@@ -23,7 +22,6 @@ struct species_density_parameters {
 
   species_density_parameters(const double masss,
 			     const double alphaa,
-			     const int n_varss,
 			     diffusion_coefs difff);
 
 
@@ -93,5 +91,32 @@ struct hydrogen_density_parameters : species_density_parameters {
 				       const int n_thermosphere_steps,
 				       bool get_interpolation_points) override;
 };
+
+struct oxygen_density_parameters : species_density_parameters {
+  static constexpr double DH0_oxygen = 4.4e17;// cm^2 s^-1
+  static constexpr double s_oxygen = 0.5;
+  static constexpr double alpha_oxygen = 0.0; // thermal diffusion coefficient
+
+  oxygen_density_parameters();
+  
+  // returns the diffusion equation derivatives
+  void operator()( const vector<double> &x , vector<double> &dxdr , const double &r ) override;
+
+  // called by thermosphere_exosphere to populate thermosphere interpolation arrays
+  void get_thermosphere_density_arrays(const double &n_species_exo,
+				       const double &n_CO2_exo,
+				       const double &rexoo,
+				       const double &rmin,
+				       
+				       const double &escape_fluxx,
+				       temperature *tempp,
+				       
+				       vector<double> &log_nCO2_thermosphere,
+				       vector<double> &log_n_species_thermosphere,
+				       vector<double> &r_thermosphere,
+				       const int n_thermosphere_steps,
+				       bool get_interpolation_points) override;
+};
+
 
 #endif

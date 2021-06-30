@@ -29,8 +29,8 @@ public:
 
   static const int n_upper_elements = n_voxels*n_upper;
 
-  template <bool transmission>
-  using los = los_tracker_type<transmission, n_upper_elements>;
+  template <bool influence>
+  using los = los_tracker_type<influence, n_voxels>;
   typedef los<true> influence_tracker;
   typedef los<false> brightness_tracker;
 
@@ -138,26 +138,30 @@ public:
     // offset allows parallel kernels to write to the same row without
     // collision, this is only used on the GPU
 #ifndef __CUDA_ARCH__
-    int start_element;
     for (int i_upper=0;i_upper<n_upper;i_upper++) {
-      start_element = tracker.influence[i_upper].get_element_num(start_voxel, i_upper);
       Real rowsum = 0.0;
-      for (unsigned int j_el = 0; j_el < n_upper_elements; j_el++) {
-	influence_matrix(start_element, j_el) += tracker.influence[i_upper](j_el);
-	rowsum += influence_matrix(start_element, j_el);
+      for (unsigned int j_voxel = 0; j_voxel < n_voxels; j_voxel++) {
+	for (unsigned int j_upper = 0; j_upper < n_upper; j_upper++) {
+	  influence_matrix(start_voxel, i_upper,
+			   j_voxel    , j_upper) += tracker.influence[i_upper](j_voxel, j_upper);
+	  rowsum += influence_matrix(start_voxel, i_upper,
+				     j_voxel    , j_upper);
+	}
       }
-      assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this element");
+      //assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this element");
     }
 #else
     // with seperate influence trackers for each thread
-    int start_element;
     for (int i_upper=0;i_upper<n_upper;i_upper++) {
-      start_element = tracker.influence[i_upper].get_element_num(start_voxel, i_upper);
-      for (unsigned int j_el = 0; j_el < n_upper_elements; j_el++) {
-	int j_el_offset = (j_el + offset) % n_upper_elements; 
+      for (unsigned int j_voxel = 0; j_voxel < n_voxels; j_voxel++) {
+	int j_voxel_offset = (j_voxel + offset) % n_voxels; 
 	// ^^^ this starts parallel threads off in different columns to avoid a collision
-	atomicAdd(&influence_matrix(start_element, j_el_offset), tracker.influence[i_upper](j_el_offset));
-	//__syncthreads();
+	for (unsigned int j_upper = 0; j_upper < n_upper; j_upper++) {
+	  atomicAdd(&influence_matrix(start_voxel   , i_upper,
+				      j_voxel_offset, j_upper),
+		    tracker.influence[i_upper](j_voxel_offset, j_upper));
+	  //__syncthreads();
+	}
       }
     }
 #endif

@@ -28,6 +28,8 @@ struct chamb_diff_1d : public thermosphere_exosphere,
   void setup(); //initialize averages
 
   // this function is also used in tabular_1d
+  using atmosphere_average_1d::n_species_voxel_avg;
+  using atmosphere_average_1d::n_absorber_voxel_avg;
   void Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real & ret_pt) const;
 };
 

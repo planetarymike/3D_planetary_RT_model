@@ -7,15 +7,22 @@
 #include "atm/chamb_diff_1d.hpp"
 #include "RT_grid.hpp"
 #include "emission/singlet_CFR.hpp"
+#include "emission/O_1026.hpp"
 #include "grid_plane_parallel.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
+
+#define GENERATE_O_1026
 
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[]) {
 
   // read input if provided
   Real input_exobase_density, input_exobase_temp;
   if (argc == 1) {
+#ifdef GENERATE_O_1026
+    input_exobase_density = 2e7;// cm-3
+#else
     input_exobase_density = 5e5;// cm-3
+#endif
     input_exobase_temp = 200;//K
   } else {
     input_exobase_density = atof(argv[1]);
@@ -24,22 +31,45 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   
   //define the physical atmosphere
   Real exobase_temp = input_exobase_temp;//K
-  Real H_T_ref = exobase_temp;//K
   krasnopolsky_temperature temp(exobase_temp);
 
-  Real H_exobase_density = input_exobase_density;//cm-3
+  Real species_exobase_density = input_exobase_density;//cm-3
   Real CO2_exobase_density = 2e8;//cm-3
-  hydrogen_density_parameters H_thermosphere;
-  chamb_diff_1d atm(H_exobase_density,
+#ifdef GENERATE_O_1026
+  oxygen_density_parameters species_thermosphere;
+  Real min_exosphere_density = 10;
+  Real rmin = rMars+100e5;
+  int method = thermosphere_exosphere::method_nspmin_nCO2exo;
+  //  // to specify max altitude instead of min density:
+  //  Real rmax = rMars+1500e5;
+  //  int method = thermosphere_exosphere::method_rmax_nCO2rmin;
+  //  min_exosphere_density = rmax;
+#else
+  hydrogen_density_parameters species_thermosphere;
+  Real min_exosphere_density = 10;
+  Real rmin = rMars+80e5;
+  int method = thermosphere_exosphere::method_nspmin_nCO2exo;
+#endif
+
+  chamb_diff_1d atm(/* rmin = */ rmin,
+		    /* rexo = */ rMars+200e5,
+		    /* rmaxx_or_nspmin = */ min_exosphere_density,
+		    /* rmindifussion = */ rmin,
+		    species_exobase_density,
 		    CO2_exobase_density,
 		    &temp,
-		    &H_thermosphere);
+		    &species_thermosphere,
+		    method);
   // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
   // atm.temp_dependent_sH=false;
   // atm.constant_temp_sH=exobase_temp;
   //atm.no_CO2_absorption = true;
+
+#ifdef GENERATE_O_1026
+  atm.save("test/test_atmosphere_O_1026.dat");
+#else
   atm.save("test/test_atmosphere.dat");
-  
+#endif
 
 
   // define the geometry of the grid
@@ -80,6 +110,24 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
 
   //define the emissions to be solved for
+#ifdef GENERATE_O_1026
+  static const int n_emissions = 1;
+
+  //solve for O 1026
+  typedef O_1026_emission<grid_type::n_voxels> emission_type;
+  emission_type oxygen_1026;
+  oxygen_1026.define("O_1026",
+		     atm,
+		     &chamb_diff_1d::n_species_voxel_avg,   
+		     &chamb_diff_1d::Temp_voxel_avg,
+		     &chamb_diff_1d::n_absorber_voxel_avg,
+		     grid.voxels);
+  oxygen_1026.set_solar_brightness(1.69e-3); /* ph/cm2/s/Hz, 
+						solar line center brightness at Lyman beta, 
+						solar minimum */
+
+  emission_type *emissions[n_emissions] = {&oxygen_1026};
+#else
   static const int n_emissions = 2;
 
   //solve for H lyman alpha
@@ -87,7 +135,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   emission_type lyman_alpha;
   lyman_alpha.define("H Lyman alpha",
 		     /*emission branching ratio = */1.0,
-		     H_T_ref, atm.sH_lya(H_T_ref),
+		     exobase_temp, atm.sH_lya(exobase_temp),
 		     atm,
 		     &chamb_diff_1d::n_species_voxel_avg,   &chamb_diff_1d::Temp_voxel_avg,
 		     &chamb_diff_1d::n_absorber_voxel_avg,  &chamb_diff_1d::sCO2_lya,
@@ -96,14 +144,15 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   emission_type lyman_beta;
   lyman_beta.define("H Lyman beta",
 		    /*emission branching ratio = */lyman_beta_branching_ratio,
-		    H_T_ref, atm.sH_lyb(H_T_ref),
+		    exobase_temp, atm.sH_lyb(exobase_temp),
 		    atm,
 		    &chamb_diff_1d::n_species_voxel_avg,   &chamb_diff_1d::Temp_voxel_avg,
 		    &chamb_diff_1d::n_absorber_voxel_avg,  &chamb_diff_1d::sCO2_lyb,
 		    grid.voxels);
 
   emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
-
+#endif
+  
   // now set up the RT object
   RT_grid<emission_type, n_emissions, grid_type> RT(grid, emissions);
   std::cout << "size of RT grid: " << sizeof(RT) << "\n";
@@ -111,28 +160,48 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   //solve for the source function
 #ifndef __CUDACC__
   RT.generate_S();
-  // RT.save_influence();
 #else
   //RT.generate_S();
   RT.generate_S_gpu();
   RT.generate_S_gpu();
 #endif
   //now print out the output
-  RT.save_S("test/test_source_function.dat");
 
-  string sfn_name = "test/test_source_function_";
-  sfn_name += std::to_string(n_radial_boundaries) + "x";
-#ifndef PLANE_PARALLEL
-  sfn_name += std::to_string(n_sza_boundaries) + "x";
+#ifdef GENERATE_O_1026
+  string sfn_name_tag = "_O_1026";
+#else
+  string sfn_name_tag = "";
 #endif
-  sfn_name += std::to_string(n_rays_phi) + "x";
-  sfn_name += std::to_string(n_rays_theta) + ".dat";
-  RT.save_S(sfn_name);
+  
+  RT.save_S("test/test_source_function"+sfn_name_tag+".dat");
+
+  string sfn_name_tag_dims = sfn_name_tag+"_";
+  sfn_name_tag_dims += std::to_string(n_radial_boundaries) + "x";
+#ifndef PLANE_PARALLEL
+  sfn_name_tag_dims += std::to_string(n_sza_boundaries) + "x";
+#endif
+  sfn_name_tag_dims += std::to_string(n_rays_phi) + "x";
+  sfn_name_tag_dims += std::to_string(n_rays_theta);
+  RT.save_S("test/test_source_function"+sfn_name_tag_dims+".dat");
+
+  RT.save_influence("test/influence_matrix"+sfn_name_tag+".dat");
+  RT.save_influence("test/influence_matrix"+sfn_name_tag_dims+".dat");
+
+
   
 #ifndef PLANE_PARALLEL
   //simulate a fake observation
   observation<emission_type, n_emissions> obs(emissions);
   observation<emission_type, n_emissions> obs_nointerp(emissions);
+
+  Real dist = 30*rMars;
+
+#ifdef GENERATE_O_1026
+  Real angle = grid.rmax / dist * 180/pi;
+  Vector3 loc = {0.,-1.,0.};
+#else
+  Real angle = 30;
+  Vector3 loc = {0.,-1.0,0.};
 
   lyman_alpha.set_emission_g_factor(lyman_alpha_typical_g_factor);
   lyman_beta.set_emission_g_factor(lyman_beta_typical_g_factor);
@@ -155,33 +224,33 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   		  /1e6)
   	    << " R" << std::endl;
   std::cout << std::endl;
-
-  Real dist = 30*rMars;
+#endif
 
 #ifndef __CUDACC__
   //CPU-only code
   int size = 600;
-  obs.fake(dist, 30, size);
-  obs_nointerp.fake(dist, 30, size);
+
+  obs.fake(dist, angle, size, loc);
+  obs_nointerp.fake(dist, angle, size, loc);
   
   std::cout << "Performing brightness calculation without interpolation...\n";
   RT.brightness_nointerp(obs_nointerp);
-  obs_nointerp.save_brightness("test/test_brightness_nointerp.dat");
+  obs_nointerp.save_brightness("test/test_brightness"+sfn_name_tag+"_nointerp.dat");
   std::cout << "Performing interpolated brightness calculation...\n";
   RT.brightness(obs);
-  obs.save_brightness("test/test_brightness.dat");
+  obs.save_brightness("test/test_brightness"+sfn_name_tag+".dat");
 #else
   //GPU code
   vector<int> sizes = {10,100,300,600/*,1200,2400*/};
 
   for (auto&& size: sizes) {
     std::cout << "simulating image size "<< size << "x" << size << ":" << std::endl;
-    obs.fake(dist,30,size);
+    obs.fake(dist,angle,size,loc);
     RT.brightness_gpu(obs);
 
     my_clock save_clk;
     save_clk.start();
-    string fname = "test/test_brightness_gpu" + std::to_string(size) + "x" + std::to_string(size) + ".dat";
+    string fname = "test/test_brightness_gpu" + sfn_name_tag + std::to_string(size) + "x" + std::to_string(size) + ".dat";
     obs.save_brightness(fname);  
     save_clk.stop();
     save_clk.print_elapsed("saving file takes ");
@@ -189,7 +258,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
     std::cout << std::endl;
   }
 #endif
-#endif
-  
+#endif  
   return 0; 
 }

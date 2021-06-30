@@ -29,10 +29,13 @@ struct O_1026_tracker {
   static const int n_lower = 3; // there are three lower and three upper states
   static const int n_upper = 3;
 
-  // whether the line is part of the singlet, doublet, or triplet
+  // upper, lower, and multiplet states of each line
   static constexpr int multiplet_identity[n_lines] = {1, 2, 2, 3, 3, 3};
-  static constexpr int lower_level[n_lines]        = {0, 1, 1, 2, 2, 2};
-  static constexpr int upper_level[n_lines]        = {1, 1, 2, 1, 2, 3};
+  static constexpr int multiplet_index[n_lines]    = {0, 1, 1, 2, 2, 2};
+  static constexpr int lower_level_J[n_lines]      = {0, 1, 1, 2, 2, 2};
+  static constexpr int lower_level_index[n_lines]  = {0, 1, 1, 2, 2, 2};
+  static constexpr int upper_level_J[n_lines]      = {1, 1, 2, 1, 2, 3};
+  static constexpr int upper_level_index[n_lines]  = {0, 0, 1, 0, 1, 2};
 
 
   // line data
@@ -68,12 +71,12 @@ struct O_1026_tracker {
 							       2.00e-4, 3.01e-3, 1.69e-2};
 
   //  line absorption cross section, from sigma_tot = pi*e^2/mc * f
-  static constexpr Real line_sigma_total[n_lines]           = {line_f_coef*line_f[0], // cm2 Hz
-							       line_f_coef*line_f[1],
-							       line_f_coef*line_f[2],
-							       line_f_coef*line_f[3],
-							       line_f_coef*line_f[4],
-							       line_f_coef*line_f[5]};
+  static constexpr Real line_sigma_total[n_lines]           = {line_f_coeff*line_f[0], // cm2 Hz
+							       line_f_coeff*line_f[1],
+							       line_f_coeff*line_f[2],
+							       line_f_coeff*line_f[3],
+							       line_f_coeff*line_f[4],
+							       line_f_coeff*line_f[5]};
 
   //  sum of Einstein A's from upper state to all lower states (includes branching to ~1129nm)
   static constexpr Real upper_state_decay_rate[n_upper]     = {// J = 1
@@ -97,13 +100,13 @@ struct O_1026_tracker {
   //  energy of the lower states
   //    note: for atomic O, the J=2 state is the ground state and the
   //          lower J levels increase in energy
-  static constexpr Real lower_state_energy[n_lower]              = {/* J = 0 */ 0.0281416*erg_per_eV, // erg
-								    /* J = 1 */ 0.0196224*erg_per_eV,
-								    /* J = 2 */ 0.0      *erg_per_eV};
+  static constexpr Real lower_state_energy[n_lower]              = {/* J = 0 */ REAL(0.0281416)*erg_per_eV, // erg
+								    /* J = 1 */ REAL(0.0196224)*erg_per_eV,
+								    /* J = 2 */ REAL(0.0      )*erg_per_eV};
   
-  static constexpr Real lower_state_statistical_weights[n_lower] = { /* J = 0 */ 1, 
-								      /* J = 1 */ 3,
-								     /* J = 2 */ 5};
+  static constexpr int lower_state_statistical_weight[n_lower] = { /* J = 0 */ 1, 
+								   /* J = 1 */ 3,
+								   /* J = 2 */ 5};
   
   
   //  branching ratios for the line, A_ul / sum_L(AuL), includes branching to ~1129nm
@@ -125,28 +128,28 @@ struct O_1026_tracker {
   //      resulting from different rest wavelengths).
   static constexpr Real doppler_width_reference_T          = 200; // K, should be within a factor of ~2 of expected atmospheric temp
   static constexpr Real doppler_width_reference_lambda     = line_wavelength[5]; // nm, smallest value of lambda
-  static constexpr Real doppler_width_reference_velocity   = std::sqrt(2*kB*doppler_width_reference_T/(16*mH)); // cm/s, velocity dispersion
+  static constexpr Real doppler_width_reference_velocity   = constexpr_sqrt(2*kB*doppler_width_reference_T/(16*mH)); // cm/s, velocity dispersion
   static constexpr Real doppler_width_wavelength_reference = (doppler_width_reference_lambda
 							      * doppler_width_reference_velocity
 							      / clight); // nm, doppler width in wavelength, absolute wavelength scale
-  static constexpr Real doppler_width_frequency_reference  = (1.0/doppler_width_reference_lambda
+  static constexpr Real doppler_width_frequency_reference  = (1.0/(doppler_width_reference_lambda*1e-7)
 							      * doppler_width_reference_velocity); // Hz, frequency Doppler width
   static constexpr Real normalization = (one_over_sqrt_pi / doppler_width_frequency_reference); // Hz^-1, lineshape normalization
 
   // normalized wavelength offsets from line center
-  static constexpr Real line_wavelength_offset_normalized[n_lines] = {line_wavelength_offset[0] / doppler_width_reference,
-								      line_wavelength_offset[1] / doppler_width_reference,
-								      line_wavelength_offset[2] / doppler_width_reference,
-								      line_wavelength_offset[3] / doppler_width_reference,
-								      line_wavelength_offset[4] / doppler_width_reference,
-								      line_wavelength_offset[5] / doppler_width_reference};
+  static constexpr Real line_wavelength_offset_normalized[n_lines] = {line_wavelength_offset[0] / doppler_width_wavelength_reference,
+								      line_wavelength_offset[1] / doppler_width_wavelength_reference,
+								      line_wavelength_offset[2] / doppler_width_wavelength_reference,
+								      line_wavelength_offset[3] / doppler_width_wavelength_reference,
+								      line_wavelength_offset[4] / doppler_width_wavelength_reference,
+								      line_wavelength_offset[5] / doppler_width_wavelength_reference};
 
   // Tracked Variables
 
   // optical depths at line center, counting each line individually
   // even though they overlap
   Real tau_species_final[n_lines];
-  Real tau_absorber_final[n_lines];
+  Real tau_absorber_final;
   Real max_tau_species;
 
   // influence functions, one for each upper state
@@ -160,7 +163,9 @@ struct O_1026_tracker {
   Real brightness[n_lines];
 
   // if we're computing influence coefficients, carry a voxel_arrray to track these
-  typename std::conditional<is_influence, voxel_array<N_VOXELS, n_upper>, void*>::type influence[n_upper];
+  typename std::conditional<is_influence,
+			    voxel_array<N_VOXELS, n_upper>,
+			    double>::type influence[n_upper];
   
   // keep track of origin temperature and density for computing influence coefficients
   Real species_T_at_origin;
@@ -169,9 +174,9 @@ struct O_1026_tracker {
   // we carry one array of transmission probabilities per multiplet
   // each wavelength array is centered on the mean wavelength of the multiplet emission.
   // (line shapes need to incorporate the offset from this mean 
-  static constexpr int n_lambda = 21; //number of wavelength bins
-  static constexpr Real lambda_max = 4.0; //max wavelength from line center 
-  static constexpr Real delta_lambda = 2*lambda_max/(n_lambda-1);
+  static constexpr int n_lambda = 41; //number of wavelength bins
+  static constexpr Real lambda_max = 8.0; //max wavelength from line center (dimensionless, units of wavelength Doppler width at Tref)
+  static constexpr Real delta_lambda = 2*lambda_max/(n_lambda-1); // dimensionless, fraction of wavelength Doppler width at Tref
 
   // transfer probability as a function of wavelength, one for each multiplet and each wavelength
   Real transfer_probability_lambda_initial[n_multiplets][n_lambda];
@@ -179,28 +184,28 @@ struct O_1026_tracker {
 
   // functions to deal with line shapes
   CUDA_CALLABLE_MEMBER
-  Real lambda(const int &i_lambda) const {
+  static Real lambda(const int &i_lambda) {
     return (-lambda_max + i_lambda*delta_lambda);
   }
   CUDA_CALLABLE_MEMBER
-  Real weight(const int &i_lambda) const {
-    return delta_lambda*doppler_width_frequency_reference;
+  static Real weight(__attribute__((unused)) const int &i_lambda) {
+    return delta_lambda*doppler_width_frequency_reference; // Hz
   }
   CUDA_CALLABLE_MEMBER
-  Real line_shape_function(const int &i_line,
-			   const int &i_lambda,
-			   const Real &T) const {
+  static Real line_shape_function(const int &i_line,
+				  const int &i_lambda,
+				  const Real &T) {
     Real lambda2 = (lambda(i_lambda)-line_wavelength_offset_normalized[i_line]);
     lambda2 *= lambda2;
     return exp(-lambda2*doppler_width_reference_T/T);
   }
   CUDA_CALLABLE_MEMBER
-  static Real line_shape_normalization(const Real &T) {
-    return normalization*sqrt(doppler_width_reference_T/T);
+  static Real line_shape_normalization(const Real &T) { 
+    return normalization*sqrt(doppler_width_reference_T/T); // Hz-1
   }
   CUDA_CALLABLE_MEMBER
-  static Real line_shape_function_normalized(const int &i_lambda, const Real &T) {
-    return line_shape_normalization(T)*line_shape_function(i_lambda,T);
+  static Real line_shape_function_normalized(const int &i_line, const int &i_lambda, const Real &T) {
+    return line_shape_normalization(T)*line_shape_function(i_line,i_lambda,T);
   }  
 
   // RT functions required for interaction with rest of code
@@ -211,12 +216,12 @@ struct O_1026_tracker {
   }
   
   CUDA_CALLABLE_MEMBER
-  void reset(const Real T_at_origin = 0.0, const Real (&density_at_origin)[n_lower]) {
+  void reset(const Real T_at_origin, const Real (&density_at_origin)[n_lower]) {
     species_T_at_origin=T_at_origin;
 
     for (int i_line=0;i_line<n_lines;i_line++) {
       tau_species_final[i_line] = 0.0;
-      tau_absorber_final[i_line] = 0.0;
+      tau_absorber_final = 0.0;
       brightness[i_line] = 0.0;
     }
     // max_tau_species not reset because we want to track this across
@@ -226,10 +231,11 @@ struct O_1026_tracker {
       for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++)
 	transfer_probability_lambda_initial[i_multiplet][i_lambda] = 1.0;
 
-    for (int i_lower = 0; i_lower<n_lower; i_lower++) {
-      influence[i_upper] = 0.0;
+    for (int i_lower = 0; i_lower<n_lower; i_lower++) 
       species_density_at_origin[i_lower] = density_at_origin[i_lower];
-    }
+    
+    for (int i_upper = 0; i_upper<n_upper; i_upper++)
+      influence[i_upper] = 0.0;
   }
   
   CUDA_CALLABLE_MEMBER
@@ -240,7 +246,7 @@ struct O_1026_tracker {
   CUDA_CALLABLE_MEMBER
   void exits_bottom() {
     for (int i_line=0;i_line<n_lines;i_line++)
-      tau_absorber_final[i_line] = -1.0;
+      tau_absorber_final = -1.0;
     // called when the ray exits the bottom of the atmosphere in
     // brightness calculations
   }

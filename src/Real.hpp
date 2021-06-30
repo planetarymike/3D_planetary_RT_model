@@ -50,4 +50,33 @@ typedef Eigen::Matrix<Real,
 		      Eigen::ColMajor> MatrixX;
 #endif
 
+
+
+// CUDA needs a constexpr sqrt in order to compile O_1026_tracker
+// from here: https://stackoverflow.com/questions/8622256/in-c11-is-sqrt-defined-as-constexpr
+#include <limits>   
+
+namespace Detail
+{
+  Real constexpr sqrtNewtonRaphson(Real x, Real curr, Real prev)
+  {
+    return curr == prev
+      ? curr
+      : sqrtNewtonRaphson(x, 0.5 * (curr + x / curr), curr);
+  }
+}
+
+/*
+ * Constexpr version of the square root
+ * Return value:
+ *   - For a finite and non-negative value of "x", returns an approximation for the square root of "x"
+ *   - Otherwise, returns NaN
+ */
+Real constexpr constexpr_sqrt(Real x)
+{
+  return x >= 0 && x < std::numeric_limits<Real>::infinity()
+		       ? Detail::sqrtNewtonRaphson(x, x, 0)
+		       : std::numeric_limits<Real>::quiet_NaN();
+}
+
 #endif

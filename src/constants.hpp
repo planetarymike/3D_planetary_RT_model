@@ -7,24 +7,24 @@
 #include <cmath>
 
 //planetary constants
-const Real rMars = 3395e5;// cm, radius of Mars
-const Real mMars = .1076 * 5.98e27;// gm, Mass of Mars (from fraction of Earth mass)
-const Real rexo_typical = rMars + 200e5;//typical exobase altitude
-const Real aMars_typical = 1.41; // AU, typical Mars-Sun distance
+constexpr Real rMars = 3395e5;// cm, radius of Mars
+constexpr Real mMars = .1076 * 5.98e27;// gm, Mass of Mars (from fraction of Earth mass)
+constexpr Real rexo_typical = rMars + 200e5;//typical exobase altitude
+constexpr Real aMars_typical = 1.41; // AU, typical Mars-Sun distance
 
 //physical  constants
-const Real G = 6.67e-8;// dyn cm^2 gm^-2, Cavendish constant
-const Real kB = 1.38e-16;// erg K^-1, Boltzmann constant
-const Real erg_per_eV = 1.60218e-12; // erg / eV
-const Real clight = 3e10;// cm s^-1, speed of light
-const Real mH = 1.673e-24;// gm, mass of hydrogen atom
-const Real mCO2 = 44 * mH;// gm, mass of CO2 molecule
+constexpr Real G = 6.67e-8;// dyn cm^2 gm^-2, Cavendish constant
+constexpr Real kB = 1.38e-16;// erg K^-1, Boltzmann constant
+constexpr Real erg_per_eV = 1.60218e-12; // erg / eV
+constexpr Real clight = 3e10;// cm s^-1, speed of light
+constexpr Real mH = 1.673e-24;// gm, mass of hydrogen atom
+constexpr Real mCO2 = 44 * mH;// gm, mass of CO2 molecule
 constexpr Real line_f_coeff = 2.647e-2; // cm2 Hz, integrated absorption coefficient per atom for unit f-value (pi*e^2/mc)
 
 //mathematical constants
-const Real pi = M_PI;
-const Real two_over_sqrt_pi = M_2_SQRTPI;
-const Real one_over_sqrt_pi = two_over_sqrt_pi/2.0;
+constexpr Real pi = M_PI;
+constexpr Real two_over_sqrt_pi = M_2_SQRTPI;
+constexpr Real one_over_sqrt_pi = two_over_sqrt_pi/2.0;
 
 //radiative transfer parameters
 const Real lyman_alpha_lambda = 121.6e-7;// cm
@@ -38,8 +38,8 @@ const Real CO2_lyman_alpha_absorption_cross_section = 6.3e-20; //cm^2 CO2 cross 
 
 const Real lyman_alpha_flux_Earth_typical = 4.5e15;//photons/s/m2/Angstrom line center flux, Earth (Solar Min)
 const Real lyman_alpha_flux_Mars_typical = (lyman_alpha_flux_Earth_typical/1e4  // photons/s/cm2/A
-					    *1e8/* A / cm */*lyman_alpha_lambda*lyman_alpha_lambda/clight //now photons/s/cm2/Hz
-					      /aMars_typical/aMars_typical); //now photons/s/cm2/Hz at Mars-Sun distance
+						*1e8/* A / cm */*lyman_alpha_lambda*lyman_alpha_lambda/clight //now photons/s/cm2/Hz
+						/aMars_typical/aMars_typical); //now photons/s/cm2/Hz at Mars-Sun distance
 const Real lyman_alpha_typical_g_factor = lyman_alpha_flux_Mars_typical*lyman_alpha_cross_section_total; // s-1
 
 

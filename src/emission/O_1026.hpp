@@ -14,7 +14,6 @@ struct O_1026_emission : emission_voxels<N_VOXELS,
 					 /*los_tracker_type = */ O_1026_tracker> {
 protected:
   typedef emission_voxels<N_VOXELS,
-			  3,
 			  O_1026_emission<N_VOXELS>,
 			  O_1026_tracker> parent;
   friend parent;
@@ -26,8 +25,8 @@ protected:
   static const int n_lambda     = O_1026_tracker<true, N_VOXELS>::n_lambda; // ~= 20
 
 public:
-  template <bool transmission, int NV>
-  using los = O_1026_tracker<transmission, NV>;
+  template <bool influence>
+  using los = O_1026_tracker<influence, N_VOXELS>;
   using typename parent::brightness_tracker;
   using typename parent::influence_tracker;
 
@@ -39,8 +38,8 @@ public:
   }
 
 protected:
-  using parent::n_elements;
   using parent::n_voxels;
+  using parent::n_upper_elements;
   using parent::n_upper;
   using parent::n_lower;
   using parent::internal_name;
@@ -51,6 +50,12 @@ protected:
   Real solar_lyman_beta_brightness_Hz; /* ph / cm2 / s / Hz <--!
 					  solar lyman beta brightness
 					  pumping the J=2 lower state */
+  // For lyman beta, F_lyb ~= F_lya/66
+  //                       ~~ 1/66*(2.5-6.0 x 10^12 ph / cm2 / s / nm)
+  //                       ~~ 3.8-9.1 x 10^10 ph / cm2 / s/ nm
+  // conversion between 1/nm and 1/Hz is lambda^2 / c = 3.51e-14 nm / Hz
+  //
+  // F_lyb ~= 1.3-3.2 x 10^-3 ph / cm2 / s / Hz  
   
   //parent RT parameters
   using vv_1 = typename parent::vv_1;
@@ -60,7 +65,6 @@ protected:
 
   using parent::influence_matrix;
   using parent::tau_species_single_scattering;
-  using parent::tau_absorber_single_scattering;
   using parent::singlescat; 
   using parent::sourcefn;
 
@@ -71,6 +75,7 @@ protected:
 
   vv_1 absorber_density; // average and point densities of absorber on the grid 
   vv_1 absorber_density_pt; 
+  vv_1 tau_absorber_single_scattering; // overrides parent, which has n_upper states per voxel
 
   // main update routine
   template<bool influence>
@@ -79,28 +84,26 @@ protected:
 			    const Real (&current_species_density)[n_lower],
 			    const Real &current_absorber_density,
 			    const Real &pathlength,
-			    los<influence,n_elements> &tracker) const {
+			    los<influence> &tracker) const {
 
     // update the transfer probabilities across this voxel
     Real lineshape[n_lines][n_lambda];
-    Real dtau_lambda_voxel[n_multiplets][n_lambda];
+    Real tau_lambda_voxel[n_multiplets][n_lambda];
+    Real tau_species_voxel[n_lines];
+    Real tau_absorber_voxel;
     Real transfer_probability_lambda_voxel[n_multiplets][n_lambda];
     Real transfer_probability_lambda_final[n_multiplets][n_lambda];
 
     // initialize
-    for (int i_multiplet = 0; i_multiplet < n_multiplets; i_multiplet++) {
-      for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
-	Real dtau_lambda_voxel[n_multiplets][n_lambda] = 0.0;
-	Real transfer_probability_lambda_voxel[n_multiplets][n_lambda] = 1.0;
-	Real transfer_probability_lambda_final[n_multiplets][n_lambda] = 1.0;
-      }
-    }
+    for (int i_multiplet=0;i_multiplet<n_multiplets;i_multiplet++)
+      for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++)
+	tau_lambda_voxel[i_multiplet][i_lambda] = 0.0;
 
-    // compute optical depth and transfer probabilities
+    // compute optical depth contribution from each line
     for (int i_line=0; i_line<n_lines; i_line++) {
-      const int i_lower = tracker.lower_level[i_line];
-      const int i_upper = tracker.upper_level[i_line];
-      const int i_multiplet = tracker.multiplet_identity[i_line];
+      const int i_lower = tracker.lower_level_index[i_line];
+      //const int i_upper = tracker.upper_level_index[i_line];
+      const int i_multiplet = tracker.multiplet_index[i_line];
       
       for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
 	lineshape[i_line][i_lambda] = tracker.line_shape_function_normalized(i_line,
@@ -109,17 +112,46 @@ protected:
 	assert(!std::isnan(lineshape[i_line][i_lambda]) && lineshape[i_line][i_lambda] > 0 &&
 	       "lineshape must be real and positive");
 	
-	dtau_lambda_voxel[i_multiplet][i_lambda] += (current_species_density[i_lower]
-						     *tracker.line_center_cx_coef[i_line]
-						     *lineshape[i_line][i_lambda]
+	tau_lambda_voxel[i_multiplet][i_lambda] += ((current_species_density[i_lower]  // cm-3
+						     *tracker.line_sigma_total[i_line] // cm2 Hz
+						     *lineshape[i_line][i_lambda]      // Hz-1
 						     +
-						     current_absorber_density
-						     *tracker.co2_xsec);
-	assert(!std::isnan(dtau_lambda_voxel[i_multiplet][i_lambda])
-	     && dtau_lambda_voxel[i_multiplet][i_lambda]>=0
+						     current_absorber_density          // cm-3
+						     *tracker.co2_xsec)                // cm2
+						    *pathlength);                      // cm
+	assert(!std::isnan(tau_lambda_voxel[i_multiplet][i_lambda])
+	     && tau_lambda_voxel[i_multiplet][i_lambda]>=0
 	     && "optical depths must be positive numbers");
-	
-	transfer_probability_lambda_voxel[i_multiplet][i_lambda] *= std::exp(-dtau_lambda_voxel[i_multiplet][i_lambda]*pathlength);
+      }
+
+      // get the line center optical depth due to each individual line
+      tau_species_voxel[i_line] = ((current_species_density[i_lower]                      // cm-3
+				    *tracker.line_sigma_total[i_line]                     // cm2 Hz
+				    *tracker.line_shape_normalization(current_species_T)) // Hz-1
+				   *pathlength);                                          // cm
+      tracker.tau_species_final[i_line] += tau_species_voxel[i_line];
+      assert(!std::isnan(tracker.tau_species_final[i_line])
+      	     && tracker.tau_species_final[i_line]>=0
+      	     && "optical depths must be positive numbers");
+
+      tau_absorber_voxel = (current_absorber_density // cm-3
+			    * tracker.co2_xsec       // cm2
+			    * pathlength);           // cm
+      tracker.tau_absorber_final += tau_absorber_voxel;
+      assert(!std::isnan(tracker.tau_absorber_final)
+	     && tracker.tau_absorber_final>=0
+	     && "optical depths must be positive numbers");
+    }
+
+    // ^^^
+    // don't combine these loops--- we need to know the optical depths
+    // before we can compute the transfer probability
+    // vvv
+
+    for (int i_multiplet=0;i_multiplet<n_multiplets;i_multiplet++) {
+      for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
+    	// because the loop above updated all of the optical depths we can now compute transfer probabilities
+	transfer_probability_lambda_voxel[i_multiplet][i_lambda] = std::exp(-tau_lambda_voxel[i_multiplet][i_lambda]);
 	assert(!std::isnan(transfer_probability_lambda_voxel[i_multiplet][i_lambda]) &&
 	       transfer_probability_lambda_voxel[i_multiplet][i_lambda] >= 0 &&
 	       transfer_probability_lambda_voxel[i_multiplet][i_lambda] <= 1 &&
@@ -128,29 +160,12 @@ protected:
 	transfer_probability_lambda_final[i_multiplet][i_lambda] = (tracker.transfer_probability_lambda_initial[i_multiplet][i_lambda]
 								    * transfer_probability_lambda_voxel[i_multiplet][i_lambda]);
       }
-
-      // get the line center optical depth due to each individual line
-      tracker.tau_species_final[i_line] += (current_species_density[i_lower]
-					    *tracker.line_center_cx_coef[0]
-					    /tracker.line_shape_normalization(current_species_T))*pathlength;
-      assert(!std::isnan(tracker.tau_species_final[i_line])
-      	     && tracker.tau_species_final[i_line]>=0
-      	     && "optical depths must be positive numbers");
-
-      tau_absorber_voxel[i_line] += (current_absorber_density
-				     * tracker.co2_xsec
-				     * pathlength);
-      assert(!std::isnan(tracker.tau_absorber_final[i_line])
-	     && tracker.tau_absorber_final[i_line]>=0
-	     && "optical depths must be positive numbers");
     }
-
+    
     // ^^^
-    // don't combine these loops--- we need to know the transfer
-    // probability due to scattering / absorption of all lines before
-    // we can compute influence coefficients.
+    // don't combine these loops--- we need to know the transfer probabilities
+    // before we can compute the influence functions
     // vvv
-
 
     // reset tracker quantities
     for (int i_line=0; i_line<n_lines; i_line++) {
@@ -166,29 +181,40 @@ protected:
     
     // now we can compute influence coefficients
     for (int i_line = 0; i_line < n_lines; i_line++) {
-      const int i_lower = tracker.lower_level[i_line];
-      const int i_upper = tracker.upper_level[i_line];
-      const int i_multiplet = tracker.multiplet_identity[i_line];
+      //const int i_lower = tracker.lower_level_index[i_line];
+      //const int i_upper = tracker.upper_level_index[i_line];
+      const int i_multiplet = tracker.multiplet_index[i_line];
 
       for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
 	// emission for holstein T int happens at current voxel, use the
 	// normalization there
-	Real holcoef = tracker.weight(i_lambda);
+	Real holcoef = tracker.weight(i_lambda); // Hz
 
-	// holstein_T_int represents a frequency averaged emission in this voxel observed at the start location
-	
-	// therefore, we use the lineshape in this voxel to compute holstein T int
-	holstein_T_int_coef[i_line][i_lambda] = (holcoef
-						 * lineshape[i_line][i_lambda]
-						 * tracker.transfer_probability_lambda_initial[i_multiplet][i_lambda]
-						 * (REAL(1.0) - transfer_probability_lambda_voxel[i_multiplet][i_lambda])
-						 / (dtau_lambda_voxel[i_multiplet][i_lambda]));
+	// holstein_T_int represents an effective path length for the
+	// optically thick emission
+
+	// integrate emission across the cell at this wavelength
+	if (tau_lambda_voxel[i_multiplet][i_lambda] < STRICTEPS)
+	  // this solves a floating point issue, when tau << 1, (1-exp(-tau))/tau ~= 1.0
+	  // could also use (1-exp(-tau))/tau = 1 - tau/2! + tau^2/3! - tau^3/4! + ...
+	  holstein_T_int_coef[i_line][i_lambda] = 1.0; 
+	else
+	  holstein_T_int_coef[i_line][i_lambda] = ((REAL(1.0) - transfer_probability_lambda_voxel[i_multiplet][i_lambda])
+						   / (tau_lambda_voxel[i_multiplet][i_lambda]));
+
+	// we use the lineshape in this voxel to compute
+	// holstein_T_int because it represents emission in the
+	// current voxel
+	holstein_T_int_coef[i_line][i_lambda] *= (holcoef                                                               // Hz
+						  * lineshape[i_line][i_lambda]                                         // Hz-1
+						  * tracker.transfer_probability_lambda_initial[i_multiplet][i_lambda]  // unitless
+						  * pathlength);                                                        // cm
 	tracker.holstein_T_int[i_line] += holstein_T_int_coef[i_line][i_lambda];
 	assert(!std::isnan(tracker.holstein_T_int[i_line]) && tracker.holstein_T_int[i_line] >= 0 &&
-	       (tracker.holstein_T_int[i_line] <= tau_species_voxel[i_line] ||
-		std::abs(tracker.holstein_T_int[i_line] - tau_species_voxel[i_line]) < EPS)
+	       (tracker.holstein_T_int[i_line] <= pathlength ||
+		std::abs(1.0-pathlength/tracker.holstein_T_int[i_line]) < EPS)
 	       //  ^^ this allows for small rounding errors
-	       && "holstein integral must be between 0 and Delta tau b/c 0<=HolT<=1");
+	       && "holstein integral must be between 0 and pathlength b/c 0<=HolT<=1");
 
 	if (i_lambda == 0 || i_lambda == n_lambda-1) {
 	      //check that the last element is not contributing too much to the integral
@@ -197,7 +223,6 @@ protected:
 		 && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in singlet_CFR_tracker.");
 	}
 	  
-	
 	if (influence) {
 	  // for single scattering calculation, we want the frequency
 	  // integrated absorption probability in the start voxel.
@@ -210,11 +235,12 @@ protected:
 		 && lineshape_at_origin[i_line][i_lambda]>0
 		 && "lineshape must be real and positive");
 
-	  // holstein T final represents a frequency-averaged absorption and
-	  // uses lineshape_at_origin
-	  tracker.holstein_T_final[i_line] += (holcoef
-					       * lineshape_at_origin[i_line][i_lambda]
-					       * transfer_probability_lambda_final[i_multiplet][i_lambda]);
+	  // holstein T final represents a frequency-averaged
+	  // absorption probability in the origin cell and uses
+	  // lineshape_at_origin
+	  tracker.holstein_T_final[i_line] += (holcoef                                                       // Hz
+					       * lineshape_at_origin[i_line][i_lambda]                       // Hz-1
+					       * transfer_probability_lambda_final[i_multiplet][i_lambda]);  // unitless
 	  assert(!std::isnan(tracker.holstein_T_final[i_line])
 		 && tracker.holstein_T_final[i_line] >= 0
 		 && tracker.holstein_T_final[i_line] <= 1
@@ -234,28 +260,28 @@ protected:
       // compute the mixing between levels due to each line
       // emission/absorption
       for (int i_line_origin = 0; i_line_origin < n_lines; i_line_origin++) {
-	const int i_lower_origin = tracker.lower_level[i_line];
-	const int i_upper_origin = tracker.upper_level[i_line];
-	const int i_multiplet_origin = tracker.multiplet_identity[i_line];
+	const int i_lower_origin = tracker.lower_level_index[i_line_origin];
+	const int i_upper_origin = tracker.upper_level_index[i_line_origin];
+	const int i_multiplet_origin = tracker.multiplet_index[i_line_origin];
 
 	for (int j_line_current = 0; j_line_current < n_lines; j_line_current++) {
-	  const int j_lower_current = tracker.lower_level[j_line];
-	  const int j_upper_current = tracker.upper_level[j_line];
-	  const int j_multiplet_current = tracker.multiplet_identity[j_line];
-
+	  //const int j_lower_current = tracker.lower_level_index[j_line_current];
+	  const int j_upper_current = tracker.upper_level_index[j_line_current];
+	  const int j_multiplet_current = tracker.multiplet_index[j_line_current];
+	  
 	  if (i_multiplet_origin == j_multiplet_current) {
-	    // the emission in the distant voxel can be captured into any of the upper states
+	    // lines potentially overlap
 
             for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
-              // the influence coefficient represents emission in the
-              // current voxel being absorbed in the start voxel,
-              // possibly into a different upper state
-              tracker.holstein_G_int[i_upper_origin][j_upper_current] += (tracker.line_sigma_total[i_line_origin]          // cm2 Hz
-									  * species_density_at_origin[i_lower_origin]      // cm-3
-									  * tracker.line_A[j_line_current]                 // ph/s
-									  / tracker.upper_state_decay_rate[i_upper_origin] // 1/(ph/s)
-									  * lineshape_at_origin[i_line_origin][i_lambda]   // Hz^-1
-									  * holstein_T_int_coef[j_line_current][i_lambda]  // cm
+              // the influence coefficient represents probability of
+              // emission in the current voxel being absorbed in the
+              // start voxel, possibly into a different upper state
+              tracker.holstein_G_int[i_upper_origin][j_upper_current] += (tracker.line_sigma_total[i_line_origin]              // cm2 Hz
+									  * tracker.species_density_at_origin[i_lower_origin]  // cm-3
+									  * tracker.line_A[j_line_current]                     // ph/s
+									  / tracker.upper_state_decay_rate[i_upper_origin]     // 1/(ph/s)
+									  * lineshape_at_origin[i_line_origin][i_lambda]       // Hz^-1
+									  * holstein_T_int_coef[j_line_current][i_lambda]      // cm
 									  ); // unitless influence coefficient
               assert(!std::isnan(tracker.holstein_G_int[i_upper_origin][j_upper_current])
 		     && tracker.holstein_G_int[i_upper_origin][j_upper_current] >= 0
@@ -271,21 +297,23 @@ protected:
       }
     }
 
+    // calculation is done, do some bookkeeping so the tracker is
+    // ready to be updated in the next voxel
     for (int i_multiplet = 0; i_multiplet < n_multiplets; i_multiplet++) {
-      for (int i_line = 0; i_line < n_lines; i_line++) {
+      for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
         // update the initial values
         tracker.transfer_probability_lambda_initial[i_multiplet][i_lambda] = transfer_probability_lambda_final[i_multiplet][i_lambda];
       }
     }
 
     for (int i_line = 0; i_line < n_lines; i_line++) {
-      // if holstein T is larger than physically possible due to rounding
+      // if holstein T int is larger than physically possible due to rounding
       // errors, reduce it to the physical limit
-      if (tracker.holstein_T_int[i_line] > tau_species_voxel[i_line])
-        tracker.holstein_T_int[i_line] = tau_species_voxel[i_line]; /*we don't need to worry
-								      about rounding errors
-								      here because we checked
-								      earlier*/
+      if (tracker.holstein_T_int[i_line] > pathlength)
+        tracker.holstein_T_int[i_line] = pathlength; /*we don't need to worry
+						       about rounding errors
+						       here because we checked
+						       earlier*/
     }
   }
 
@@ -294,13 +322,12 @@ protected:
     // called by parent method that specifies interp or nointerp
 
     for (int i_line=0;i_line<n_lines;i_line++) {
-      const int i_upper = tracker.upper_level[i_line];
+      const int i_upper = tracker.upper_level_index[i_line];
       
-      //bishop formulation
       tracker.brightness[i_line] += (sourcefn_temp[i_upper] // cm-3
-				     * tracker.line_A[i_line] // ph/s-1
+				     * tracker.line_A[i_line] // ph/s
 				     * tracker.holstein_T_int[i_line] // cm
-				     / REAL(1e9)) // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
+				     / REAL(1e9)); // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
       assert(!isnan(tracker.brightness[i_line]) && "brightness must be a real number");
       assert(tracker.brightness[i_line]>=0 && "brightness must be positive");
     }
@@ -320,7 +347,7 @@ public:
   template<bool influence>
   CUDA_CALLABLE_MEMBER
   void reset_tracker(const int &start_voxel,
-		     los<influence,n_elements> &tracker) const {
+		     los<influence> &tracker) const {
     Real density_at_origin[n_lower];
     if (!influence)
       // start voxel values don't matter for brightness calculations
@@ -328,7 +355,7 @@ public:
     else {
       for (int i_lower=0;i_lower<n_lower;i_lower++)
 	density_at_origin[i_lower] = species_density(start_voxel, i_lower);
-      tracker.reset(species_T[start_voxel], density_at_origin);
+      tracker.reset(species_T(start_voxel), density_at_origin);
     }
   }
   
@@ -336,7 +363,7 @@ public:
   CUDA_CALLABLE_MEMBER
   void update_tracker_start(const int &current_voxel,
 			    const Real & pathlength,
-			    los<influence,n_elements> &tracker) const {
+			    los<influence> &tracker) const {
     Real current_species_density[n_lower];
     for (int i_lower=0;i_lower<n_lower;i_lower++)
       current_species_density[i_lower] = species_density(current_voxel, i_lower);
@@ -354,7 +381,7 @@ public:
 				   const int *indices,
 				   const Real *weights,
 				   const Real &pathlength,
-				   los<influence,n_elements> &tracker) const {
+				   los<influence> &tracker) const {
 
 
     Real species_T_interp[1];
@@ -406,14 +433,14 @@ public:
   CUDA_CALLABLE_MEMBER
   void compute_single_scattering(const int &start_voxel, influence_tracker &tracker, bool sun_visible = true) {
     for (int i_line=0;i_line<n_lines;i_line++) {
-      const int i_lower = tracker.lower_level[i_line];
-      const int i_upper = tracker.upper_level[i_line];
-      const int i_multiplet = tracker.multiplet_identity[i_line];
+      const int i_lower = tracker.lower_level_index[i_line];
+      const int i_upper = tracker.upper_level_index[i_line];
+      //const int i_multiplet = tracker.multiplet_index[i_line];
 
       if (!sun_visible) {
 	// single scattering point is behind limb, populate the tracker with the appropriate values
 	tracker.tau_species_final[i_line]  = -1.0;
-	tracker.tau_absorber_final[i_line] = -1.0;
+	tracker.tau_absorber_final = -1.0;
 	tracker.holstein_T_final[i_line]   = 0.0;
       }
 
@@ -423,13 +450,13 @@ public:
 		 || tau_species_single_scattering(start_voxel, i_line) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
-      tau_absorber_single_scattering(start_voxel, i_line) = tracker.tau_absorber_final[i_line];
-      assert(!isnan(tau_absorber_single_scattering(start_voxel, i_line))
-	     && (tau_absorber_single_scattering(start_voxel, i_line) >= 0
-		 ||  tau_absorber_single_scattering(start_voxel, i_line) == -1)
+      tau_absorber_single_scattering(start_voxel) = tracker.tau_absorber_final;
+      assert(!isnan(tau_absorber_single_scattering(start_voxel))
+	     && (tau_absorber_single_scattering(start_voxel) >= 0
+		 ||  tau_absorber_single_scattering(start_voxel) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
-      if (i_lower == 2) {
+      if (tracker.lower_level_J[i_line] == 2) {
 	// assuming the only excitation of the multiplet is from the
 	// J=2 state, whose lines overlap Lyman beta
 
@@ -438,10 +465,10 @@ public:
 	// this puts some excitation into every upper state, so we
 	// don't need to worry about non-initialized values
 	Real solar_line_excitation = (solar_lyman_beta_brightness_Hz // ph / cm2 / s / Hz
-				      * species_density(i_voxel, i_lower) // cm-3
+				      * species_density(start_voxel, i_lower) // cm-3
 				      * tracker.line_sigma_total[i_line] // cm2 Hz
 				      / tracker.upper_state_decay_rate[i_upper] // 1/(ph/s)
-				      ); // all units except density cancel, we are left with cm-3
+				      ); // with solar flux included all units except density cancel, we are left with cm-3
       
 	singlescat(start_voxel, i_upper) = solar_line_excitation*tracker.holstein_T_final[i_line]; // cm-3, single scattering upper state density
 	assert(!isnan(singlescat(start_voxel, i_upper))
@@ -468,16 +495,14 @@ public:
   
   // definition of class members needed for RT
   template<typename C>
-  void define(const C &atmosphere,
+  void define(string emission_name,
+	      const C &atmosphere,
 	      void (boost::type_identity<C>::type::*species_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
 	      void (boost::type_identity<C>::type::*species_T_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
 	      void (boost::type_identity<C>::type::*absorber_density_function)(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const,
 	      const atmo_voxel (&voxels)[N_VOXELS]) {
 
     strcpy(internal_name, emission_name.c_str());
-    branching_ratio     = emission_branching_ratio;
-    species_T_ref       = species_T_reff;
-    species_sigma_T_ref = species_sigma_T_reff;
     
     for (unsigned int i_voxel=0;i_voxel<N_VOXELS;i_voxel++) {
 
@@ -511,7 +536,7 @@ public:
       Real bulk_density_pt;
       (atmosphere.*species_density_function)(voxels[i_voxel],
 					     bulk_density,
-					     bulk_density_pt));
+					     bulk_density_pt);
       assert(!isnan(bulk_density)
 	     && bulk_density >= 0
 	     && "densities must be real and positive");
@@ -530,7 +555,7 @@ public:
 	total_statistical_weight += J_state_fraction[i_lower];
 				     
 	J_state_fraction_pt[i_lower] = (brightness_tracker::lower_state_statistical_weight[i_lower]
-				     * exp(-brightness_tracker::lower_state_energy[i_lower]/kB/species_T_pt(i_voxel));
+					* exp(-brightness_tracker::lower_state_energy[i_lower]/kB/species_T_pt(i_voxel)));
 	total_statistical_weight_pt += J_state_fraction_pt[i_lower];
 
       }
@@ -553,14 +578,14 @@ public:
 
   template <int N_STATES>
   void save_voxel_state(std::ostream &file, VectorX (*function)(VectorX, int), const int i,
-			voxel_vector<n_voxels, N_STATES> vector, string message) {
+			const voxel_vector<n_voxels, N_STATES> &vector, const string message) const {
     VectorX voxel_quantity;
     voxel_quantity.resize(n_voxels);
     for (int i_state=0; i_state<N_STATES; i_state++) {
       for (int i_voxel=0; i_voxel<n_voxels; i_voxel++)
 	voxel_quantity[i_voxel] = vector(i_voxel, i_state);
 
-      file << "      " << message << " " << i_state << ": " << "\n"
+      file << "      " << message << " " << i_state << ": "
 	   << function(voxel_quantity, i).transpose() << "\n";
     }
   }
@@ -568,13 +593,16 @@ public:
   
   void save(std::ostream &file, VectorX (*function)(VectorX, int), const int i) const {
 
-    file << "    Species density [cm-3]: " << "\n";
+    file << "    Species density [cm-3]: \n";
     save_voxel_state(file, function, i,
-		     species_density, "lower state", n_lower);
+		     species_density, "lower state");
+
+    file << "    Temperature [K]: " 
+	 <<      function(species_T.eigen(), i).transpose() << "\n";
       
-    file << "    Species single scattering tau: " << "\n";
+    file << "    Species single scattering tau: \n";
     save_voxel_state(file, function, i,
-		     tau_species_single_scattering, "line", n_lines);
+		     tau_species_single_scattering, "line");
     
     file << "    Absorber density [cm-3]: " 
 	 <<      function(absorber_density.eigen(), i).transpose() << "\n"
@@ -582,32 +610,25 @@ public:
 	 << "    Absorber single scattering tau: " 
 	 <<	 function(tau_absorber_single_scattering.eigen(), i).transpose() << "\n";
       
-    file << "    Species single scattering source function S0: " 
+    file << "    Species single scattering source function S0: \n";
     save_voxel_state(file, function, i,
-		     singlescat, "upper state", n_upper);
+		     singlescat, "upper state");
       
-    file << "    Source function: " 
+    file << "    Source function: \n";
     save_voxel_state(file, function, i,
-		     sourcefn, "upper state", n_upper);
+		     sourcefn, "upper state");
   }
 
   void save_brightness(std::ostream &file, const gpu_vector<brightness_tracker> &los_brightness) const {
     // save a list of brightness values from brightness trackers to file
-
-    MatrixX brightness_write_out;
-    brightness_write_out.resize(los_brightness.size(), n_lines);
-    
-    for (int i_obs=0;i_obs<los_brightness.size();i_obs++)
-      for (int i_line=0;i_line<n_lines;i_line++)
-	brightness_write_out(i_obs, i_line) = los_brightness[i].brightness[i_line];
-
     file << internal_name
 	 << " brightness [kR]: \n";
-    for (int i_line=0;i_line<n_lines;i_line++)
+    for (int i_line=0;i_line<n_lines;i_line++) {
       file << "   line " << i_line << ": ";
       for (int i_obs=0;i_obs<los_brightness.size();i_obs++)
-	file << brightness_write_out(i_obs,i_line);
+	file << los_brightness[i_obs].brightness[i_line] << " ";
       file << "\n";
+    }
   }
 
 #ifdef __CUDACC__
@@ -680,7 +701,7 @@ void O_1026_prepare_for_solution(O_1026_emission<N_VOXELS> *emission)
   int i_vox = blockIdx.x;
   
   //convert to kernel from influence (kernel = identity - branching_ratio*influence)
-  for (int j_vox = threadIdx.x; j_vox < emission->n_elements; j_vox+=blockDim.x)
+  for (int j_vox = threadIdx.x; j_vox < emission->n_upper_elements; j_vox+=blockDim.x)
     emission->influence_matrix(i_vox,j_vox) *= -1.0;
 
   if (threadIdx.x == 0) {
@@ -696,7 +717,7 @@ void O_1026_prepare_for_solution(O_1026_emission<N_VOXELS> *emission)
 template <int N_VOXELS>
 void O_1026_emission<N_VOXELS>::pre_solve_gpu() {
   const int n_threads = 32;
-  O_1026_prepare_for_solution<<<n_elements, n_threads>>>(device_emission);
+  O_1026_prepare_for_solution<<<n_upper_elements, n_threads>>>(device_emission);
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
 }

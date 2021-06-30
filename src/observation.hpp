@@ -31,6 +31,18 @@ protected:
 
   gpu_vector<atmo_vector> obs_vecs;
   
+  void add_MSO_observation(const Vector3 &loc, const Vector3 &dir, const int i) {
+    vector<Real> locc, dirr;
+    locc.resize(3);
+    dirr.resize(3);
+
+    for (int i=0;i<3;i++) {
+      locc[i] = loc[i];
+      dirr[i] = dir[i];
+    }
+    add_MSO_observation(locc, dirr, i);
+  }
+
   void add_MSO_observation(const vector<Real> &loc, const vector<Real> &dir, const int i) {
     // there are two coordinate systems,
     // MSO, and model
@@ -158,31 +170,39 @@ public:
 	emissions[i_emission]->save_brightness(file, los[i_emission]);
   }
 
-  void fake(Real dist,
-	    Real angle_deg = 30,
-	    int nsamples = 300) {
-
-    Vector3 loc = {0.,-dist,0.};
+  void fake(Real dist, // distance from Mars to observe at, cm
+	    Real angle_deg, // half angle opening, degrees
+	    int nsamples, // number of samples across image
+	    Vector3 locc) // MSO location of observation
+  {
+    Vector3 loc_norm = locc / std::sqrt(locc.dot(locc));
+    Vector3 loc = loc_norm * dist;
 
     Real angle_rad = pi/180. * angle_deg;
     Real dangle_rad = 2*angle_rad/(nsamples-1);
     
     resize_input(nsamples*nsamples);
     
-    atmo_point pt;
-    pt.xyz(loc[0],loc[1],loc[2]);
+    // construct the vectors to rotate around:
+    Vector3 image_horiz = {1.,0.,0.};
+    if (loc[1]==0. && loc[2]==0.)
+      image_horiz = {0.,1.,0.};
+    image_horiz=image_horiz-loc_norm*(image_horiz.dot(loc)/std::sqrt(loc.dot(loc)));
+    image_horiz/=std::sqrt(image_horiz.dot(image_horiz));
+
+    Vector3 image_vert = image_horiz.cross(loc_norm);
+    image_vert/=std::sqrt(image_vert.dot(image_vert));
     
     for (int i=0;i<nsamples;i++) {
       for (int j=0;j<nsamples;j++) {
 	Matrix3 r;
-	r = (AngleAxis(-angle_rad+i*dangle_rad, Vector3::UnitZ())
-	     * AngleAxis(-angle_rad+j*dangle_rad,  Vector3::UnitX()));
-	Vector3 dir = r * Vector3::UnitY();
+	r = (AngleAxis(-angle_rad+i*dangle_rad, image_horiz)
+	     * AngleAxis(-angle_rad+j*dangle_rad, image_vert));
+	Vector3 dir = -r * loc_norm;
 
 	int iobs = i*nsamples+j;
 	
-	//direction_model[iobs] = {dir[0], dir[1], dir[2]};
-	obs_vecs[iobs].ptxyz(pt, dir[0], dir[1], dir[2]);
+	add_MSO_observation(loc, dir, iobs);
       }
     }
   }

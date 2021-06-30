@@ -39,7 +39,7 @@ struct thermosphere_exosphere : virtual public atmosphere {
   species_density_parameters *species_thermosphere;
 
   //thermosphere interpolation object
-  static const int n_thermosphere_steps = 100;
+  static const int n_thermosphere_steps = 200;
   double thermosphere_step_r;
   vector<double> log_nCO2_thermosphere;
   vector<double> log_n_species_thermosphere;
