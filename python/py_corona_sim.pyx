@@ -117,12 +117,12 @@ cdef extern from "observation_fit.hpp":
         vector[vector[Real]] iph_brightness_unextincted()
         Temp_converter Tconv
 
-        # void O_1026_generate_source_function(Real nOexo,
-        #                                      Real Texo,
-        #                                      Real solar_brightness_lyman_beta, # 1.69e-3 is a good number for solar minimum
-        #                                      string atmosphere_fname,
-        #                                      string sourcefn_fname)
-        # vector[vector[Real]] O_1026_brightness()
+        void O_1026_generate_source_function(Real nOexo,
+                                             Real Texo,
+                                             Real solar_brightness_lyman_beta, # 1.69e-3 is a good number for solar minimum
+                                             string atmosphere_fname,
+                                             string sourcefn_fname)
+        vector[vector[Real]] O_1026_brightness()
 
 
         
@@ -374,16 +374,16 @@ cdef class Pyobservation_fit:
         return np.asarray(self.thisptr.iph_brightness_unextincted())
 
     
-    # def O_1026_generate_source_function(self,
-    #                                     Real nO,
-    #                                     Real T,
-    #                                     Real solar_brightness_lyman_beta,
-    #                                     atmosphere_fname = "",
-    #                                     sourcefn_fname = ""):
-    #     self.thisptr.O_1026_generate_source_function(nO,
-    #                                                  T,
-    #                                                  solar_brightness_lyman_beta,
-    #                                                  atmosphere_fname.encode('utf-8'),
-    #                                                  sourcefn_fname.encode('utf-8'))
-    # def O_1026_brightness(self):
-    #     return np.asarray(self.thisptr.O_1026_brightness())
+    def O_1026_generate_source_function(self,
+                                        Real nO,
+                                        Real T,
+                                        Real solar_brightness_lyman_beta,
+                                        atmosphere_fname = "",
+                                        sourcefn_fname = ""):
+        self.thisptr.O_1026_generate_source_function(nO,
+                                                     T,
+                                                     solar_brightness_lyman_beta,
+                                                     atmosphere_fname.encode('utf-8'),
+                                                     sourcefn_fname.encode('utf-8'))
+    def O_1026_brightness(self):
+        return np.asarray(self.thisptr.O_1026_brightness())

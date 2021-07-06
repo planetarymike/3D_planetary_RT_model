@@ -12,7 +12,7 @@ SRCDIRS = ./src ./src/atm ./src/emission ./src/grid
 PSRCFILES = $(foreach dir,$(SRCDIRS),$(wildcard $(dir)/*.cpp))
 SRCFILES = $(filter-out ./src/observation_fit.cpp, $(PSRCFILES))
 
-NSRCFILES = $(SRCFILES) generate_source_function.cpp
+NSRCFILES = $(SRCFILES)
 NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 NOBJFILESDBG := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o))
 
@@ -80,11 +80,13 @@ generate_source_function_float:
 
 
 generate_source_function_gpu: $(NOBJFILES) 
+	@echo "compiling generate_source_function.cpp..."
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc generate_source_function.cpp -o bin/generate_source_function.cuda.o
 	@echo "linking..."
 ifeq ($(CUDA_DLTO),true)
 	$(info Using CUDA 11 link time optimization)
 endif
-	@$(NCC) $(NOBJFILES) $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
+	@$(NCC) $(NOBJFILES) bin/generate_source_function.cuda.o $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
 
 $(OBJDIR)/%.cuda.o: %.cpp
 	@echo "compiling $<..."
@@ -92,9 +94,11 @@ $(OBJDIR)/%.cuda.o: %.cpp
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
 
-generate_source_function_gpu_debug: $(NOBJFILESDBG) 
+generate_source_function_gpu_debug: $(NOBJFILESDBG)
+	@echo "compiling generate_source_function.cpp..."
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc generate_source_function.cpp -o bin/generate_source_function.cuda.debug.o
 	@echo "linking ..."
-	@$(NCC) $(NOBJFILESDBG) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o generate_source_function_gpu.x
+	@$(NCC) $(NOBJFILESDBG) bin/generate_source_function.cuda.debug.o $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o generate_source_function_gpu.x
 
 $(OBJDIR)/%.cuda.debug.o: %.cpp
 	@echo "compiling $<..."
@@ -142,6 +146,26 @@ py_corona_sim_gpu:
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
 
+observation_fit_gpu_test: $(NOBJFILESDBG)
+	@echo "compiling observation_fit.cpp..."
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc src/observation_fit.cpp -o bin/src/observation_fit.cuda.debug.o
+	@echo "compiling obs_fit_test.cpp..."
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc python/test/obs_fit_test.cpp -o bin/obs_fit_test.cuda.debug.o
+
+	@echo "compiling ipbackgroundCFR_fun.f..."
+	@gfortran -fPIC -Ofast -c -std=legacy \
+	$(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
+	-o $(OBJDIR)/ipbackgroundCFR_fun.o
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc $(SRCDIR)/quemerais_IPH_model/*.cpp -o bin/quemerais_IPH_model.cuda.debug.o
+
+
+	@echo "linking ..."
+	@$(NCC) $(NOBJFILESDBG) \
+	bin/src/observation_fit.cuda.debug.o \
+	bin/obs_fit_test.cuda.debug.o \
+	bin/quemerais_IPH_model.cuda.debug.o \
+	$(OBJDIR)/ipbackgroundCFR_fun.o -lgfortran \
+	$(NIDIR) $(NLIBS) $(NDBGFLAGS) -o python/test/obs_fit_test.x
 
 clean_gpu:
 	rm -f generate_source_function_gpu.x

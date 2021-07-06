@@ -24,9 +24,6 @@ struct RT_grid {
 
   grid_type grid;//this stores all of the geometrical info
 
-  //initialization parameters
-  bool all_emissions_init;
-
   //GPU interface
   typedef RT_grid<emission_type,
 		  N_EMISSIONS,
@@ -42,14 +39,11 @@ struct RT_grid {
   void device_clear();
   
   RT_grid(grid_type gridd,
-	  emission_type *emissionss[n_emissions]) :
-    grid(gridd) {
-
-    all_emissions_init = true;
-    for (int i_emission=0;i_emission<n_emissions;i_emission++) {
+	  emission_type *emissionss[n_emissions])
+    : grid(gridd)
+  {
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
       emissions[i_emission] = emissionss[i_emission];
-      all_emissions_init &= emissions[i_emission]->init();
-    }
   }
 
   ~RT_grid() {
@@ -58,6 +52,14 @@ struct RT_grid {
 #endif
   }
 
+  CUDA_CALLABLE_MEMBER
+  bool all_emissions_init() {
+    bool all_init = true;
+    for (int i_emission=0;i_emission<n_emissions;i_emission++)
+      all_init &= emissions[i_emission]->init();
+    return all_init;
+  }
+  
   template <typename R>
   CUDA_CALLABLE_MEMBER
   void voxel_traverse(const atmo_vector &v,
@@ -65,7 +67,7 @@ struct RT_grid {
 						                              grid_type::n_max_intersections>& , R& ),
 		      R &retval)
   {
-    assert(all_emissions_init && "!nitialize grid and influence function before calling voxel_traverse.");
+    assert(all_emissions_init() && "initialize grid and influence function before calling voxel_traverse.");
   
     //get boundary intersections
     boundary_intersection_stepper<grid_type::n_dimensions,

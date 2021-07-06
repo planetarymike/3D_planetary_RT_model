@@ -15,7 +15,7 @@
 #include "grid/grid_plane_parallel.hpp"
 #include "grid/grid_spherical_azimuthally_symmetric.hpp"
 #include "emission/singlet_CFR.hpp"
-//#include "emission/O_1026.hpp"
+#include "emission/O_1026.hpp"
 
 class observation_fit {
 protected:
@@ -51,34 +51,34 @@ protected:
   grid_type grid;
 
   // define hydrogen emissions
-  static const int n_emissions = 2;
+  static const int n_hydrogen_emissions = 2;
 
-  typedef singlet_CFR<plane_parallel_grid_type::n_voxels> emission_type_pp;
-  emission_type_pp lyman_alpha_pp, lyman_beta_pp;
-  emission_type_pp *emissions_pp[n_emissions] = {&lyman_alpha_pp, &lyman_beta_pp};
+  typedef singlet_CFR<plane_parallel_grid_type::n_voxels> hydrogen_emission_type_pp;
+  hydrogen_emission_type_pp lyman_alpha_pp, lyman_beta_pp;
+  hydrogen_emission_type_pp *hydrogen_emissions_pp[n_hydrogen_emissions] = {&lyman_alpha_pp, &lyman_beta_pp};
 
-  RT_grid<emission_type_pp, n_emissions, plane_parallel_grid_type> RT_pp;
+  RT_grid<hydrogen_emission_type_pp, n_hydrogen_emissions, plane_parallel_grid_type> hydrogen_RT_pp;
 
-  typedef singlet_CFR<grid_type::n_voxels> emission_type;
-  emission_type lyman_alpha, lyman_beta;
-  emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
+  typedef singlet_CFR<grid_type::n_voxels> hydrogen_emission_type;
+  hydrogen_emission_type lyman_alpha, lyman_beta;
+  hydrogen_emission_type *hydrogen_emissions[n_hydrogen_emissions] = {&lyman_alpha, &lyman_beta};
 
-  RT_grid<emission_type, n_emissions, grid_type> RT;
+  RT_grid<hydrogen_emission_type, n_hydrogen_emissions, grid_type> hydrogen_RT;
 
-  observation<emission_type, n_emissions> obs;
+  observation<hydrogen_emission_type, n_hydrogen_emissions> hydrogen_obs;
 
   bool sim_iph;
 
-  // // define oxygen emissions
-  // static const int n_oxygen_emissions = 1;
+  // define oxygen emissions
+  static const int n_oxygen_emissions = 1;
 
-  // typedef O_1026_emission<grid_type::n_voxels> oxygen_emission_type;
-  // oxygen_emission_type oxygen_1026;
-  // oxygen_emission_type *oxygen_emissions[n_oxygen_emissions] = {&oxygen_1026};
+  typedef O_1026_emission<grid_type::n_voxels> oxygen_emission_type;
+  oxygen_emission_type oxygen_1026;
+  oxygen_emission_type *oxygen_emissions[n_oxygen_emissions] = {&oxygen_1026};
 
-  // RT_grid<oxygen_emission_type, n_oxygen_emissions, grid_type> oxygen_RT;
+  RT_grid<oxygen_emission_type, n_oxygen_emissions, grid_type> oxygen_RT;
 
-  // observation<oxygen_emission_type, n_oxygen_emissions> oxygen_obs;
+  observation<oxygen_emission_type, n_oxygen_emissions> oxygen_obs;
 
 public:
   observation_fit();
@@ -185,12 +185,12 @@ public:
   std::vector<std::vector<Real>> iph_brightness_observed();
   std::vector<std::vector<Real>> iph_brightness_unextincted();
 
-  // void O_1026_generate_source_function(const Real &nOexo,
-  // 				       const Real &Texo,
-  // 				       const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
-  // 				       const string atmosphere_fname = "",
-  // 				       const string sourcefn_fname = "");
-  // std::vector<std::vector<Real>> O_1026_brightness();
+  void O_1026_generate_source_function(const Real &nOexo,
+  				       const Real &Texo,
+  				       const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
+  				       const string atmosphere_fname = "",
+  				       const string sourcefn_fname = "");
+  std::vector<std::vector<Real>> O_1026_brightness();
 };
 
 #endif

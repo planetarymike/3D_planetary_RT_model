@@ -35,12 +35,14 @@ void plane::intersections(const atmo_vector & vec,
       n_hits++;
     }
   }
-    
+
+#ifndef NDEBUG    
   for (int i=0;i<n_hits;i++) {
     atmo_point ipt = vec.extend(distances[i]);
     assert(is_zero(ipt.z/z-1.0)
 	   && "vector must intersect plane at specified distance.");
   }
+#endif
 }
 
 
@@ -83,11 +85,13 @@ void sphere::intersections(const atmo_vector & vec,
     }
   }
 
+#ifndef NDEBUG
   for (int i=0;i<n_hits;i++) {
     atmo_point ipt = vec.extend(distances[i]);
     assert(is_zero(ipt.r/r/scale-1.0,EPS)
 	   && "vector must intersect sphere at specified distance.");
   }
+#endif
 }
 
 
@@ -159,6 +163,7 @@ void cone::intersections(const atmo_vector & vec,
     }
   }
 
+#ifndef NDEBUG
   for (int i=0;i<n_hits;i++) {
     atmo_point ipt = vec.extend(distances[i]);
     if (ipt.r > rmin)
@@ -170,6 +175,7 @@ void cone::intersections(const atmo_vector & vec,
     //we don't need to discard intersections with r<rmin because the
     //integration code does this automatically
   }
+#endif
 }
 
 

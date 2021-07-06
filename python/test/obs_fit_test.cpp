@@ -1,5 +1,4 @@
-//generate_source_function.cpp -- program to generate a source
-//function for comparison with analytic solutions and other models
+// obs_fit_test.cpp --- test the observation_fit class outside of the python wrapper
 
 #include "Real.hpp"
 #include "cuda_compatibility.hpp"
@@ -10,19 +9,40 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   observation_fit obsfit;//the object we're testing
 
-  //a fake observation to get some geometry
-  static const int n_emissions=1;
-  string emission_names[n_emissions] = {"fake"};
-  observation<n_emissions> obs(emission_names);
 
-  int n_fake = 60;
+  // grid info
+
+  static const int n_radial_boundaries = 40;
+  static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
+  static const int n_rays_theta = 6;
+  static const int n_rays_phi = 12;
+  typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
+  					       n_sza_boundaries,
+  					       n_rays_phi,
+  					       n_rays_theta> grid_type;
+  
+  grid_type grid;
+
+  // emission info
+  static const int n_emissions = 2;
+
+  //fake H emissions
+  typedef singlet_CFR<grid_type::n_voxels> emission_type;
+  emission_type lyman_alpha, lyman_beta;
+  emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
+  
+  observation<emission_type, n_emissions> obs(emissions);
   Real dist = 30*rMars;
-  obs.fake(dist,30,n_fake);
+  Real angle = 30;
+  int obs_size = 600;
+  Vector3 loc = {0.,-1.0,0.};
+  obs.fake(dist, angle, obs_size, loc);
 
+  // get the geometry out of the observation object
   vector<vector<Real>> locations, directions;
-  locations.resize(n_fake*n_fake);
-  directions.resize(n_fake*n_fake);
-  for (int i=0; i<n_fake*n_fake; i++) {
+  locations.resize(obs_size*obs_size);
+  directions.resize(obs_size*obs_size);
+  for (int i=0; i<obs_size*obs_size; i++) {
     locations[i].resize(3);
     directions[i].resize(3);
     atmo_vector vec = obs.get_vec(i);
@@ -35,21 +55,23 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   vector<Real> ra;
   vector<Real> dec;
-  ra.resize(n_fake*n_fake);
-  dec.resize(n_fake*n_fake);
-  for (int i=0; i<n_fake*n_fake; i++) {
-    ra[i] = 360.0*(i%n_fake)/(1.0*n_fake);
-    dec[i] = 180.0*(i/n_fake)/(1.0*n_fake)-90;
+  ra.resize(obs_size*obs_size);
+  dec.resize(obs_size*obs_size);
+  for (int i=0; i<obs_size*obs_size; i++) {
+    ra[i] = 360.0*(i%obs_size)/(1.0*obs_size);
+    dec[i] = 180.0*(i/obs_size)/(1.0*obs_size)-90;
   }
 
   vector<Real> marspos = {std::sqrt(2.0f),0,0};
 
-  obsfit.add_observation_ra_dec(marspos, ra, dec);
+  //obsfit.add_observation_ra_dec(marspos, ra, dec);
 
-  obsfit.generate_source_function_temp_asym(1e5,300,100);
+  // obsfit.generate_source_function_temp_asym(1e5,300,100);
+  // brightness = obsfit.brightness();
 
   vector<vector<Real>> brightness;
-  brightness = obsfit.brightness();
+  obsfit.O_1026_generate_source_function(2e7,200,1.69e-3);
+  brightness = obsfit.O_1026_brightness();
 
   return 0; 
 }

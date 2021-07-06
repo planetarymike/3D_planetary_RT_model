@@ -8,31 +8,31 @@ using std::string;
 
 observation_fit::observation_fit()
   : atm_tabular(),
-    RT_pp(grid_pp, emissions_pp),
-    RT(grid, emissions),
-    obs(emissions),
-    sim_iph(false)// ,
-    // oxygen_RT(grid, oxygen_emissions),
-    // oxygen_obs(oxygen_emissions)
+    hydrogen_RT_pp(grid_pp, hydrogen_emissions_pp),
+    hydrogen_RT(grid, hydrogen_emissions),
+    hydrogen_obs(hydrogen_emissions),
+    sim_iph(false),
+    oxygen_RT(grid, oxygen_emissions),
+    oxygen_obs(oxygen_emissions)
 {
-  RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
+  hydrogen_RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
 
-  RT.grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
-  RT.grid.szamethod = grid.szamethod_uniform_cos;
+  hydrogen_RT.grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
+  hydrogen_RT.grid.szamethod = grid.szamethod_uniform_cos;
 
-  // oxygen_RT.grid.rmethod = grid.rmethod_log_n_species;
-  // oxygen_RT.grid.szamethod = grid.szamethod_uniform_cos;
+  oxygen_RT.grid.rmethod = grid.rmethod_log_n_species;
+  oxygen_RT.grid.szamethod = grid.szamethod_uniform_cos;
 }
 
 void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations, const vector<vector<Real>> &MSO_directions) {
-  obs.add_MSO_observation(MSO_locations,MSO_directions);
-  //  oxygen_obs.add_MSO_observation(MSO_locations,MSO_directions);
+  hydrogen_obs.add_MSO_observation(MSO_locations,MSO_directions);
+  oxygen_obs.add_MSO_observation(MSO_locations,MSO_directions);
 }
 
 void observation_fit::set_g_factor(vector<Real> &g) {
-  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-    emissions[i_emission]->set_emission_g_factor(g[i_emission]);
-    emissions_pp[i_emission]->set_emission_g_factor(g[i_emission]);
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    hydrogen_emissions[i_emission]->set_emission_g_factor(g[i_emission]);
+    hydrogen_emissions_pp[i_emission]->set_emission_g_factor(g[i_emission]);
   }
 }
 
@@ -44,22 +44,22 @@ void observation_fit::add_observation_ra_dec(const std::vector<Real> &mars_eclip
 					     const std::vector<Real> &RAA,
 					     const std::vector<Real> &Decc) {
   simulate_iph(true);
-  obs.add_observation_ra_dec(mars_ecliptic_coords,
-			     RAA,
-			     Decc);
+  hydrogen_obs.add_observation_ra_dec(mars_ecliptic_coords,
+				      RAA,
+				      Decc);
   get_unextincted_iph();
 }
 
 void observation_fit::get_unextincted_iph() {
   //simulate the IPH brightness using Quemerais' IPH code
   vector<Real> iph_brightness_lya = quemerais_iph_model(lyman_alpha.get_emission_g_factor(),
-							obs.mars_ecliptic_pos,
-							obs.ra, obs.dec);
+							hydrogen_obs.mars_ecliptic_pos,
+							hydrogen_obs.ra, hydrogen_obs.dec);
   
-  for (int i_obs=0; i_obs < obs.size(); i_obs++) {
-    obs.iph_brightness_unextincted[i_obs][0] = iph_brightness_lya[i_obs];
-    if (n_emissions==2)
-      obs.iph_brightness_unextincted[i_obs][1] = 0; //could maybe estimate using lyman alpha?
+  for (int i_obs=0; i_obs < hydrogen_obs.size(); i_obs++) {
+    hydrogen_obs.iph_brightness_unextincted[i_obs][0] = iph_brightness_lya[i_obs];
+    if (n_hydrogen_emissions==2)
+      hydrogen_obs.iph_brightness_unextincted[i_obs][1] = 0; //could maybe estimate using lyman alpha?
   }
 }
 
@@ -166,8 +166,8 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
   bool atmm_spherical = atmm.spherical;
   atmm.spherical = false;
   
-  RT_pp.grid.setup_voxels(atmm);
-  RT_pp.grid.setup_rays();
+  hydrogen_RT_pp.grid.setup_voxels(atmm);
+  hydrogen_RT_pp.grid.setup_rays();
 
   //update the emission density values
   lyman_alpha_pp.define("H Lyman alpha",
@@ -176,26 +176,26 @@ void observation_fit::generate_source_function_plane_parallel(A &atmm, const Rea
 			atmm,
 			&A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 			&A::n_absorber_voxel_avg,  &A::sCO2_lya,
-			RT_pp.grid.voxels);
+			hydrogen_RT_pp.grid.voxels);
   lyman_beta_pp.define("H Lyman beta",
   		       lyman_beta_branching_ratio,
   		       Texo, atmm.sH_lyb(Texo),
   		       atmm,
 		       &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		       &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
-  		       RT_pp.grid.voxels);
+  		       hydrogen_RT_pp.grid.voxels);
 
   atmm.spherical = atmm_spherical;  
 
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
-  RT_pp.generate_S_gpu();
+  hydrogen_RT_pp.generate_S_gpu();
 #else
-  RT_pp.generate_S();
+  hydrogen_RT_pp.generate_S();
 #endif
 
   if (sourcefn_fname!="")
-    RT_pp.save_S(sourcefn_fname);
+    hydrogen_RT_pp.save_S(sourcefn_fname);
 }
 
 template <typename A>
@@ -208,8 +208,8 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
     atmm.spherical = true;
   }
 
-  RT.grid.setup_voxels(atmm);
-  RT.grid.setup_rays();
+  hydrogen_RT.grid.setup_voxels(atmm);
+  hydrogen_RT.grid.setup_rays();
 
 
   //update the emission density values
@@ -219,27 +219,27 @@ void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &
 		     atmm,
 		     &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		     &A::n_absorber_voxel_avg,  &A::sCO2_lya,
-		     RT.grid.voxels);
+		     hydrogen_RT.grid.voxels);
   lyman_beta.define("H Lyman beta",
   		    lyman_beta_branching_ratio,
   		    Texo, atmm.sH_lyb(Texo),
   		    atmm,
 		    &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		    &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
-  		    RT.grid.voxels);
+  		    hydrogen_RT.grid.voxels);
 
   if (change_spherical)
     atmm.spherical = false;    
 
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
-  RT.generate_S_gpu();
+  hydrogen_RT.generate_S_gpu();
 #else
-  RT.generate_S();
+  hydrogen_RT.generate_S();
 #endif
 
   if (sourcefn_fname!="")
-    RT.save_S(sourcefn_fname);
+    hydrogen_RT.save_S(sourcefn_fname);
 }
 
 
@@ -352,10 +352,10 @@ void observation_fit::set_use_temp_dependent_sH(const bool use_temp_dependent_sH
 }
 
 void observation_fit::set_sza_method_uniform() {
-  RT.grid.szamethod = RT.grid.szamethod_uniform;
+  hydrogen_RT.grid.szamethod = hydrogen_RT.grid.szamethod_uniform;
 }
 void observation_fit::set_sza_method_uniform_cos() {
-  RT.grid.szamethod = RT.grid.szamethod_uniform_cos;
+  hydrogen_RT.grid.szamethod = hydrogen_RT.grid.szamethod_uniform_cos;
 }
 
 void observation_fit::reset_H_lya_xsec_coef(const Real xsec_coef/* = lyman_alpha_line_center_cross_secion_coef*/) {
@@ -379,24 +379,24 @@ void observation_fit::reset_CO2_lyb_xsec(const Real xsec/* = CO2_lyman_beta_abso
 vector<vector<Real>> observation_fit::brightness() {
   //compute brightness on the GPU if compiled with NVCC
 #ifdef __CUDACC__
-  RT.brightness_gpu(obs);
+  hydrogen_RT.brightness_gpu(hydrogen_obs);
 #else
-  RT.brightness(obs);
+  hydrogen_RT.brightness(hydrogen_obs);
 #endif
 
   if (sim_iph)
-    obs.update_iph_extinction();
+    hydrogen_obs.update_iph_extinction();
   
   vector<vector<Real>> brightness;
-  brightness.resize(n_emissions);
+  brightness.resize(n_hydrogen_emissions);
   
-  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-    brightness[i_emission].resize(obs.size());
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    brightness[i_emission].resize(hydrogen_obs.size());
     
-    for (int i=0;i<obs.size();i++) {
-      brightness[i_emission][i] = obs.los[i_emission][i].brightness;
+    for (int i=0;i<hydrogen_obs.size();i++) {
+      brightness[i_emission][i] = hydrogen_obs.los[i_emission][i].brightness;
       if (sim_iph)
-	brightness[i_emission][i] += obs.iph_brightness_observed[i][i_emission];
+	brightness[i_emission][i] += hydrogen_obs.iph_brightness_observed[i][i_emission];
     }
   }
   
@@ -405,13 +405,13 @@ vector<vector<Real>> observation_fit::brightness() {
 
 vector<vector<Real>> observation_fit::tau_species_final() {
   vector<vector<Real>> tau_species;
-  tau_species.resize(n_emissions);
+  tau_species.resize(n_hydrogen_emissions);
   
-  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-    tau_species[i_emission].resize(obs.size());
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    tau_species[i_emission].resize(hydrogen_obs.size());
     
-    for (int i=0;i<obs.size();i++)
-      tau_species[i_emission][i] = obs.los[i_emission][i].tau_species_final;
+    for (int i=0;i<hydrogen_obs.size();i++)
+      tau_species[i_emission][i] = hydrogen_obs.los[i_emission][i].tau_species_final;
   }
   
   return tau_species;
@@ -420,13 +420,13 @@ vector<vector<Real>> observation_fit::tau_species_final() {
 
 vector<vector<Real>> observation_fit::tau_absorber_final() {
   vector<vector<Real>> tau_absorber;
-  tau_absorber.resize(n_emissions);
+  tau_absorber.resize(n_hydrogen_emissions);
   
-  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-    tau_absorber[i_emission].resize(obs.size());
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    tau_absorber[i_emission].resize(hydrogen_obs.size());
     
-    for (int i=0;i<obs.size();i++)
-      tau_absorber[i_emission][i] = obs.los[i_emission][i].tau_absorber_final;
+    for (int i=0;i<hydrogen_obs.size();i++)
+      tau_absorber[i_emission][i] = hydrogen_obs.los[i_emission][i].tau_absorber_final;
   }
   
   return tau_absorber;
@@ -435,15 +435,15 @@ vector<vector<Real>> observation_fit::tau_absorber_final() {
 
 vector<vector<Real>> observation_fit::iph_brightness_observed() {
   vector<vector<Real>> iph_b;
-  iph_b.resize(n_emissions);
+  iph_b.resize(n_hydrogen_emissions);
 
-  obs.update_iph_extinction();
+  hydrogen_obs.update_iph_extinction();
   
-  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-    iph_b[i_emission].resize(obs.size());
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    iph_b[i_emission].resize(hydrogen_obs.size());
     
-    for (int i=0;i<obs.size();i++)
-      iph_b[i_emission][i] =  obs.iph_brightness_observed[i][i_emission];
+    for (int i=0;i<hydrogen_obs.size();i++)
+      iph_b[i_emission][i] =  hydrogen_obs.iph_brightness_observed[i][i_emission];
   }
   
   return iph_b;
@@ -451,89 +451,88 @@ vector<vector<Real>> observation_fit::iph_brightness_observed() {
 
 vector<vector<Real>> observation_fit::iph_brightness_unextincted() {
   vector<vector<Real>> iph_b;
-  iph_b.resize(n_emissions);
+  iph_b.resize(n_hydrogen_emissions);
 
-  for (int i_emission=0;i_emission<n_emissions;i_emission++) {
-    iph_b[i_emission].resize(obs.size());
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    iph_b[i_emission].resize(hydrogen_obs.size());
     
-    for (int i=0;i<obs.size();i++)
-      iph_b[i_emission][i] =  obs.iph_brightness_unextincted[i][i_emission];
+    for (int i=0;i<hydrogen_obs.size();i++)
+      iph_b[i_emission][i] =  hydrogen_obs.iph_brightness_unextincted[i][i_emission];
   }
   
   return iph_b;
 }
 
-// void observation_fit::O_1026_generate_source_function(const Real &nOexo,
-// 						      const Real &Texo,
-// 						      const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
-// 						      const string atmosphere_fname/* = ""*/,
-// 						      const string sourcefn_fname/* = ""*/)
-// {
-//   std::cout << "Simulating O 102.6 nm brightness.\n";
-//   std::cout << "nOexo = " << nOexo << "; Texo = " << Texo << ".\n";
+void observation_fit::O_1026_generate_source_function(const Real &nOexo,
+						      const Real &Texo,
+						      const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
+						      const string atmosphere_fname/* = ""*/,
+						      const string sourcefn_fname/* = ""*/)
+{
+  std::cout << "Simulating O 102.6 nm brightness.\n";
+  std::cout << "nOexo = " << nOexo << "; Texo = " << Texo << ".\n";
 
-//   temp = krasnopolsky_temperature(Texo);
+  temp = krasnopolsky_temperature(Texo);
 
-//   Real rmin = rMars+100e5; // 100 km
-//   int method = thermosphere_exosphere::method_nspmin_nCO2exo;
+  Real rmin = rMars+100e5; // 100 km
+  int method = thermosphere_exosphere::method_nspmin_nCO2exo;
   
-//   chamb_diff_1d atm(/* rmin = */ rmin,
-// 		    /* rexo = */ rMars+200e5,
-// 		    /* rmaxx_or_nspmin = */ 10, // cm3
-// 		    /* rmindifussion = */ rmin, 
-// 		    nOexo,
-// 		    CO2_exobase_density,
-// 		    &temp,
-// 		    &O_thermosphere,
-// 		    method);
+  chamb_diff_1d atm(/* rmin = */ rmin,
+		    /* rexo = */ rMars+200e5,
+		    /* rmaxx_or_nspmin = */ 10, // cm3
+		    /* rmindifussion = */ rmin, 
+		    nOexo,
+		    CO2_exobase_density,
+		    &temp,
+		    &O_thermosphere,
+		    method);
 
-//   if (atmosphere_fname !="")
-//     atm.save(atmosphere_fname);
+  if (atmosphere_fname !="")
+    atm.save(atmosphere_fname);
   
-//   atm.spherical = true;
+  atm.spherical = true;
 
-//   oxygen_RT.grid.setup_voxels(atm);
-//   oxygen_RT.grid.setup_rays();
+  oxygen_RT.grid.setup_voxels(atm);
+  oxygen_RT.grid.setup_rays();
 
+  //update the emission density values
+  oxygen_1026.define("O_1026",
+		     atm,
+		     &chamb_diff_1d::n_species_voxel_avg,   
+		     &chamb_diff_1d::Temp_voxel_avg,
+		     &chamb_diff_1d::n_absorber_voxel_avg,
+		     oxygen_RT.grid.voxels);
+  oxygen_1026.set_solar_brightness(solar_brightness_lyman_beta); /* ph/cm2/s/Hz, 
+								    solar line center brightness at Lyman beta */
+  
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  oxygen_RT.generate_S_gpu();
+#else
+  oxygen_RT.generate_S();
+#endif
+  
+  if (sourcefn_fname!="")
+    oxygen_RT.save_S(sourcefn_fname);
+}
 
-//   //update the emission density values
-//   oxygen_1026.define("O_1026",
-// 		     atm,
-// 		     &chamb_diff_1d::n_species_voxel_avg,   
-// 		     &chamb_diff_1d::Temp_voxel_avg,
-// 		     &chamb_diff_1d::n_absorber_voxel_avg,
-// 		     grid.voxels);
-//   oxygen_1026.set_solar_brightness(solar_brightness_lyman_beta); /* ph/cm2/s/Hz, 
-// 								    solar line center brightness at Lyman beta */
+vector<vector<Real>> observation_fit::O_1026_brightness() {
+  //compute brightness on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  oxygen_RT.brightness_gpu(oxygen_obs);
+#else
+  oxygen_RT.brightness(oxygen_obs);
+#endif
   
-//   //compute source function on the GPU if compiled with NVCC
-// #ifdef __CUDACC__
-//   oxygen_RT.generate_S_gpu();
-// #else
-//   oxygen_RT.generate_S();
-// #endif
+  vector<vector<Real>> brightness;
+  brightness.resize(oxygen_1026.n_lines);
   
-//   if (sourcefn_fname!="")
-//     oxygen_RT.save_S(sourcefn_fname);
-// }
-
-// vector<vector<Real>> observation_fit::O_1026_brightness() {
-//   //compute brightness on the GPU if compiled with NVCC
-// #ifdef __CUDACC__
-//   oxygen_RT.brightness_gpu(oxygen_obs);
-// #else
-//   oxygen_RT.brightness(oxygen_obs);
-// #endif
-  
-//   vector<vector<Real>> brightness;
-//   brightness.resize(oxygen_1026.n_lines);
-  
-//   for (int i_line=0;i_line<oxygen_1026.n_lines;i_line++) {
-//     brightness[i_line].resize(oxygen_obs.size());
+  for (int i_line=0;i_line<oxygen_1026.n_lines;i_line++) {
+    brightness[i_line].resize(oxygen_obs.size());
     
-//     for (int i=0;i<oxygen_obs.size();i++)
-//       brightness[i_line][i] = oxygen_obs.los[0][i].brightness[i_line];
-//   }
+    for (int i=0;i<oxygen_obs.size();i++)
+      brightness[i_line][i] = oxygen_obs.los[0][i].brightness[i_line];
+  }
   
-//   return brightness;
-// }
+  return brightness;
+}
