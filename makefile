@@ -56,7 +56,7 @@ else
 EXTRA_NOFLAGS = --gpu-architecture=sm_$(CUDA_DEVICE_CODE)
 endif
 NOFLAGS=$(NOBASEFLAGS) $(EXTRA_NOFLAGS)
-NDBGFLAGS=-O0 -g -G -arch sm_$(CUDA_DEVICE_CODE) # -lineinfo
+NDBGFLAGS=-g -G -arch sm_$(CUDA_DEVICE_CODE) -Xcompiler -O0 -Xptxas -O0
 #                ^^^ this -G sometimes changes the behavior of the code??
 
 generate_source_function:
@@ -67,6 +67,9 @@ generate_source_function_profile:
 
 generate_source_function_debug_warn:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
+
+generate_source_function_debug_warn_float:
+	$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
 
 generate_source_function_debug_warn_MP:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) -O0 -g -Wall -Wextra -o generate_source_function.x
@@ -136,7 +139,7 @@ py_corona_sim_gpu:
 	export SOURCE_FILES='$(PYSRCFILES)'; \
 	export CC='nvcc'; \
 	export CXX='nvcc'; \
-	python setup_corona_sim.py build_ext --inplace -RT_FLOAT
+	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
 
 

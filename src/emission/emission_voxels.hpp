@@ -118,11 +118,14 @@ public:
     //we are running on the CPU, reset using Eigen
     influence_matrix.eigen().setZero();
 #else
-    // we are inside a GPU kernel, each block resets one row (specified
-    // by i_vox), using all threads
+    // we are inside a GPU kernel, each block resets one voxel (specified by i_vox), using all threads
     assert(i_vox!=-1 && "initialization error in reset_solution");
-    for (int j_vox = threadIdx.x; j_vox < n_upper_elements; j_vox+=blockDim.x)
-      influence_matrix(i_vox, j_vox) = 0;
+    for (int i_state=0; i_state<influence_matrix.n_states; i_state++) {
+      int i_el = influence_matrix.get_element_num(i_vox, i_state);
+      for (int j_el = threadIdx.x; j_el < influence_matrix.n_elements; j_el+=blockDim.x) {
+	influence_matrix(i_el, j_el) = 0;
+      }
+    }
 #endif
     internal_solved=false;
   }
@@ -139,13 +142,13 @@ public:
     // collision, this is only used on the GPU
 #ifndef __CUDA_ARCH__
     for (int i_upper=0;i_upper<n_upper;i_upper++) {
-      Real rowsum = 0.0;
+      //      Real rowsum = 0.0;
       for (unsigned int j_voxel = 0; j_voxel < n_voxels; j_voxel++) {
 	for (unsigned int j_upper = 0; j_upper < n_upper; j_upper++) {
 	  influence_matrix(start_voxel, i_upper,
 			   j_voxel    , j_upper) += tracker.influence[i_upper](j_voxel, j_upper);
-	  rowsum += influence_matrix(start_voxel, i_upper,
-				     j_voxel    , j_upper);
+	  // rowsum += influence_matrix(start_voxel, i_upper,
+	  // 			     j_voxel    , j_upper);
 	}
       }
       //assert(0.0 <= rowsum && rowsum <= 1.0 && "row represents scattering probability from this element");
@@ -154,13 +157,10 @@ public:
     // with seperate influence trackers for each thread
     for (int i_upper=0;i_upper<n_upper;i_upper++) {
       for (unsigned int j_voxel = 0; j_voxel < n_voxels; j_voxel++) {
-	int j_voxel_offset = (j_voxel + offset) % n_voxels; 
-	// ^^^ this starts parallel threads off in different columns to avoid a collision
 	for (unsigned int j_upper = 0; j_upper < n_upper; j_upper++) {
-	  atomicAdd(&influence_matrix(start_voxel   , i_upper,
-				      j_voxel_offset, j_upper),
-		    tracker.influence[i_upper](j_voxel_offset, j_upper));
-	  //__syncthreads();
+	  atomicAdd(&influence_matrix(start_voxel, i_upper,
+				      j_voxel    , j_upper),
+		    tracker.influence[i_upper](j_voxel, j_upper));
 	}
       }
     }
@@ -315,6 +315,9 @@ void emission_voxels<N_VOXELS,
   //this is adapted from the LU dense example here:
   //https://docs.nvidia.com/cuda/pdf/CUSOLVER_Library.pdf
 
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
+
   static_cast<emission_type*>(this)->pre_solve_gpu();
   // this ensures that:
   // 1) emiss->influence_matrix represents the kernel, not the influence matrix
@@ -324,6 +327,8 @@ void emission_voxels<N_VOXELS,
   // we need to transpose the influence matrix from row-major to
   // column-major before the CUDA utils can solve it
   transpose_influence_gpu();
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaDeviceSynchronize() );
 #endif
 
   cusolverDnHandle_t cusolverH = NULL;
@@ -332,7 +337,7 @@ void emission_voxels<N_VOXELS,
   cusolverStatus_t status = CUSOLVER_STATUS_SUCCESS;
   cudaError_t cudaStat1 = cudaSuccess;
   cudaError_t cudaStat2 = cudaSuccess;
-  const int m = n_voxels;
+  const int m = influence_matrix.n_elements;
   const int lda = m;
   const int ldb = m;
 
@@ -437,7 +442,7 @@ void emission_voxels<N_VOXELS,
   cublasCreate(&handle);
 
   //allocate space for transpose;
-  const int N = n_upper_elements;
+  const int N = influence_matrix.n_elements;
   Real *d_transpose = NULL;
   checkCudaErrors(
 		  cudaMalloc((void **) &d_transpose,

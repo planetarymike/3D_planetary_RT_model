@@ -15,10 +15,12 @@
 #include "grid/grid_plane_parallel.hpp"
 #include "grid/grid_spherical_azimuthally_symmetric.hpp"
 #include "emission/singlet_CFR.hpp"
+//#include "emission/O_1026.hpp"
 
 class observation_fit {
 protected:
   hydrogen_density_parameters H_thermosphere;
+  oxygen_density_parameters O_thermosphere;
   
   krasnopolsky_temperature temp;
   const Real CO2_exobase_density = 2e8;//cm-3
@@ -48,7 +50,7 @@ protected:
 					       n_rays_phi> grid_type;
   grid_type grid;
 
-  // define emissions
+  // define hydrogen emissions
   static const int n_emissions = 2;
 
   typedef singlet_CFR<plane_parallel_grid_type::n_voxels> emission_type_pp;
@@ -67,6 +69,17 @@ protected:
 
   bool sim_iph;
 
+  // // define oxygen emissions
+  // static const int n_oxygen_emissions = 1;
+
+  // typedef O_1026_emission<grid_type::n_voxels> oxygen_emission_type;
+  // oxygen_emission_type oxygen_1026;
+  // oxygen_emission_type *oxygen_emissions[n_oxygen_emissions] = {&oxygen_1026};
+
+  // RT_grid<oxygen_emission_type, n_oxygen_emissions, grid_type> oxygen_RT;
+
+  // observation<oxygen_emission_type, n_oxygen_emissions> oxygen_obs;
+
 public:
   observation_fit();
 
@@ -78,7 +91,6 @@ public:
   void get_unextincted_iph();
   
   void set_g_factor(vector<Real> &g);
-
 
   void simulate_iph(const bool sim_iphh);
   void add_observation_ra_dec(const std::vector<Real> &mars_ecliptic_coords,
@@ -173,9 +185,12 @@ public:
   std::vector<std::vector<Real>> iph_brightness_observed();
   std::vector<std::vector<Real>> iph_brightness_unextincted();
 
-  std::vector<Real> likelihood_and_derivatives(const Real &nHexo, const Real &Texo);
-  void logl();
-  void logl_gpu();
+  // void O_1026_generate_source_function(const Real &nOexo,
+  // 				       const Real &Texo,
+  // 				       const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
+  // 				       const string atmosphere_fname = "",
+  // 				       const string sourcefn_fname = "");
+  // std::vector<std::vector<Real>> O_1026_brightness();
 };
 
 #endif

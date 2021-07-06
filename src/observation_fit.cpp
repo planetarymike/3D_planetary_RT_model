@@ -11,16 +11,22 @@ observation_fit::observation_fit()
     RT_pp(grid_pp, emissions_pp),
     RT(grid, emissions),
     obs(emissions),
-    sim_iph(false)
+    sim_iph(false)// ,
+    // oxygen_RT(grid, oxygen_emissions),
+    // oxygen_obs(oxygen_emissions)
 {
   RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
 
   RT.grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
   RT.grid.szamethod = grid.szamethod_uniform_cos;
+
+  // oxygen_RT.grid.rmethod = grid.rmethod_log_n_species;
+  // oxygen_RT.grid.szamethod = grid.szamethod_uniform_cos;
 }
 
 void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations, const vector<vector<Real>> &MSO_directions) {
   obs.add_MSO_observation(MSO_locations,MSO_directions);
+  //  oxygen_obs.add_MSO_observation(MSO_locations,MSO_directions);
 }
 
 void observation_fit::set_g_factor(vector<Real> &g) {
@@ -457,8 +463,77 @@ vector<vector<Real>> observation_fit::iph_brightness_unextincted() {
   return iph_b;
 }
 
+// void observation_fit::O_1026_generate_source_function(const Real &nOexo,
+// 						      const Real &Texo,
+// 						      const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
+// 						      const string atmosphere_fname/* = ""*/,
+// 						      const string sourcefn_fname/* = ""*/)
+// {
+//   std::cout << "Simulating O 102.6 nm brightness.\n";
+//   std::cout << "nOexo = " << nOexo << "; Texo = " << Texo << ".\n";
+
+//   temp = krasnopolsky_temperature(Texo);
+
+//   Real rmin = rMars+100e5; // 100 km
+//   int method = thermosphere_exosphere::method_nspmin_nCO2exo;
+  
+//   chamb_diff_1d atm(/* rmin = */ rmin,
+// 		    /* rexo = */ rMars+200e5,
+// 		    /* rmaxx_or_nspmin = */ 10, // cm3
+// 		    /* rmindifussion = */ rmin, 
+// 		    nOexo,
+// 		    CO2_exobase_density,
+// 		    &temp,
+// 		    &O_thermosphere,
+// 		    method);
+
+//   if (atmosphere_fname !="")
+//     atm.save(atmosphere_fname);
+  
+//   atm.spherical = true;
+
+//   oxygen_RT.grid.setup_voxels(atm);
+//   oxygen_RT.grid.setup_rays();
 
 
+//   //update the emission density values
+//   oxygen_1026.define("O_1026",
+// 		     atm,
+// 		     &chamb_diff_1d::n_species_voxel_avg,   
+// 		     &chamb_diff_1d::Temp_voxel_avg,
+// 		     &chamb_diff_1d::n_absorber_voxel_avg,
+// 		     grid.voxels);
+//   oxygen_1026.set_solar_brightness(solar_brightness_lyman_beta); /* ph/cm2/s/Hz, 
+// 								    solar line center brightness at Lyman beta */
+  
+//   //compute source function on the GPU if compiled with NVCC
+// #ifdef __CUDACC__
+//   oxygen_RT.generate_S_gpu();
+// #else
+//   oxygen_RT.generate_S();
+// #endif
+  
+//   if (sourcefn_fname!="")
+//     oxygen_RT.save_S(sourcefn_fname);
+// }
 
-
-
+// vector<vector<Real>> observation_fit::O_1026_brightness() {
+//   //compute brightness on the GPU if compiled with NVCC
+// #ifdef __CUDACC__
+//   oxygen_RT.brightness_gpu(oxygen_obs);
+// #else
+//   oxygen_RT.brightness(oxygen_obs);
+// #endif
+  
+//   vector<vector<Real>> brightness;
+//   brightness.resize(oxygen_1026.n_lines);
+  
+//   for (int i_line=0;i_line<oxygen_1026.n_lines;i_line++) {
+//     brightness[i_line].resize(oxygen_obs.size());
+    
+//     for (int i=0;i<oxygen_obs.size();i++)
+//       brightness[i_line][i] = oxygen_obs.los[0][i].brightness[i_line];
+//   }
+  
+//   return brightness;
+// }

@@ -36,16 +36,16 @@ struct voxel_array {
   }
   
   CUDA_CALLABLE_MEMBER
-  Real & operator()(const int n_voxel, const int n_state=0) {
+  Real & operator()(const int n_voxel, const int n_state) {
     return vec[get_element_num(n_voxel, n_state)];
   }
   CUDA_CALLABLE_MEMBER
-  Real operator()(const int n_voxel, const int n_state = 0) const {
+  Real operator()(const int n_voxel, const int n_state) const {
     return vec[get_element_num(n_voxel, n_state)];
   }
 
   CUDA_CALLABLE_MEMBER
-  Real & operator[](const int i_el) {
+  Real & operator()(const int i_el) {
     return vec[i_el];
   }
   CUDA_CALLABLE_MEMBER
@@ -140,22 +140,22 @@ public:
   }
 
   CUDA_CALLABLE_MEMBER
-  Real & operator()(const int n_voxel, const int n_state=0) {
+  Real & operator()(const int n_voxel, const int n_state) {
     return vec[get_element_num(n_voxel, n_state)];
   }
   CUDA_CALLABLE_MEMBER
-  Real operator()(const int n_voxel, const int n_state=0) const {
+  Real operator()(const int n_voxel, const int n_state) const {
     return vec[get_element_num(n_voxel, n_state)];
   }
 
-//   CUDA_CALLABLE_MEMBER
-//   Real & operator[](const int n) {
-//     return vec[n];
-//   }
-//   CUDA_CALLABLE_MEMBER
-//   Real operator[](const int n) const {
-//     return vec[get_element_num(n)];
-//   }
+  CUDA_CALLABLE_MEMBER
+  Real & operator()(const int n) {
+    return vec[n];
+  }
+  CUDA_CALLABLE_MEMBER
+  Real operator()(const int n) const {
+    return vec[n];
+  }
 
 
 

@@ -52,12 +52,13 @@ else:
     print("compiling with Real=double")
     cython_compile_time = {'RT_FLOAT': False}
 
+    
 # monkey-patch for parallel compilation
 def parallelCCompile(self, sources,
                      output_dir=None,
                      macros=None,
                      include_dirs=None,
-                     debug=0,
+                     debug=1,
                      extra_preargs=None,
                      extra_postargs=None,
                      depends=None):
@@ -74,6 +75,8 @@ def parallelCCompile(self, sources,
     # convert to list, imap is evaluated on-demand
     list(multiprocessing.pool.ThreadPool(N).imap(_single_compile,objects))
     return objects
+
+
 dccm.CCompiler.compile = parallelCCompile
 
 setup(name="py_corona_sim",

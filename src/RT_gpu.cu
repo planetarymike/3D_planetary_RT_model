@@ -219,7 +219,7 @@ void influence_kernel(RT_grid<emission_type,N_EMISSIONS,grid_type> *RT)
     RT->emissions[i_emission]->reset_tracker(i_vox, temp_influence[i_emission]);
   }
 
-  //__syncthreads();
+  __syncthreads();
   
   //integrate
   RT->voxel_traverse(vec,
@@ -277,11 +277,12 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
 
   // //solve on CPU with Eigen
   // emissions_influence_to_host();
-  // save_influence();
+  // // save_influence();
   // solve();
 
   //solve on GPU (~2.5x slower for first call)
   //much faster than CPU on subsequent calls
+  emissions_influence_to_host();
   solve_gpu();
   emissions_solved_to_host();
 

@@ -8,6 +8,118 @@
 #include "voxel_vector.hpp"
 #include "constants.hpp"
 
+#define PASS_ARRAY(...) __VA_ARGS__
+
+#define ARRAY_NAME(name) name ## _array
+#define ARRAY_NAME_GPU(name) name ## _array_gpu
+
+#define DECLARE_STATIC_ARRAY(type, n_elements, name, array_values) \
+  static constexpr type ARRAY_NAME(name)[n_elements]     = array_values;	\
+  CUDA_CONST       type ARRAY_NAME_GPU(name)[n_elements] = array_values;
+
+#ifndef __CUDA_ARCH__
+#define CUDA_STATIC_ARRAY_MEMBER(nspace, type, name)		 \
+  static constexpr type name(const int i) {			 \
+    return nspace::ARRAY_NAME(name)[i];				 \
+  }
+#else
+#define CUDA_STATIC_ARRAY_MEMBER(nspace, type, name)			\
+  __device__ static constexpr type name(const int i){			\
+    return nspace::ARRAY_NAME_GPU(name)[i];				\
+  }
+#endif
+
+namespace O_1026_constants_detail {
+  static constexpr int n_lines = 6; // we model a total of 6 lines
+  static constexpr int n_multiplets = 3;
+  static constexpr int n_lower = 3; // there are three lower and three upper states
+  static constexpr int n_upper = 3;
+  
+  DECLARE_STATIC_ARRAY(int, n_lines, multiplet_identity, PASS_ARRAY({1, 2, 2, 3, 3, 3}))
+  DECLARE_STATIC_ARRAY(int, n_lines, multiplet_index   , PASS_ARRAY({0, 1, 1, 2, 2, 2}))
+  DECLARE_STATIC_ARRAY(int, n_lines, lower_level_J     , PASS_ARRAY({0, 1, 1, 2, 2, 2}))
+  DECLARE_STATIC_ARRAY(int, n_lines, lower_level_index , PASS_ARRAY({0, 1, 1, 2, 2, 2}))
+  DECLARE_STATIC_ARRAY(int, n_lines, upper_level_J     , PASS_ARRAY({1, 1, 2, 1, 2, 3}))
+  DECLARE_STATIC_ARRAY(int, n_lines, upper_level_index , PASS_ARRAY({0, 0, 1, 0, 1, 2}))
+
+  // line data from W. L. Wiese, J. R. Fuhr, and T. M. Deters, AIP Press, Melville, NY, 532 pp. (1996)
+  //                ^^^^^^^^^^^ This paper did a survey of calculations up to that point.
+  //                            For these transitions something better than about 5% accuracy
+  //                            is expected based on comparison between calculations.
+  //                Tayal 2009 "Oscillator strengths for allowed transitions in neutral oxygen"
+  //                            reports very similar f-values for these transitions
+  //                Cashman+2017 https://ui.adsabs.harvard.edu/abs/2017ApJS..230....8C/abstract
+  //                            this paper and the O I study they cite have values perhaps
+  //                            5% lower than those used here.
+  // the values used here are the same as those used in Meier+1987
+  
+  //  rest wavelength  
+  DECLARE_STATIC_ARRAY(Real, n_lines, line_wavelength,           PASS_ARRAY({// singlet
+  									     102.81571 /*nm*/,
+  									     // doublet
+  									     102.74313 /*nm*/, 102.74305 /*nm*/,
+  									     // triplet
+  									     102.57633 /*nm*/, 102.57626 /*nm*/, 102.57616 /*nm*/}))
+  //  offset from centroid of multiplet  
+  DECLARE_STATIC_ARRAY(Real, n_lines, line_wavelength_offset,   PASS_ARRAY({// singlet
+  									    0.0 /*nm*/, 
+  									    // doublet
+  									    4e-5 /*nm*/, -4e-5 /*nm*/,
+  									    // triplet
+  									    8e-5 /*nm*/, 1e-5 /*nm*/, -9e-5 /*nm*/}))
+  //  Einstein A  
+  DECLARE_STATIC_ARRAY(Real, n_lines, line_A,                   PASS_ARRAY({ // singlet
+  									    4.22e7 /*s^-1*/,
+  									    // doublet
+  									    3.17e7 /*s^-1*/, 5.71e7 /*s^-1*/,
+  									    // triplet
+  									    2.11e6 /*s^-1*/, 1.91e7 /*s^-1*/, 7.66e7 /*s^-1*/}))
+  //  line f-value, used to compute absorption cross section  
+  DECLARE_STATIC_ARRAY(Real, n_lines, line_f,                   PASS_ARRAY({// singlet
+  									    2.01e-2, // unitless
+  									    // doublet
+  									    5.02e-3, 1.51e-2,
+  									    // triplet
+  									    2.00e-4, 3.01e-3, 1.69e-2}))
+
+  //  line absorption cross section, from sigma_tot = pi*e^2/mc * f
+  DECLARE_STATIC_ARRAY(Real, n_lines, line_sigma_total,         PASS_ARRAY({line_f_coeff*line_f_array[0], // cm2 Hz
+  									    line_f_coeff*line_f_array[1],
+  									    line_f_coeff*line_f_array[2],
+  									    line_f_coeff*line_f_array[3],
+  									    line_f_coeff*line_f_array[4],
+  									    line_f_coeff*line_f_array[5]}))
+  
+  //  sum of Einstein A's from upper state to all lower states (includes branching to ~1129nm)
+  DECLARE_STATIC_ARRAY(Real, n_lines, upper_state_decay_rate,   PASS_ARRAY({// J = 1
+  									    //   102.6 nm branch
+  									    2.11e6 /* to J=2*/ + 3.17e7 /* to J=1*/ + 4.22e7 /* to J=0*/
+  									    //   1129 nm branch
+  									    + 1.29e7 /* to J=1*/ + 8.6e5 /* to J=2*/ + 1.72e7 /* to J=0*/,
+									    
+  									    // J = 2
+  									    //   102.6 nm branch
+  									    1.91e7 /* to J=2*/ + 5.71e7 /* to J=1 */
+  									    //   1129 nm branch
+  									    + 2.32e7 /* to J=1*/ + 7.74e6 /* to J=2 */,
+									    
+  									    // J = 3
+  									    //   102.6 nm branch
+  									    7.66e7 /* to J=2 */
+  									    //   1129 nm branch
+  									    + 3.09e7}))
+  //  energy of the lower states
+  //    note: for atomic O, the J=2 state is the ground state and the
+  //          lower J levels increase in energy
+  DECLARE_STATIC_ARRAY(Real, n_lower, lower_state_energy,             PASS_ARRAY({/* J = 0 */ REAL(0.0281416)*erg_per_eV, // erg
+  										  /* J = 1 */ REAL(0.0196224)*erg_per_eV,
+  										  /* J = 2 */ REAL(0.0      )*erg_per_eV}))
+  
+  DECLARE_STATIC_ARRAY(Real, n_lower, lower_state_statistical_weight, PASS_ARRAY({ /* J = 0 */ 1, 
+  										   /* J = 1 */ 3,
+  										   /* J = 2 */ 5}))
+}
+
 template <bool is_influence, int N_VOXELS>
 struct O_1026_tracker {
   // this is a tracker for the O 102.6 nm multiplet emission.
@@ -24,110 +136,39 @@ struct O_1026_tracker {
   // absolute wavelength space to compute optical depths and
   // transition probabilities.
 
-  static const int n_lines = 6; // we model a total of 6 lines
-  static const int n_multiplets = 3;
-  static const int n_lower = 3; // there are three lower and three upper states
-  static const int n_upper = 3;
+  static const int n_lines      = O_1026_constants_detail::n_lines;
+  static const int n_multiplets = O_1026_constants_detail::n_multiplets;
+  static const int n_lower      = O_1026_constants_detail::n_lower;
+  static const int n_upper      = O_1026_constants_detail::n_upper;
 
-  // upper, lower, and multiplet states of each line
-  static constexpr int multiplet_identity[n_lines] = {1, 2, 2, 3, 3, 3};
-  static constexpr int multiplet_index[n_lines]    = {0, 1, 1, 2, 2, 2};
-  static constexpr int lower_level_J[n_lines]      = {0, 1, 1, 2, 2, 2};
-  static constexpr int lower_level_index[n_lines]  = {0, 1, 1, 2, 2, 2};
-  static constexpr int upper_level_J[n_lines]      = {1, 1, 2, 1, 2, 3};
-  static constexpr int upper_level_index[n_lines]  = {0, 0, 1, 0, 1, 2};
+  // import the static array data as member functions that can be called
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, multiplet_identity)
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, multiplet_index   )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, lower_level_J     )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, lower_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, upper_level_J     )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, upper_level_index )
 
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, line_wavelength               )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, line_wavelength_offset        )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, line_A                        )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, line_f                        )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, line_sigma_total              )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, upper_state_decay_rate        )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, lower_state_energy            )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, lower_state_statistical_weight)
 
-  // line data
-
-  //  rest wavelength
-  static constexpr Real line_wavelength[n_lines]            = {// singlet
-							       102.81571 /*nm*/,
-							       // doublet
-							       102.74313 /*nm*/, 102.74305 /*nm*/,
-							       // triplet
-							       102.57633 /*nm*/, 102.57626 /*nm*/, 102.57616 /*nm*/};
-  //  offset from centroid of multiplet
-  static constexpr Real line_wavelength_offset[n_lines]     = {// singlet
-							       0.0 /*nm*/, 
-							       // doublet
-							       4e-5 /*nm*/, -4e-5 /*nm*/,
-							       // triplet
-							       8e-5 /*nm*/, 1e-5 /*nm*/, -9e-5 /*nm*/};
-
-  //  Einstein A
-  static constexpr Real line_A[n_lines]                     = { // singlet
-							       4.22e7 /*s^-1*/,
-							       // doublet
-							       3.17e7 /*s^-1*/, 5.71e7 /*s^-1*/,
-							       // triplet
-							       2.11e6 /*s^-1*/, 1.91e7 /*s^-1*/, 7.66e7 /*s^-1*/};
-  //  line f-value, used to compute absorption cross section
-  static constexpr Real line_f[n_lines]                     = {// singlet
-							       2.01e-2, // unitless
-							       // doublet
-							       5.02e-3, 1.51e-2,
-							       // triplet
-							       2.00e-4, 3.01e-3, 1.69e-2};
-
-  //  line absorption cross section, from sigma_tot = pi*e^2/mc * f
-  static constexpr Real line_sigma_total[n_lines]           = {line_f_coeff*line_f[0], // cm2 Hz
-							       line_f_coeff*line_f[1],
-							       line_f_coeff*line_f[2],
-							       line_f_coeff*line_f[3],
-							       line_f_coeff*line_f[4],
-							       line_f_coeff*line_f[5]};
-
-  //  sum of Einstein A's from upper state to all lower states (includes branching to ~1129nm)
-  static constexpr Real upper_state_decay_rate[n_upper]     = {// J = 1
-							       //   102.6 nm branch
-							       2.11e6 /* to J=2*/ + 3.17e7 /* to J=1*/ + 4.22e7 /* to J=0*/
-							       //   1129 nm branch
-							       + 1.29e7 /* to J=1*/ + 8.6e5 /* to J=2*/ + 1.72e7 /* to J=0*/,
-
-							       // J = 2
-							       //   102.6 nm branch
-							       1.91e7 /* to J=2*/ + 5.71e7 /* to J=1 */
-							       //   1129 nm branch
-							       + 2.32e7 /* to J=1*/ + 7.74e6 /* to J=2 */,
-							       
-							       // J = 3
-							       //   102.6 nm branch
-							       7.66e7 /* to J=2 */
-							       //   1129 nm branch
-							       + 3.09e7};
-
-  //  energy of the lower states
-  //    note: for atomic O, the J=2 state is the ground state and the
-  //          lower J levels increase in energy
-  static constexpr Real lower_state_energy[n_lower]              = {/* J = 0 */ REAL(0.0281416)*erg_per_eV, // erg
-								    /* J = 1 */ REAL(0.0196224)*erg_per_eV,
-								    /* J = 2 */ REAL(0.0      )*erg_per_eV};
   
-  static constexpr int lower_state_statistical_weight[n_lower] = { /* J = 0 */ 1, 
-								   /* J = 1 */ 3,
-								   /* J = 2 */ 5};
-  
-  
-  //  branching ratios for the line, A_ul / sum_L(AuL), includes branching to ~1129nm
-  static constexpr Real line_branching_ratio[n_lines]       = { // singlet
-							       0.394, 
-							       // doublet
-							       0.296, 0.533,
-							       // triplet
-							       0.020, 0.178, 0.713};
-
   //  CO2 cross section at 102.6 nm
   static constexpr Real co2_xsec = 3.53e-17; //cm^2 
-
-
+  
   // set absolute wavelength scale
   //   pick a single normalized wavelength scale for all lines and multiplets
   //     (this slightly simplifies things, in reality there are
   //      factors of ~10^-4 difference between the different lines,
   //      resulting from different rest wavelengths).
   static constexpr Real doppler_width_reference_T          = 200; // K, should be within a factor of ~2 of expected atmospheric temp
-  static constexpr Real doppler_width_reference_lambda     = line_wavelength[5]; // nm, smallest value of lambda
+  static constexpr Real doppler_width_reference_lambda     = O_1026_constants_detail::line_wavelength_array[5]; // nm, smallest value of lambda
   static constexpr Real doppler_width_reference_velocity   = constexpr_sqrt(2*kB*doppler_width_reference_T/(16*mH)); // cm/s, velocity dispersion
   static constexpr Real doppler_width_wavelength_reference = (doppler_width_reference_lambda
 							      * doppler_width_reference_velocity
@@ -135,15 +176,7 @@ struct O_1026_tracker {
   static constexpr Real doppler_width_frequency_reference  = (1.0/(doppler_width_reference_lambda*1e-7)
 							      * doppler_width_reference_velocity); // Hz, frequency Doppler width
   static constexpr Real normalization = (one_over_sqrt_pi / doppler_width_frequency_reference); // Hz^-1, lineshape normalization
-
-  // normalized wavelength offsets from line center
-  static constexpr Real line_wavelength_offset_normalized[n_lines] = {line_wavelength_offset[0] / doppler_width_wavelength_reference,
-								      line_wavelength_offset[1] / doppler_width_wavelength_reference,
-								      line_wavelength_offset[2] / doppler_width_wavelength_reference,
-								      line_wavelength_offset[3] / doppler_width_wavelength_reference,
-								      line_wavelength_offset[4] / doppler_width_wavelength_reference,
-								      line_wavelength_offset[5] / doppler_width_wavelength_reference};
-
+  
   // Tracked Variables
 
   // optical depths at line center, counting each line individually
@@ -173,9 +206,9 @@ struct O_1026_tracker {
   
   // we carry one array of transmission probabilities per multiplet
   // each wavelength array is centered on the mean wavelength of the multiplet emission.
-  // (line shapes need to incorporate the offset from this mean 
-  static constexpr int n_lambda = 41; //number of wavelength bins
-  static constexpr Real lambda_max = 8.0; //max wavelength from line center (dimensionless, units of wavelength Doppler width at Tref)
+  // (line shapes need to incorporate the offset from this mean)
+  static constexpr int n_lambda = 21; //number of wavelength bins
+  static constexpr Real lambda_max = 4.0; //max wavelength from line center (dimensionless, units of wavelength Doppler width at Tref)
   static constexpr Real delta_lambda = 2*lambda_max/(n_lambda-1); // dimensionless, fraction of wavelength Doppler width at Tref
 
   // transfer probability as a function of wavelength, one for each multiplet and each wavelength
@@ -195,9 +228,13 @@ struct O_1026_tracker {
   static Real line_shape_function(const int &i_line,
 				  const int &i_lambda,
 				  const Real &T) {
-    Real lambda2 = (lambda(i_lambda)-line_wavelength_offset_normalized[i_line]);
+    Real lambda2 = (lambda(i_lambda)
+		    -
+		    (line_wavelength_offset(i_line) / doppler_width_wavelength_reference));
     lambda2 *= lambda2;
-    return exp(-lambda2*doppler_width_reference_T/T);
+    lambda2 = lambda2*doppler_width_reference_T/T;
+    lambda2 = exp(-lambda2);
+    return lambda2;
   }
   CUDA_CALLABLE_MEMBER
   static Real line_shape_normalization(const Real &T) { 

@@ -10,7 +10,7 @@
 #ifdef __CUDACC__
 #define CUDA_CONST __constant__
 #else
-#define CUDA_CONST
+#define CUDA_CONST static constexpr
 #endif 
 
 #ifdef __CUDACC__

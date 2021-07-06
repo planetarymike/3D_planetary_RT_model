@@ -250,7 +250,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
     my_clock save_clk;
     save_clk.start();
-    string fname = "test/test_brightness_gpu" + sfn_name_tag + std::to_string(size) + "x" + std::to_string(size) + ".dat";
+    string fname = "test/test_brightness_gpu" + sfn_name_tag + "_"+ std::to_string(size) + "x" + std::to_string(size) + ".dat";
     obs.save_brightness(fname);  
     save_clk.stop();
     save_clk.print_elapsed("saving file takes ");

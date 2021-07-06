@@ -18,13 +18,13 @@ protected:
 			  O_1026_tracker> parent;
   friend parent;
 
+public:
   // wavelength info and line shape routines are stored in tracker
   // object b/c this compiles to code that is 30% faster, not sure why
   static const int n_lines      = O_1026_tracker<true, N_VOXELS>::n_lines; // = 6
   static const int n_multiplets = O_1026_tracker<true, N_VOXELS>::n_multiplets; // = 3
-  static const int n_lambda     = O_1026_tracker<true, N_VOXELS>::n_lambda; // ~= 20
+  static const int n_lambda     = O_1026_tracker<true, N_VOXELS>::n_lambda; // ~= 21
 
-public:
   template <bool influence>
   using los = O_1026_tracker<influence, N_VOXELS>;
   using typename parent::brightness_tracker;
@@ -65,6 +65,7 @@ protected:
 
   using parent::influence_matrix;
   using parent::tau_species_single_scattering;
+  //  using parent::tau_absorber_single_scattering;
   using parent::singlescat; 
   using parent::sourcefn;
 
@@ -101,9 +102,9 @@ protected:
 
     // compute optical depth contribution from each line
     for (int i_line=0; i_line<n_lines; i_line++) {
-      const int i_lower = tracker.lower_level_index[i_line];
-      //const int i_upper = tracker.upper_level_index[i_line];
-      const int i_multiplet = tracker.multiplet_index[i_line];
+      const int i_lower = tracker.lower_level_index(i_line);
+      //const int i_upper = tracker.upper_level_index(i_line);
+      const int i_multiplet = tracker.multiplet_index(i_line);
       
       for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
 	lineshape[i_line][i_lambda] = tracker.line_shape_function_normalized(i_line,
@@ -113,7 +114,7 @@ protected:
 	       "lineshape must be real and positive");
 	
 	tau_lambda_voxel[i_multiplet][i_lambda] += ((current_species_density[i_lower]  // cm-3
-						     *tracker.line_sigma_total[i_line] // cm2 Hz
+						     *tracker.line_sigma_total(i_line) // cm2 Hz
 						     *lineshape[i_line][i_lambda]      // Hz-1
 						     +
 						     current_absorber_density          // cm-3
@@ -126,7 +127,7 @@ protected:
 
       // get the line center optical depth due to each individual line
       tau_species_voxel[i_line] = ((current_species_density[i_lower]                      // cm-3
-				    *tracker.line_sigma_total[i_line]                     // cm2 Hz
+				    *tracker.line_sigma_total(i_line)                     // cm2 Hz
 				    *tracker.line_shape_normalization(current_species_T)) // Hz-1
 				   *pathlength);                                          // cm
       tracker.tau_species_final[i_line] += tau_species_voxel[i_line];
@@ -181,9 +182,9 @@ protected:
     
     // now we can compute influence coefficients
     for (int i_line = 0; i_line < n_lines; i_line++) {
-      //const int i_lower = tracker.lower_level_index[i_line];
-      //const int i_upper = tracker.upper_level_index[i_line];
-      const int i_multiplet = tracker.multiplet_index[i_line];
+      //const int i_lower = tracker.lower_level_index(i_line);
+      //const int i_upper = tracker.upper_level_index(i_line);
+      const int i_multiplet = tracker.multiplet_index(i_line);
 
       for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
 	// emission for holstein T int happens at current voxel, use the
@@ -194,13 +195,22 @@ protected:
 	// optically thick emission
 
 	// integrate emission across the cell at this wavelength
-	if (tau_lambda_voxel[i_multiplet][i_lambda] < STRICTEPS)
-	  // this solves a floating point issue, when tau << 1, (1-exp(-tau))/tau ~= 1.0
-	  // could also use (1-exp(-tau))/tau = 1 - tau/2! + tau^2/3! - tau^3/4! + ...
-	  holstein_T_int_coef[i_line][i_lambda] = 1.0; 
+	if (tau_lambda_voxel[i_multiplet][i_lambda] < 1e-3)
+	  // this solves a floating point issue.
+	  //   when tau << 1, (1-exp(-tau))/tau ~= 1.0 - tau/2
+	  //                                   ^^^^ for tau < 1e-3, this expansion is accurate to >6 decimal digits
+	  //   could also use (1-exp(-tau))/tau = 1 - tau/2! + tau^2/3! - tau^3/4! + ...
+	  holstein_T_int_coef[i_line][i_lambda] = REAL(1.0) - REAL(0.5)*tau_lambda_voxel[i_multiplet][i_lambda];
 	else
 	  holstein_T_int_coef[i_line][i_lambda] = ((REAL(1.0) - transfer_probability_lambda_voxel[i_multiplet][i_lambda])
 						   / (tau_lambda_voxel[i_multiplet][i_lambda]));
+
+	// the function (1-exp(-tau))/tau is bounded by 0 and 1. Only
+	// floating point errors can put it outside this range.
+	assert(!std::isnan(holstein_T_int_coef[i_line][i_lambda]) &&
+	       holstein_T_int_coef[i_line][i_lambda] >= 0 &&
+	       holstein_T_int_coef[i_line][i_lambda] <= 1
+	       && "voxel contribution must be between 0 and 1.");
 
 	// we use the lineshape in this voxel to compute
 	// holstein_T_int because it represents emission in the
@@ -210,19 +220,13 @@ protected:
 						  * tracker.transfer_probability_lambda_initial[i_multiplet][i_lambda]  // unitless
 						  * pathlength);                                                        // cm
 	tracker.holstein_T_int[i_line] += holstein_T_int_coef[i_line][i_lambda];
+
 	assert(!std::isnan(tracker.holstein_T_int[i_line]) && tracker.holstein_T_int[i_line] >= 0 &&
 	       (tracker.holstein_T_int[i_line] <= pathlength ||
 		std::abs(1.0-pathlength/tracker.holstein_T_int[i_line]) < EPS)
 	       //  ^^ this allows for small rounding errors
 	       && "holstein integral must be between 0 and pathlength b/c 0<=HolT<=1");
-
-	if (i_lambda == 0 || i_lambda == n_lambda-1) {
-	      //check that the last element is not contributing too much to the integral
-	  assert(!((holstein_T_int_coef[i_line][i_lambda] > 1e-6)
-		   && (holstein_T_int_coef[i_line][i_lambda]/tracker.holstein_T_int[i_line] > 1e-2))
-		 && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in singlet_CFR_tracker.");
-	}
-	  
+	
 	if (influence) {
 	  // for single scattering calculation, we want the frequency
 	  // integrated absorption probability in the start voxel.
@@ -248,6 +252,13 @@ protected:
 
 	}
       }
+      //check that the first  and last element are not contributing too much to the holstein T integral
+      assert(!(tracker.holstein_T_int[i_line] > 1e-6 &&
+	       holstein_T_int_coef[i_line][0         ] > 1e-2*tracker.holstein_T_int[i_line])
+	     && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in singlet_CFR_tracker.");
+      assert(!(tracker.holstein_T_int[i_line] > 1e-6 &&
+	       holstein_T_int_coef[i_line][n_lambda-1] > 1e-2*tracker.holstein_T_int[i_line])
+	     && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in singlet_CFR_tracker.");
     }
 
     // ^^^
@@ -260,14 +271,14 @@ protected:
       // compute the mixing between levels due to each line
       // emission/absorption
       for (int i_line_origin = 0; i_line_origin < n_lines; i_line_origin++) {
-	const int i_lower_origin = tracker.lower_level_index[i_line_origin];
-	const int i_upper_origin = tracker.upper_level_index[i_line_origin];
-	const int i_multiplet_origin = tracker.multiplet_index[i_line_origin];
+	const int i_lower_origin = tracker.lower_level_index(i_line_origin);
+	const int i_upper_origin = tracker.upper_level_index(i_line_origin);
+	const int i_multiplet_origin = tracker.multiplet_index(i_line_origin);
 
 	for (int j_line_current = 0; j_line_current < n_lines; j_line_current++) {
-	  //const int j_lower_current = tracker.lower_level_index[j_line_current];
-	  const int j_upper_current = tracker.upper_level_index[j_line_current];
-	  const int j_multiplet_current = tracker.multiplet_index[j_line_current];
+	  //const int j_lower_current = tracker.lower_level_index(j_line_current);
+	  const int j_upper_current = tracker.upper_level_index(j_line_current);
+	  const int j_multiplet_current = tracker.multiplet_index(j_line_current);
 	  
 	  if (i_multiplet_origin == j_multiplet_current) {
 	    // lines potentially overlap
@@ -276,10 +287,10 @@ protected:
               // the influence coefficient represents probability of
               // emission in the current voxel being absorbed in the
               // start voxel, possibly into a different upper state
-              tracker.holstein_G_int[i_upper_origin][j_upper_current] += (tracker.line_sigma_total[i_line_origin]              // cm2 Hz
+              tracker.holstein_G_int[i_upper_origin][j_upper_current] += (tracker.line_sigma_total(i_line_origin)              // cm2 Hz
 									  * tracker.species_density_at_origin[i_lower_origin]  // cm-3
-									  * tracker.line_A[j_line_current]                     // ph/s
-									  / tracker.upper_state_decay_rate[i_upper_origin]     // 1/(ph/s)
+									  * tracker.line_A(j_line_current)                     // ph/s
+									  / tracker.upper_state_decay_rate(i_upper_origin)     // 1/(ph/s)
 									  * lineshape_at_origin[i_line_origin][i_lambda]       // Hz^-1
 									  * holstein_T_int_coef[j_line_current][i_lambda]      // cm
 									  ); // unitless influence coefficient
@@ -322,12 +333,13 @@ protected:
     // called by parent method that specifies interp or nointerp
 
     for (int i_line=0;i_line<n_lines;i_line++) {
-      const int i_upper = tracker.upper_level_index[i_line];
+      const int i_upper = tracker.upper_level_index(i_line);
       
       tracker.brightness[i_line] += (sourcefn_temp[i_upper] // cm-3
-				     * tracker.line_A[i_line] // ph/s
+				     * tracker.line_A(i_line) // ph/s
 				     * tracker.holstein_T_int[i_line] // cm
 				     / REAL(1e9)); // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
+
       assert(!isnan(tracker.brightness[i_line]) && "brightness must be a real number");
       assert(tracker.brightness[i_line]>=0 && "brightness must be positive");
     }
@@ -433,9 +445,9 @@ public:
   CUDA_CALLABLE_MEMBER
   void compute_single_scattering(const int &start_voxel, influence_tracker &tracker, bool sun_visible = true) {
     for (int i_line=0;i_line<n_lines;i_line++) {
-      const int i_lower = tracker.lower_level_index[i_line];
-      const int i_upper = tracker.upper_level_index[i_line];
-      //const int i_multiplet = tracker.multiplet_index[i_line];
+      const int i_lower = tracker.lower_level_index(i_line);
+      const int i_upper = tracker.upper_level_index(i_line);
+      //const int i_multiplet = tracker.multiplet_index(i_line);
 
       if (!sun_visible) {
 	// single scattering point is behind limb, populate the tracker with the appropriate values
@@ -456,7 +468,7 @@ public:
 		 ||  tau_absorber_single_scattering(start_voxel) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
-      if (tracker.lower_level_J[i_line] == 2) {
+      if (tracker.lower_level_J(i_line) == 2) {
 	// assuming the only excitation of the multiplet is from the
 	// J=2 state, whose lines overlap Lyman beta
 
@@ -466,8 +478,8 @@ public:
 	// don't need to worry about non-initialized values
 	Real solar_line_excitation = (solar_lyman_beta_brightness_Hz // ph / cm2 / s / Hz
 				      * species_density(start_voxel, i_lower) // cm-3
-				      * tracker.line_sigma_total[i_line] // cm2 Hz
-				      / tracker.upper_state_decay_rate[i_upper] // 1/(ph/s)
+				      * tracker.line_sigma_total(i_line) // cm2 Hz
+				      / tracker.upper_state_decay_rate(i_upper) // 1/(ph/s)
 				      ); // with solar flux included all units except density cancel, we are left with cm-3
       
 	singlescat(start_voxel, i_upper) = solar_line_excitation*tracker.holstein_T_final[i_line]; // cm-3, single scattering upper state density
@@ -549,13 +561,14 @@ public:
       Real total_statistical_weight = 0;
       Real J_state_fraction_pt[n_lower];
       Real total_statistical_weight_pt = 0;
+      brightness_tracker temp_tracker;
       for (int i_lower=0; i_lower<n_lower; i_lower++) {
-	J_state_fraction[i_lower] = (brightness_tracker::lower_state_statistical_weight[i_lower]
-				     * exp(-brightness_tracker::lower_state_energy[i_lower]/kB/species_T(i_voxel)));
+	J_state_fraction[i_lower] = (temp_tracker.lower_state_statistical_weight(i_lower)
+				     * exp(-temp_tracker.lower_state_energy(i_lower)/kB/species_T(i_voxel)));
 	total_statistical_weight += J_state_fraction[i_lower];
 				     
-	J_state_fraction_pt[i_lower] = (brightness_tracker::lower_state_statistical_weight[i_lower]
-					* exp(-brightness_tracker::lower_state_energy[i_lower]/kB/species_T_pt(i_voxel)));
+	J_state_fraction_pt[i_lower] = (temp_tracker.lower_state_statistical_weight(i_lower)
+					* exp(-temp_tracker.lower_state_energy(i_lower)/kB/species_T_pt(i_voxel)));
 	total_statistical_weight_pt += J_state_fraction_pt[i_lower];
 
       }
@@ -656,6 +669,7 @@ public:
     vector_to_device(device_emission->species_density, species_density, transfer);
     vector_to_device(device_emission->species_T, species_T, transfer);
     vector_to_device(device_emission->absorber_density, absorber_density, transfer);
+    vector_to_device(device_emission->tau_absorber_single_scattering, tau_absorber_single_scattering, transfer);
   }
 
   void copy_to_device_brightness()
@@ -667,12 +681,19 @@ public:
     species_density.free_d_vec();
     species_T.free_d_vec();
     absorber_density.free_d_vec();
+    tau_absorber_single_scattering.free_d_vec();
 
     //copy the stuff we need to do the calculation on the device
     bool transfer = true;
     vector_to_device(device_emission->species_density_pt, species_density_pt, transfer);
     vector_to_device(device_emission->species_T_pt, species_T_pt, transfer);
     vector_to_device(device_emission->absorber_density_pt, absorber_density_pt, transfer);
+  }
+
+  void copy_solved_to_host() {
+    parent::copy_solved_to_host();
+    
+    tau_absorber_single_scattering.to_host();
   }
   
   void device_clear() {
@@ -683,6 +704,7 @@ public:
     species_density_pt.free_d_vec();
     species_T_pt.free_d_vec();
     absorber_density_pt.free_d_vec();
+    tau_absorber_single_scattering.free_d_vec();
 
     parent::device_clear();
   }
@@ -698,18 +720,18 @@ void O_1026_prepare_for_solution(O_1026_emission<N_VOXELS> *emission)
 //TODO: move this to parent class?
 {
   //each block prepares one row of the influence matrix
-  int i_vox = blockIdx.x;
+  int i_el = blockIdx.x;
   
   //convert to kernel from influence (kernel = identity - branching_ratio*influence)
-  for (int j_vox = threadIdx.x; j_vox < emission->n_upper_elements; j_vox+=blockDim.x)
-    emission->influence_matrix(i_vox,j_vox) *= -1.0;
+  for (int j_el = threadIdx.x; j_el < emission->influence_matrix.n_elements; j_el+=blockDim.x)
+    emission->influence_matrix(i_el,j_el) *= REAL(-1.0);
 
   if (threadIdx.x == 0) {
     //add the identity matrix
-    emission->influence_matrix(i_vox,i_vox) += 1;
+    emission->influence_matrix(i_el,i_el) += REAL(1.0);
     
     //now copy singlescat to sourcefn, preparing for in-place solution
-    emission->sourcefn(i_vox) = emission->singlescat(i_vox);
+    emission->sourcefn(i_el) = emission->singlescat(i_el);
   }
 }
 
@@ -717,7 +739,7 @@ void O_1026_prepare_for_solution(O_1026_emission<N_VOXELS> *emission)
 template <int N_VOXELS>
 void O_1026_emission<N_VOXELS>::pre_solve_gpu() {
   const int n_threads = 32;
-  O_1026_prepare_for_solution<<<n_upper_elements, n_threads>>>(device_emission);
+  O_1026_prepare_for_solution<<<influence_matrix.n_elements, n_threads>>>(device_emission);
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
 }
