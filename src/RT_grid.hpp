@@ -98,6 +98,10 @@ struct RT_grid {
 						      stepper.pathlength,
 						      stepper.vec.ray.domega,
 						      temp_influence[i_emission]);
+
+    // // suppress the contribution of all but the first two boundary crossings
+    // if (stepper.i_boundary > 2)
+    //   stepper.inside = false;
   }
 
   CUDA_CALLABLE_MEMBER
