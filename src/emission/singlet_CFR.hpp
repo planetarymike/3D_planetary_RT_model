@@ -245,14 +245,12 @@ protected:
     // called by parent method that specifies interp or nointerp
 
     //bishop formulation
-    tracker.brightness += (sourcefn_temp[0] // unitless
-			   * emission_g_factor / species_sigma_T_ref * one_over_sqrt_pi// ph / cm2
-			   /* ^^^
-			      g-factor = (solar flux)*(total cross section) = (solar flux)*(line center sigma @ Tref)*(sqrt(pi)*doppler width @ Tref)
-			      therefore (g-factor)/(sqrt(pi)*line center sigma @ Tref) = (solar flux)*(doppler width at Tref), which is what we need.
-			   */
+    tracker.brightness += (sourcefn_temp[0] // unitless, -> 1 in optically thin limit
+			   * emission_g_factor// ph / s / molecule = solar flux * total line cross section (branching ratio carried below)
 			   * branching_ratio // unitless
-			   * tracker.holstein_T_int // unitless, carries information about path length in this voxel
+			   * tracker.holstein_T_int // in optically thin limit, T_int -> pathlength * species_sigma_T_ref * H density * sqrt(pi)
+			   / species_sigma_T_ref
+			   * one_over_sqrt_pi
 			   / REAL(1e9)); // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
     assert(!isnan(tracker.brightness) && "brightness must be a real number");
     assert(tracker.brightness>=0 && "brightness must be positive");

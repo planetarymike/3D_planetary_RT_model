@@ -1,30 +1,31 @@
-//O_1026.hpp --- routines to compute O 102.6 nm emission
+//H_lyman_multiplet_test.hpp --- check multiplet and singlet codes for
+//consistency
 
 // most of the code to compute multiplet emission is generic, and
 // stored in multiplet_CFR_tracker.hpp
 
 // the routines to define the emission densities / temperatures are
-// specific to O 102.6 and stored here, so are the solar excitation
+// specific to H Lyman alpha and stored here, so are the solar excitation
 // calculations
 
 
-#ifndef __O_1026_h
-#define __O_1026_h
+#ifndef __H_lyman_multiplet
+#define __H_lyman_multiplet
 
 #include <boost/type_traits/type_identity.hpp> //for type deduction in define
 #include "emission_voxels.hpp"
 #include "atmo_vec.hpp"
 #include "multiplet_CFR_tracker.hpp"
-#include "O_1026_tracker.hpp"
+#include "H_multiplet_tracker_test.hpp"
 
 template <int N_VOXELS>
-struct O_1026_emission : multiplet_CFR_emission<N_VOXELS,
-						/*emission_type = */ O_1026_emission<N_VOXELS>,
-						/*los_tracker_type = */ O_1026_tracker> {
+struct H_lyman_emission_multiplet_test : multiplet_CFR_emission<N_VOXELS,
+								/*emission_type = */ H_lyman_emission_multiplet_test<N_VOXELS>,
+								/*los_tracker_type = */ H_lyman_alpha_tracker> {
 protected:
   typedef multiplet_CFR_emission<N_VOXELS,
-				 /*emission_type = */ O_1026_emission<N_VOXELS>,
-				 /*los_tracker_type = */ O_1026_tracker> parent;
+				 /*emission_type = */ H_lyman_emission_multiplet_test<N_VOXELS>,
+				 /*los_tracker_type = */ H_lyman_alpha_tracker> parent;
   friend parent;
 
 public:
@@ -35,7 +36,7 @@ public:
   using parent::n_lambda;
   
   template <bool influence>
-  using los = O_1026_tracker<influence, N_VOXELS>;
+  using los = H_lyman_alpha_tracker<influence, N_VOXELS>;
   using typename parent::brightness_tracker;
   using typename parent::influence_tracker;
 
@@ -62,23 +63,27 @@ protected:
   using parent::tau_absorber_single_scattering; 
 
   //Radiative transfer parameters
-  Real solar_lyman_beta_brightness_Hz; /* ph / cm2 / s / Hz <--!
-					  solar lyman beta brightness
-					  pumping the J=2 lower state */
-  // For lyman beta, F_lyb ~= F_lya/66
-  //                       ~~ 1/66*(2.5-6.0 x 10^12 ph / cm2 / s / nm)
-  //                       ~~ 3.8-9.1 x 10^10 ph / cm2 / s/ nm
-  // conversion between 1/nm and 1/Hz is lambda^2 / c = 3.51e-14 nm / Hz
-  //
-  // F_lyb ~= 1.3-3.2 x 10^-3 ph / cm2 / s / Hz  
+  Real solar_brightness_Hz; /* ph / cm2 / s / Hz <--!
+			       solar lyman alpha / beta brightness
+			       pumping the lower state */
+
+  // For lyman alpha, F_lya ~= 2.5-6.0 x 10^12 ph / cm2 / s / nm
+  // For lyman beta,  F_lyb ~= F_lya/66
+  //                        ~= 3.8-9.1 x 10^10 ph / cm2 / s/ nm
+
+  // conversion between 1/nm and 1/Hz is lambda^2 / c = 4.93e-14 nm / Hz for lya
+  //                                                  = 3.51e-14 nm / Hz for lyb
+  
+  // F_lyb ~= 1.3-3.2 x 10^-3 ph / cm2 / s / Hz
+  // F_lya ~= 1.2-3.0 x 10^-1 ph / cm2 / s / Hz
   
 public:
   void set_solar_brightness(const Real &g) {
-    solar_lyman_beta_brightness_Hz = g;
+    solar_brightness_Hz = g;
   };
   
   Real get_solar_brightness() const {
-    return solar_lyman_beta_brightness_Hz;
+    return solar_brightness_Hz;
   };
   
   // compute the single scattering from the input tracker
@@ -108,25 +113,16 @@ public:
 		 ||  tau_absorber_single_scattering(start_voxel) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
-      if (tracker.lower_level_J(i_line) == 2) {
-	// assuming the only excitation of the multiplet is from the
-	// J=2 state, whose lines overlap Lyman beta
-
-	// one line connects the J=2 state to each upper state.
-	
-	// this puts some excitation into every upper state, so we
-	// don't need to worry about non-initialized values
-	Real solar_line_excitation = (solar_lyman_beta_brightness_Hz // ph / cm2 / s / Hz
-				      * species_density(start_voxel, i_lower) // cm-3
-				      * tracker.line_sigma_total(i_line) // cm2 Hz
-				      / tracker.upper_state_decay_rate(i_upper) // 1/(ph/s)
-				      ); // with solar flux included all units except density cancel, we are left with cm-3
+      Real solar_line_excitation = (solar_brightness_Hz // ph / cm2 / s / Hz
+				    * species_density(start_voxel, i_lower) // cm-3
+				    * tracker.line_sigma_total(i_line) // cm2 Hz
+				    / tracker.upper_state_decay_rate(i_upper) // 1/(ph/s)
+				    ); // with solar flux included all units except density cancel, we are left with cm-3
       
-	singlescat(start_voxel, i_upper) = solar_line_excitation*tracker.holstein_T_final[i_line]; // cm-3, single scattering upper state density
-	assert(!isnan(singlescat(start_voxel, i_upper))
-	       && singlescat(start_voxel, i_upper) >= 0
-	       && "single scattering coefficient must be real and positive");
-      }
+      singlescat(start_voxel, i_upper) = solar_line_excitation*tracker.holstein_T_final[i_line]; // cm-3, single scattering upper state density
+      assert(!isnan(singlescat(start_voxel, i_upper))
+	     && singlescat(start_voxel, i_upper) >= 0
+	     && "single scattering coefficient must be real and positive");
     }
   }
 
@@ -165,50 +161,16 @@ public:
 	     && absorber_density_pt(i_voxel) >= 0
 	     && "densities must be real and positive");
 
-      // we assume the lower states are collisionally populated, with
-      // no RT contributions (can check this after solution by
-      // comparing the average radiatiave redistribution rates based
-      // on the calculated upper state density with the expected
-      // collisional rates)
-
-      Real bulk_density;
-      Real bulk_density_pt;
       (atmosphere.*species_density_function)(voxels[i_voxel],
-					     bulk_density,
-					     bulk_density_pt);
-      assert(!isnan(bulk_density)
-	     && bulk_density >= 0
+					     species_density(i_voxel, 0),
+					     species_density_pt(i_voxel, 0));
+      assert(!isnan(species_density(i_voxel, 0))
+	     && species_density(i_voxel, 0) >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(bulk_density_pt)
-	     && bulk_density_pt >= 0
+      assert(!isnan(species_density_pt(i_voxel, 0))
+	     && species_density_pt(i_voxel, 0) >= 0
 	     && "densities must be real and positive");
 
-      // now compute the statistical weight of each J level
-      Real J_state_fraction[n_lower];
-      Real total_statistical_weight = 0;
-      Real J_state_fraction_pt[n_lower];
-      Real total_statistical_weight_pt = 0;
-      brightness_tracker temp_tracker;
-      for (int i_lower=0; i_lower<n_lower; i_lower++) {
-	J_state_fraction[i_lower] = (temp_tracker.lower_state_statistical_weight(i_lower)
-				     * exp(-temp_tracker.lower_state_energy(i_lower)/kB/species_T(i_voxel)));
-	total_statistical_weight += J_state_fraction[i_lower];
-				     
-	J_state_fraction_pt[i_lower] = (temp_tracker.lower_state_statistical_weight(i_lower)
-					* exp(-temp_tracker.lower_state_energy(i_lower)/kB/species_T_pt(i_voxel)));
-	total_statistical_weight_pt += J_state_fraction_pt[i_lower];
-
-      }
-      
-      // divide by the computed total weight to get the population
-      // fraction, and assign this to the species density
-      for (int i_lower=0; i_lower<n_lower; i_lower++) {
-	J_state_fraction[i_lower] /= total_statistical_weight;
-	species_density(i_voxel, i_lower) = J_state_fraction[i_lower] * bulk_density;
-
-	J_state_fraction_pt[i_lower] /= total_statistical_weight_pt;
-	species_density_pt(i_voxel, i_lower) = J_state_fraction_pt[i_lower] * bulk_density_pt;
-      }
     }
 
     parent::reset_solution();
@@ -223,13 +185,13 @@ public:
 
   void copy_trivial_members_to_device() {
     parent::copy_trivial_members_to_device();
-    copy_trivial_member_to_device(solar_lyman_beta_brightness_Hz, device_emission->solar_lyman_beta_brightness_Hz);
+    copy_trivial_member_to_device(solar_brightness_Hz, device_emission->solar_brightness_Hz);
   }
 
   using parent::copy_trivial_member_to_host;
   void copy_trivial_members_to_host() {
     parent::copy_trivial_members_to_host();
-    copy_trivial_member_to_host(solar_lyman_beta_brightness_Hz, device_emission->solar_lyman_beta_brightness_Hz);
+    copy_trivial_member_to_host(solar_brightness_Hz, device_emission->solar_brightness_Hz);
   }
 
   using parent::copy_to_device_influence;

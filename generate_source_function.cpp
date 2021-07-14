@@ -8,10 +8,12 @@
 #include "RT_grid.hpp"
 #include "emission/singlet_CFR.hpp"
 #include "emission/O_1026.hpp"
+#include "emission/H_lyman_multiplet_test.hpp"
 #include "grid_plane_parallel.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
 
-#define GENERATE_O_1026
+//#define GENERATE_O_1026
+//#define H_LYMAN_MULTIPLET_TEST
 
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[]) {
 
@@ -69,8 +71,12 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   atm.save("test/test_atmosphere_O_1026.dat");
 #else
   atm.save("test/test_atmosphere.dat");
+#ifdef H_LYMAN_MULTIPLET_TEST
+  atm.save("test/test_atmosphere_H_multiplet.dat");
+#else
+  atm.save("test/test_atmosphere.dat");
 #endif
-
+#endif
 
   // define the geometry of the grid
   //#define PLANE_PARALLEL
@@ -85,10 +91,10 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   grid_type grid;
   grid.rmethod = grid.rmethod_log_n_species;
 #else
-  static const int n_radial_boundaries = 40;
-  static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
-  static const int n_rays_theta = 6;
-  static const int n_rays_phi = 12;
+  static const int n_radial_boundaries = 80;
+  static const int n_sza_boundaries = 40;/*20 for 10 deg increments with szamethod_uniform*/
+  static const int n_rays_theta = 12;
+  static const int n_rays_phi = 24;
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
   					       n_sza_boundaries,
   					       n_rays_phi,
@@ -128,6 +134,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   emission_type *emissions[n_emissions] = {&oxygen_1026};
 #else
+#ifndef H_LYMAN_MULTIPLET_TEST
+  //static const int n_emissions = 1;
   static const int n_emissions = 2;
 
   //solve for H lyman alpha
@@ -143,14 +151,33 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   //solve for H lyman beta
   emission_type lyman_beta;
   lyman_beta.define("H Lyman beta",
-		    /*emission branching ratio = */lyman_beta_branching_ratio,
-		    exobase_temp, atm.sH_lyb(exobase_temp),
-		    atm,
-		    &chamb_diff_1d::n_species_voxel_avg,   &chamb_diff_1d::Temp_voxel_avg,
-		    &chamb_diff_1d::n_absorber_voxel_avg,  &chamb_diff_1d::sCO2_lyb,
+  		    /*emission branching ratio = */lyman_beta_branching_ratio,
+  		    exobase_temp, atm.sH_lyb(exobase_temp),
+  		    atm,
+  		    &chamb_diff_1d::n_species_voxel_avg,   &chamb_diff_1d::Temp_voxel_avg,
+  		    &chamb_diff_1d::n_absorber_voxel_avg,  &chamb_diff_1d::sCO2_lyb,
 		    grid.voxels);
 
+  //emission_type *emissions[n_emissions] = {&lyman_alpha};
   emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
+#else
+
+  static const int n_emissions = 1;
+
+  //solve for H lyman alpha
+  typedef H_lyman_emission_multiplet_test<grid_type::n_voxels> emission_type;
+  emission_type lyman_alpha;
+  lyman_alpha.define("H Lyman alpha",
+		     atm,
+		     &chamb_diff_1d::n_species_voxel_avg,   
+		     &chamb_diff_1d::Temp_voxel_avg,
+		     &chamb_diff_1d::n_absorber_voxel_avg,
+		     grid.voxels);
+  lyman_alpha.set_solar_brightness(lyman_alpha_flux_Mars_typical); /* ph/cm2/s/Hz, solar brightness */
+
+  emission_type *emissions[n_emissions] = {&lyman_alpha};
+
+#endif
 #endif
   
   // now set up the RT object
@@ -170,7 +197,11 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 #ifdef GENERATE_O_1026
   string sfn_name_tag = "_O_1026";
 #else
+#ifdef H_LYMAN_MULTIPLET_TEST
+  string sfn_name_tag = "_H_multiplet";
+#else
   string sfn_name_tag = "";
+#endif
 #endif
   
   RT.save_S("test/test_source_function"+sfn_name_tag+".dat");
@@ -184,8 +215,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   sfn_name_tag_dims += std::to_string(n_rays_theta);
   RT.save_S("test/test_source_function"+sfn_name_tag_dims+".dat");
 
-  RT.save_influence("test/influence_matrix"+sfn_name_tag+".dat");
-  RT.save_influence("test/influence_matrix"+sfn_name_tag_dims+".dat");
+  // RT.save_influence("test/influence_matrix"+sfn_name_tag+".dat");
+  // RT.save_influence("test/influence_matrix"+sfn_name_tag_dims+".dat");
 
 
   
@@ -203,9 +234,11 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   Real angle = 30;
   Vector3 loc = {0.,-1.0,0.};
 
+#ifndef H_LYMAN_MULTIPLET_TEST
   lyman_alpha.set_emission_g_factor(lyman_alpha_typical_g_factor);
   lyman_beta.set_emission_g_factor(lyman_beta_typical_g_factor);
   
+  std::cout << "lyman alpha solar brightness is: " << lyman_alpha_flux_Mars_typical << " ph/cm2/s/Hz" <<std::endl;
   std::cout << "lyman alpha g factor is: " << lyman_alpha_typical_g_factor << std::endl;
   std::cout << "lyman alpha line center cross section coef is: "
   	    <<  lyman_alpha_line_center_cross_section_coef << std::endl;
@@ -215,6 +248,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   		  /1e9)
   	    << " kR" << std::endl;
   
+  std::cout << "lyman beta solar brightness is: " << lyman_beta_flux_Mars_typical << " ph/cm2/s/Hz" <<std::endl;
   std::cout << "lyman beta g factor is: " << lyman_beta_typical_g_factor << std::endl;
   std::cout << "lyman beta line center cross section coef is: "
   	    <<  lyman_beta_line_center_cross_section_coef << std::endl;
@@ -224,6 +258,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   		  /1e6)
   	    << " R" << std::endl;
   std::cout << std::endl;
+#endif
 #endif
 
 #ifndef __CUDACC__
