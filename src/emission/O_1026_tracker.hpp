@@ -34,12 +34,12 @@ namespace O_1026_constants_detail {
   // the values used here are the same as those used in Meier+1987
   
   //  rest wavelength  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,           {// singlet
-								      102.81571 /*nm*/,
-								      // doublet
-								      102.74313 /*nm*/, 102.74305 /*nm*/,
-								      // triplet
-								      102.57633 /*nm*/, 102.57626 /*nm*/, 102.57616 /*nm*/})
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {// singlet
+								     102.81571 /*nm*/,
+								     // doublet
+								     102.74313 /*nm*/, 102.74305 /*nm*/,
+								     // triplet
+								     102.57633 /*nm*/, 102.57626 /*nm*/, 102.57616 /*nm*/})
   //  offset from centroid of multiplet  
   DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength_offset,   {// singlet
 								     0.0 /*nm*/, 
@@ -122,12 +122,12 @@ struct O_1026_tracker {
   static const int n_upper      = O_1026_constants_detail::n_upper;
 
   // import the static array data as member functions that can be called
-  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, n_lines, multiplet_identity)
-  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, n_lines, multiplet_index   )
-  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, n_lines, lower_level_J     )
-  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, n_lines, lower_level_index )
-  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, n_lines, upper_level_J     )
-  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, int, n_lines, upper_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail,  int, n_lines, multiplet_identity)
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail,  int, n_lines, multiplet_index   )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail,  int, n_lines, lower_level_J     )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail,  int, n_lines, lower_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail,  int, n_lines, upper_level_J     )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail,  int, n_lines, upper_level_index )
 
   CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lines, line_wavelength               )
   CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lines, line_wavelength_offset        )
@@ -178,7 +178,7 @@ struct O_1026_tracker {
   // if we're computing influence coefficients, carry a voxel_arrray to track these
   typename std::conditional<is_influence,
 			    voxel_array<N_VOXELS, n_upper>,
-			    double>::type influence[n_upper];
+			    Real>::type influence[n_upper];
   
   // keep track of origin temperature and density for computing influence coefficients
   Real species_T_at_origin;

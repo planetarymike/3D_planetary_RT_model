@@ -74,8 +74,14 @@ protected:
   // conversion between 1/nm and 1/Hz is lambda^2 / c = 4.93e-14 nm / Hz for lya
   //                                                  = 3.51e-14 nm / Hz for lyb
   
-  // F_lyb ~= 1.3-3.2 x 10^-3 ph / cm2 / s / Hz
   // F_lya ~= 1.2-3.0 x 10^-1 ph / cm2 / s / Hz
+  // F_lyb ~= 1.3-3.2 x 10^-3 ph / cm2 / s / Hz
+
+
+  bool constant_temp_RT_internal; // whether to use a constant temperature for RT calculations
+  Real constant_temp_RT;     // ^^^^^^^ Temp value to use
+
+  bool CO2_absorption;
   
 public:
   void set_solar_brightness(const Real &g) {
@@ -85,6 +91,28 @@ public:
   Real get_solar_brightness() const {
     return solar_brightness_Hz;
   };
+
+  void set_atmosphere_temp_RT() {
+    constant_temp_RT_internal = false;
+  }
+  
+  void set_constant_temp_RT(Real temp) {
+    constant_temp_RT_internal = true;
+    constant_temp_RT = temp;
+  }
+
+  void set_CO2_absorption_off() {
+    CO2_absorption = false;
+  }
+
+  void set_CO2_absorption_on() {
+    CO2_absorption = true;
+  }
+
+  H_lyman_emission_multiplet_test()
+    : constant_temp_RT_internal(false),
+      CO2_absorption(true)
+  {}
   
   // compute the single scattering from the input tracker
   CUDA_CALLABLE_MEMBER
@@ -120,13 +148,12 @@ public:
 				    ); // with solar flux included all units except density cancel, we are left with cm-3
       
       singlescat(start_voxel, i_upper) = solar_line_excitation*tracker.holstein_T_final[i_line]; // cm-3, single scattering upper state density
+ 
       assert(!isnan(singlescat(start_voxel, i_upper))
 	     && singlescat(start_voxel, i_upper) >= 0
 	     && "single scattering coefficient must be real and positive");
     }
   }
-
-public:
 
   // definition of class members needed for RT
   template<typename C>
@@ -141,19 +168,31 @@ public:
     
     for (unsigned int i_voxel=0;i_voxel<N_VOXELS;i_voxel++) {
 
-      (atmosphere.*species_T_function)(voxels[i_voxel],
-				       species_T(i_voxel),
-				       species_T_pt(i_voxel));
+      if (constant_temp_RT_internal) {
+	// use a constant temperature specified by the user in an earlier call of set_constant_temp_RT()
+	species_T(i_voxel)    = constant_temp_RT;
+	species_T_pt(i_voxel) = constant_temp_RT;
+      } else {
+	// get the temperature to use from the atmosphere object
+	(atmosphere.*species_T_function)(voxels[i_voxel],
+					 species_T(i_voxel),
+					 species_T_pt(i_voxel));
+      }
       assert(!isnan(species_T(i_voxel))
 	     && species_T(i_voxel) >= 0
 	     && "temperatures must be real and positive");
       assert(!isnan(species_T_pt(i_voxel))
 	     && species_T_pt(i_voxel) >= 0
 	     && "temperatures must be real and positive");
-      
-      (atmosphere.*absorber_density_function)(voxels[i_voxel],
-					      absorber_density(i_voxel),
-					      absorber_density_pt(i_voxel));
+
+      if (CO2_absorption) {
+	(atmosphere.*absorber_density_function)(voxels[i_voxel],
+						absorber_density(i_voxel),
+						absorber_density_pt(i_voxel));
+      } else {
+	absorber_density(i_voxel) = 0.0;
+	absorber_density_pt(i_voxel) = 0.0;
+      }
       assert(!isnan(absorber_density(i_voxel))
 	     && absorber_density(i_voxel) >= 0
 	     && "densities must be real and positive");
@@ -186,12 +225,17 @@ public:
   void copy_trivial_members_to_device() {
     parent::copy_trivial_members_to_device();
     copy_trivial_member_to_device(solar_brightness_Hz, device_emission->solar_brightness_Hz);
+    copy_trivial_member_to_device(constant_temp_RT_internal, device_emission->constant_temp_RT_internal);
+    copy_trivial_member_to_device(constant_temp_RT, device_emission->constant_temp_RT);
+    copy_trivial_member_to_device(CO2_absorption, device_emission->no_CO2_absorption);
   }
 
   using parent::copy_trivial_member_to_host;
   void copy_trivial_members_to_host() {
     parent::copy_trivial_members_to_host();
     copy_trivial_member_to_host(solar_brightness_Hz, device_emission->solar_brightness_Hz);
+    copy_trivial_member_to_host(constant_temp_RT_internal, device_emission->constant_temp_RT_internal);
+    copy_trivial_member_to_host(CO2_absorption, device_emission->no_CO2_absorption);
   }
 
   using parent::copy_to_device_influence;

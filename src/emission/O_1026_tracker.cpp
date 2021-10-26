@@ -29,12 +29,12 @@ namespace O_1026_constants_detail {
   // the values used here are the same as those used in Meier+1987
   
   //  rest wavelength  
-  DECLARE_STATIC_ARRAY_CPP(Real, n_lines, line_wavelength,           {// singlet
-								      102.81571 /*nm*/,
-								      // doublet
-								      102.74313 /*nm*/, 102.74305 /*nm*/,
-								      // triplet
-								      102.57633 /*nm*/, 102.57626 /*nm*/, 102.57616 /*nm*/})
+  DECLARE_STATIC_ARRAY_CPP(Real, n_lines, line_wavelength,          {// singlet
+								     102.81571 /*nm*/,
+								     // doublet
+								     102.74313 /*nm*/, 102.74305 /*nm*/,
+								     // triplet
+								     102.57633 /*nm*/, 102.57626 /*nm*/, 102.57616 /*nm*/})
   //  offset from centroid of multiplet  
   DECLARE_STATIC_ARRAY_CPP(Real, n_lines, line_wavelength_offset,   {// singlet
 								     0.0 /*nm*/, 

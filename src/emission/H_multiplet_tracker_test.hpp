@@ -24,12 +24,12 @@ namespace H_lyman_alpha_constants_detail {
   // line data from NIST ASD
   
   //  rest wavelength  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {121.6})
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {lyman_alpha_lambda*1e7}) // nm
   //  Einstein A  
   DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_A,                   {6.2648e8 /* s^-1 */}) // = one of hyperfine A's (they are nearly identical)
-
+                                                                                           // technically should use f-value weighted average
   //  line f-value, used to compute absorption cross section  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_f,                   {0.41641}) // = sum of hyperfine f's
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_f,                   {lyman_alpha_f}) // = sum of hyperfine f's
 
   //  line absorption cross section, from sigma_tot = pi*e^2/mc * f
   DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_sigma_total,         {line_f_coeff*line_f_array[0]}) // cm2 Hz
@@ -52,14 +52,26 @@ namespace H_lyman_beta_constants_detail {
   DECLARE_STATIC_ARRAY_HPP(int, n_lines, upper_level_index , {0})
 
   // line data from NIST ASD
+
+  // note: although Lyman beta pumps the 2s state of hydrogen via
+  // Balmer alpha emission, 2s decays by correlated two-photon
+  // emission with an effective A of ~ 8.2/s
+  // (https://ui.adsabs.harvard.edu/abs/1984A%26A...138..495N/abstract),
+  // yielding a g-factor of ~6e-8 ph/s/molecule for solar moderate
+  // conditions. This is ~1e5 times smaller than the Lyman alpha
+  // g-factor, so for a column emitting 2 kR of Lyman alpha only 0.02 R
+  // of two-photon emisison would be produced. This emission is spread
+  // out over ~80-100 nm starting at Lyman alpha and continuing to
+  // >200 nm, so the specific intensity at each wavelength would be
+  // ~2e-4 R / nm, i.e. not detectable.
   
   //  rest wavelength  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {102.6})
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {lyman_beta_lambda*1e7}) // nm
   //  Einstein A  
   DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_A,                   {1.6725e8 /* s^-1 */}) // = one of hyperfine A's (they are nearly identical)
-
+                                                                                           // technically should use f-value weighted average
   //  line f-value, used to compute absorption cross section  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_f,                   {0.079142}) // = sum of hyperfine f's
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_f,                   {lyman_beta_f}) // = sum of hyperfine f's
 
   //  line absorption cross section, from sigma_tot = pi*e^2/mc * f
   DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_sigma_total,         {line_f_coeff*line_f_array[0]}) // cm2 Hz
@@ -79,9 +91,9 @@ struct H_lyman_alpha_tracker {
   static const int n_upper      = H_lyman_alpha_constants_detail::n_upper;
 
   // import the static array data as member functions that can be called
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, int, n_lines, multiplet_index   )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, int, n_lines, lower_level_index )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, int, n_lines, upper_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail,  int, n_lines, multiplet_index   )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail,  int, n_lines, lower_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail,  int, n_lines, upper_level_index )
 
   CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, Real, n_lines, line_wavelength               )
   CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, Real, n_lines, line_A                        )
@@ -125,7 +137,7 @@ struct H_lyman_alpha_tracker {
   // if we're computing influence coefficients, carry a voxel_arrray to track these
   typename std::conditional<is_influence,
 			    voxel_array<N_VOXELS, n_upper>,
-			    double>::type influence[n_upper];
+			    Real>::type influence[n_upper];
   
   // keep track of origin temperature and density for computing influence coefficients
   Real species_T_at_origin;
@@ -134,7 +146,7 @@ struct H_lyman_alpha_tracker {
   // we carry one array of transmission probabilities per multiplet
   // each wavelength array is centered on the mean wavelength of the multiplet emission.
   // (line shapes need to incorporate the offset from this mean)
-  static constexpr int n_lambda = 21; //number of wavelength bins
+  static constexpr int n_lambda = 41; //number of wavelength bins
   static constexpr Real lambda_max = 4.0; //max wavelength from line center (dimensionless, units of wavelength Doppler width at Tref)
   static constexpr Real delta_lambda = 2*lambda_max/(n_lambda-1); // dimensionless, fraction of wavelength Doppler width at Tref
 

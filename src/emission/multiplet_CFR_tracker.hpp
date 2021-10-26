@@ -188,7 +188,10 @@ protected:
 	  //   when tau << 1, (1-exp(-tau))/tau ~= 1.0 - tau/2
 	  //                                   ^^^^ for tau < 1e-3, this expansion is accurate to >6 decimal digits
 	  //   could also use (1-exp(-tau))/tau = 1 - tau/2! + tau^2/3! - tau^3/4! + ...
-	  holstein_T_int_coef[i_line][i_lambda] = REAL(1.0) - REAL(0.5)*tau_lambda_voxel[i_multiplet][i_lambda];
+	  holstein_T_int_coef[i_line][i_lambda] = (REAL(1.0)
+						   - (REAL(0.5)*tau_lambda_voxel[i_multiplet][i_lambda]));
+						   // *(REAL(1.0) - tau_lambda_voxel[i_multiplet][i_lambda]/REAL(3.0)));
+	    
 	else
 	  holstein_T_int_coef[i_line][i_lambda] = ((REAL(1.0) - transfer_probability_lambda_voxel[i_multiplet][i_lambda])
 						   / (tau_lambda_voxel[i_multiplet][i_lambda]));

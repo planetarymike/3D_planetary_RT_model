@@ -107,7 +107,7 @@ public:
 
 //#include "voigt.hpp"
 //CUDA_CALLABLE_MEMBER
-//double Voigt(double xx, double sigma, double lg, int r);
+//doubReal Voigt(doubReal xx, doubReal sigma, doubReal lg, int r);
 // // Voigt needs n_lambda = 60, lambda_max = 12.0
 
 template <bool influence, int N_VOXELS>
@@ -137,23 +137,6 @@ struct singlet_CFR_tracker : std::conditional<influence, influence_tracker<N_VOX
   }
   CUDA_CALLABLE_MEMBER
   static Real line_shape_function(const int &i_lambda, const Real &T_ratio) {
-    // Real lambda0, lambda1;
-
-    // if (i_lambda==0) {
-    //   lambda0 = REAL(0.0);
-    //   lambda1 = REAL(0.5)*delta_lambda;    
-    // } else if (i_lambda==n_lambda-1) {
-    //   lambda0 = lambda_max - REAL(0.5)*delta_lambda;
-    //   lambda1 = lambda_max;
-    // } else {
-    //   lambda0 = lambda(i_lambda) - REAL(0.5)*delta_lambda;
-    //   lambda1 = lambda(i_lambda) + REAL(0.5)*delta_lambda;
-    // }
-      
-    // return Real(0.5)*(exp(-lambda0*lambda0*T_ratio)
-    // 		      + exp(-lambda1*lambda1*T_ratio));
-
-    
     Real lambda2 = lambda(i_lambda);
     lambda2 *= lambda2;
     return exp(-lambda2*T_ratio);

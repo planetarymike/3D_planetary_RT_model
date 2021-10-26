@@ -112,12 +112,11 @@ protected:
       assert(!std::isnan(lineshape) && lineshape > 0 &&
 	     "lineshape must be real and positive");
 
-      Real transfer_probability_lambda_voxel = std::exp(
-							-(current_dtau_absorber
-							  + (current_dtau_species
-							     * lineshape))
-							* pathlength
-							);
+      Real tau_lambda_voxel = ((current_dtau_absorber
+				+ (current_dtau_species
+				   * lineshape))
+			       * pathlength);
+      Real transfer_probability_lambda_voxel = std::exp(-tau_lambda_voxel);
       assert(!std::isnan(transfer_probability_lambda_voxel) &&
 	     transfer_probability_lambda_voxel >= 0 &&
 	     transfer_probability_lambda_voxel <= 1 &&
@@ -132,13 +131,25 @@ protected:
 
       // holstein_T_int represents a frequency averaged emission in
       // this voxel observed at the start location
+      if (tau_lambda_voxel < 1e-3)
+	// this solves a floating point issue.
+	//   when tau << 1, (1-exp(-tau))/tau ~= 1.0 - tau/2
+	//                                   ^^^^ for tau < 1e-3, this expansion is accurate to >6 decimal digits
+	//   could also use (1-exp(-tau))/tau = 1 - tau/2! + tau^2/3! - tau^3/4! + ...
+	holstein_T_int_coef = (REAL(1.0) - (REAL(0.5)*tau_lambda_voxel));
+      // *(REAL(1.0) - tau_lambda_voxel[i_multiplet][i_lambda]/REAL(3.0)));
+      else
+	holstein_T_int_coef = ((REAL(1.0) - transfer_probability_lambda_voxel)
+			       / (tau_lambda_voxel));
 
+      
       // therefore, we use the lineshape in this voxel to compute holstein T int
-      holstein_T_int_coef = (holTcoef
-			     * lineshape
-			     * tracker.transfer_probability_lambda_initial[i_lambda]
-			     * (REAL(1.0) - transfer_probability_lambda_voxel)
-			     / (current_abs + lineshape));
+      holstein_T_int_coef *= (holTcoef
+			      * lineshape
+			      * tracker.transfer_probability_lambda_initial[i_lambda]
+			      * current_dtau_species
+			      * pathlength
+			      );
       tracker.holstein_T_int += holstein_T_int_coef;
       assert(!std::isnan(tracker.holstein_T_int) && tracker.holstein_T_int >= 0 &&
 	     (tracker.holstein_T_int*tracker.line_shape_normalization(current_species_T_ratio) <= tau_species_voxel ||
@@ -188,6 +199,7 @@ protected:
 	// relationship of absorber / emitter)
 	tracker.holstein_G_int += (holstein_T_int_coef
 				   * renormalize_to_origin
+				   //* tracker.line_shape_normalization(current_species_T_ratio)
 				   * lineshape_at_origin);
 	assert(!std::isnan(tracker.holstein_G_int)
 	       && tracker.holstein_G_int >= 0
