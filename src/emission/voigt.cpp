@@ -1,6 +1,7 @@
 #ifndef __voigt_hpp
 #define __voigt_hpp
 
+#include "Real.hpp"
 #include <cmath>
 #include "cuda_compatibility.hpp"
 // I got this code from https://root.cern.ch/root/html524/src/TMath.cxx.html#PzREtB
@@ -8,7 +9,7 @@
 
 //______________________________________________________________________________
 CUDA_CALLABLE_MEMBER
-double Voigt(double xx, double sigma, double lg, int r)
+doubReal Voigt(doubReal xx, doubReal sigma, doubReal lg, int r)
 {
   // Computation of Voigt function (normalised).
   // Voigt is a convolution of
@@ -44,42 +45,42 @@ double Voigt(double xx, double sigma, double lg, int r)
     return 0.39894228 / sigma * std::exp(-xx*xx / (2*sigma*sigma));
   }
 
-  double x, y, k;
+  doubReal x, y, k;
   x = xx / sigma / 1.41421356;
   y = lg / 2 / sigma / 1.41421356;
 
-  double r0, r1;
+  doubReal r0, r1;
 
   if (r < 2) r = 2;
   if (r > 5) r = 5;
 
-  r0=1.51 * exp(1.144 * (double)r);
-  r1=1.60 * exp(0.554 * (double)r);
+  r0=1.51 * exp(1.144 * (doubReal)r);
+  r1=1.60 * exp(0.554 * (doubReal)r);
 
   // Constants
 
-  const double rrtpi = 0.56418958;  // 1/SQRT(pi)
+  const doubReal rrtpi = 0.56418958;  // 1/SQRT(pi)
 
-  double y0, y0py0, y0q;                      // for CPF12 algorithm
+  doubReal y0, y0py0, y0q;                      // for CPF12 algorithm
   y0 = 1.5;
   y0py0 = y0 + y0;
   y0q = y0 * y0;
 
-  double c[6] = { 1.0117281, -0.75197147, 0.012557727, 0.010022008, -0.00024206814, 0.00000050084806};
-  double s[6] = { 1.393237, 0.23115241, -0.15535147, 0.0062183662, 0.000091908299, -0.00000062752596};
-  double t[6] = { 0.31424038, 0.94778839, 1.5976826, 2.2795071, 3.0206370, 3.8897249};
+  doubReal c[6] = { 1.0117281, -0.75197147, 0.012557727, 0.010022008, -0.00024206814, 0.00000050084806};
+  doubReal s[6] = { 1.393237, 0.23115241, -0.15535147, 0.0062183662, 0.000091908299, -0.00000062752596};
+  doubReal t[6] = { 0.31424038, 0.94778839, 1.5976826, 2.2795071, 3.0206370, 3.8897249};
 
   // Local variables
 
   int j;                                        // Loop variables
   int rg1, rg2, rg3;                            // y polynomial flags
-  double abx, xq, yq, yrrtpi;                 // --x--, x^2, y^2, y/SQRT(pi)
-  double xlim0, xlim1, xlim2, xlim3, xlim4;   // --x-- on region boundaries
-  double a0=0, d0=0, d2=0, e0=0, e2=0, e4=0, h0=0, h2=0, h4=0, h6=0;// W4 temporary variables
-  double p0=0, p2=0, p4=0, p6=0, p8=0, z0=0, z2=0, z4=0, z6=0, z8=0;
-  double xp[6], xm[6], yp[6], ym[6];          // CPF12 temporary values
-  double mq[6], pq[6], mf[6], pf[6];
-  double d, yf, ypy0, ypy0q;
+  doubReal abx, xq, yq, yrrtpi;                 // --x--, x^2, y^2, y/SQRT(pi)
+  doubReal xlim0, xlim1, xlim2, xlim3, xlim4;   // --x-- on region boundaries
+  doubReal a0=0, d0=0, d2=0, e0=0, e2=0, e4=0, h0=0, h2=0, h4=0, h6=0;// W4 temporary variables
+  doubReal p0=0, p2=0, p4=0, p6=0, p8=0, z0=0, z2=0, z4=0, z6=0, z8=0;
+  doubReal xp[6], xm[6], yp[6], ym[6];          // CPF12 temporary values
+  doubReal mq[6], pq[6], mf[6], pf[6];
+  doubReal d, yf, ypy0, ypy0q;
 
   //***** Start of executable code *****************************************
 

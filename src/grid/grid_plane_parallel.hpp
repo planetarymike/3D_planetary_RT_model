@@ -77,19 +77,19 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
       
       //construct the integral of log_n_species * exp(-tau_absorber)
       const int n_int_steps = 1000;
-      const double deriv_step = 0.0001;
+      const doubReal deriv_step = 0.0001;
       
-      const double log_r_int_step = (
+      const doubReal log_r_int_step = (
 				     (log(atm.rmax-rMars) - log(atm.rmin-rMars))
 				     /
 				     (n_int_steps - 1.)
 				     );
       
-      const double abs_xsec = CO2_lyman_alpha_absorption_cross_section;
+      const doubReal abs_xsec = CO2_lyman_alpha_absorption_cross_section;
       
-      vector<double> log_r_int;
-      vector<double> n_absorber_int;
-      vector<double> int_lognH_exp_tauabs;
+      vector<doubReal> log_r_int;
+      vector<doubReal> n_absorber_int;
+      vector<doubReal> int_lognH_exp_tauabs;
       
       log_r_int.push_back(log((atm.rmax-rMars)*(1-ATMEPS)));
       n_absorber_int.push_back(0);
@@ -100,23 +100,23 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
 	  log_r_int.back() = log((atm.rmin-rMars)*(1+ATMEPS));
 	
 	//unscaled quantities
-	double r0 = exp(log_r_int[i_int-1])+rMars;
-	double r1 = exp(log_r_int[i_int])+rMars;
-	double dr = r0-r1;
+	doubReal r0 = exp(log_r_int[i_int-1])+rMars;
+	doubReal r1 = exp(log_r_int[i_int])+rMars;
+	doubReal dr = r0-r1;
 
-	double n_absorber_diff = 0.5*(atm.n_absorber(r0) + atm.n_absorber(r1))*dr;
+	doubReal n_absorber_diff = 0.5*(atm.n_absorber(r0) + atm.n_absorber(r1))*dr;
 	n_absorber_int.push_back(n_absorber_int.back() + n_absorber_diff );
 
-	double r0up = r0*(1+deriv_step);
-	double r0dn = r0*(1-deriv_step);
-	double dr0 = r0up-r0dn;
+	doubReal r0up = r0*(1+deriv_step);
+	doubReal r0dn = r0*(1-deriv_step);
+	doubReal dr0 = r0up-r0dn;
 
-	double r1up = r1*(1+deriv_step);
-	double r1dn = r1*(1-deriv_step);
+	doubReal r1up = r1*(1+deriv_step);
+	doubReal r1dn = r1*(1-deriv_step);
 	r1dn = r1dn < atm.rmin ? atm.rmin : r1dn;
-	double dr1 = r1up-r1dn;
+	doubReal dr1 = r1up-r1dn;
 	
-	double int_diff = 0.5*(
+	doubReal int_diff = 0.5*(
 			       (
 				log(atm.n_species(r0dn))
 				-
@@ -138,8 +138,8 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
       }
 
       // now subdivide the integral and find the appropriate grid points
-      double int_step = int_lognH_exp_tauabs.back() / (n_radial_boundaries - 1);
-      double target = int_step;
+      doubReal int_step = int_lognH_exp_tauabs.back() / (n_radial_boundaries - 1);
+      doubReal target = int_step;
       radial_boundaries[n_radial_boundaries-1] = atm.rmax;
       int boundary = n_radial_boundaries-2;
       for (int i_int=1; i_int<n_int_steps; i_int++) {
@@ -156,24 +156,24 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
       const atmosphere_average_1d *atm_avg = dynamic_cast<const atmosphere_average_1d*>(&atm);
       assert((atm_avg != NULL) && "This radial points method only works with a class derived from atmosphere_average_1d");
       
-      const double logtaumax = std::log(atm_avg->n_species_int.back());
-      const double logtaumin = std::log(atm_avg->n_species_int[1]);
-      const double logtaumax_step = (logtaumax-logtaumin)/ (n_radial_boundaries-1);
+      const doubReal logtaumax = std::log(atm_avg->n_species_int.back());
+      const doubReal logtaumin = std::log(atm_avg->n_species_int[1]);
+      const doubReal logtaumax_step = (logtaumax-logtaumin)/ (n_radial_boundaries-1);
 
-      double target = logtaumax_step+logtaumin;
+      doubReal target = logtaumax_step+logtaumin;
       radial_boundaries[n_radial_boundaries-1] = atm_avg->rmax;
       int boundary = n_radial_boundaries-2;
       for (int i_int=1; i_int<(int)atm_avg->n_species_int.size(); i_int++) {
 	while (std::log(atm_avg->n_species_int[i_int]) > target && boundary>-1) {
-	  double upper = log(atm_avg->n_species_int[i_int-1]);
-	  double lower = log(atm_avg->n_species_int[i_int]);
+	  doubReal upper = log(atm_avg->n_species_int[i_int-1]);
+	  doubReal lower = log(atm_avg->n_species_int[i_int]);
 	  if (!isfinite(upper))
 	    upper = lower - 10;
 
-	  double frac = ((target - upper)
+	  doubReal frac = ((target - upper)
 			 /
 			 (lower - upper));
-	  double altfrac = (     frac *exp(atm_avg->log_r_int[i_int])
+	  doubReal altfrac = (     frac *exp(atm_avg->log_r_int[i_int])
 			    + (1-frac)*exp(atm_avg->log_r_int[i_int-1]));
 	  
 	  radial_boundaries[boundary] = altfrac*atm_avg->r_int_scale+rMars;
