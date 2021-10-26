@@ -83,7 +83,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 #ifdef PLANE_PARALLEL
   static const int n_radial_boundaries = 40;
   static const int n_rays_theta = 6;
-  static const int n_rays_phi = 12;
   typedef plane_parallel_grid<n_radial_boundaries,
 			      n_rays_theta> grid_type;
   atm.spherical = false;
@@ -91,14 +90,14 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   grid_type grid;
   grid.rmethod = grid.rmethod_log_n_species;
 #else
-  static const int n_radial_boundaries = 80;
-  static const int n_sza_boundaries = 40;/*20 for 10 deg increments with szamethod_uniform*/
-  static const int n_rays_theta = 12;
-  static const int n_rays_phi = 24;
+  static const int n_radial_boundaries = 40;
+  static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
+  static const int n_rays_theta = 6;
+  static const int n_rays_phi = 12;
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
   					       n_sza_boundaries,
-  					       n_rays_phi,
-  					       n_rays_theta> grid_type;
+  					       n_rays_theta,
+  					       n_rays_phi> grid_type;
 
   grid_type grid;
   
@@ -167,6 +166,10 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   //solve for H lyman alpha
   typedef H_lyman_emission_multiplet_test<grid_type::n_voxels> emission_type;
   emission_type lyman_alpha;
+  if (atm.no_CO2_absorption)
+    lyman_alpha.set_CO2_absorption_off();
+  if (not atm.temp_dependent_sH)
+    lyman_alpha.set_constant_temp_RT(exobase_temp);
   lyman_alpha.define("H Lyman alpha",
 		     atm,
 		     &chamb_diff_1d::n_species_voxel_avg,   
@@ -215,8 +218,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   sfn_name_tag_dims += std::to_string(n_rays_theta);
   RT.save_S("test/test_source_function"+sfn_name_tag_dims+".dat");
 
-  // RT.save_influence("test/influence_matrix"+sfn_name_tag+".dat");
-  // RT.save_influence("test/influence_matrix"+sfn_name_tag_dims+".dat");
+  RT.save_influence("test/influence_matrix"+sfn_name_tag+".dat");
+  RT.save_influence("test/influence_matrix"+sfn_name_tag_dims+".dat");
 
 
   
