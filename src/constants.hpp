@@ -28,7 +28,8 @@ constexpr Real one_over_sqrt_pi = two_over_sqrt_pi/2.0;
 
 //radiative transfer parameters
 constexpr Real lyman_alpha_lambda = 121.6e-7;// cm
-const Real lyman_alpha_cross_section_total = line_f_coeff * 0.416;// cm^2 Hz
+constexpr Real lyman_alpha_f = 0.41641;
+const Real lyman_alpha_cross_section_total = line_f_coeff * lyman_alpha_f;// cm^2 Hz
 // ^^^ total cross section of Ly alpha pi*e^2/(m c) * f
 const Real lyman_alpha_line_center_cross_section_coef = lyman_alpha_cross_section_total/std::sqrt(2.0*pi*kB/mH)*lyman_alpha_lambda; // cm^2
 // ^^^line center cross section coefficient, needs to be divided by sqrt(temp) to yield line center cross section
@@ -46,7 +47,8 @@ const Real lyman_alpha_typical_g_factor = lyman_alpha_flux_Mars_typical*lyman_al
 
 
 constexpr Real lyman_beta_lambda = 102.6e-7;// cm
-const Real lyman_beta_cross_section_total = line_f_coeff * 0.079142;// cm^2 Hz
+constexpr Real lyman_beta_f = 0.079142;
+const Real lyman_beta_cross_section_total = line_f_coeff * lyman_beta_f;// cm^2 Hz
 // ^^^ total cross section of Ly beta pi*e^2/(m c) * f
 const Real lyman_beta_branching_ratio = 0.8819;
 const Real lyman_beta_line_center_cross_section_coef = lyman_beta_cross_section_total/std::sqrt(2.0*pi*kB/mH)*lyman_beta_lambda; // cm^2

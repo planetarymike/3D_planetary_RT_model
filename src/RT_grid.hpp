@@ -264,7 +264,7 @@ struct RT_grid {
       Real d_step=(stepper.boundaries[i_bound].distance-d_start)/(n_subsamples_distance-1);
 
       //account for small rounding errors in boundary crossings
-      const Real eps = EPS;
+      const Real eps = EPS; // defined in Real.hpp
       d_start += REAL(0.5)*eps*d_step;
       d_step *= REAL(1.0)-eps;
 
@@ -296,7 +296,7 @@ struct RT_grid {
 	los[i_emission]->exits_bottom();
   }
 
-  void brightness(observation<emission_type, n_emissions> &obs, const int n_subsamples=5) const {
+  void brightness(observation<emission_type, n_emissions> &obs, const int n_subsamples=10) const {
     assert(obs.size()>0 && "there must be at least one observation to simulate!");
 
     my_clock clk;

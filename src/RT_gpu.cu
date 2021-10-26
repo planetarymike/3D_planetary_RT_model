@@ -137,7 +137,7 @@ template<typename emission_type, int N_EMISSIONS, typename grid_type>
 void RT_grid<emission_type,
 	     N_EMISSIONS,
 	     grid_type>::brightness_gpu(observation<emission_type, N_EMISSIONS> &obs,
-					const int n_subsamples/*=5*/) {
+					const int n_subsamples/*=10*/) {
   cudaSetDevice(0);
   cudaFree(0);
   //  checkCudaErrors(cudaDeviceSetCacheConfig(cudaFuncCachePreferShared));//doesn't help speed things up

@@ -17,11 +17,15 @@ observation_fit::observation_fit()
 {
   hydrogen_RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
 
-  hydrogen_RT.grid.rmethod = grid.rmethod_log_n_species_tau_absorber;
+  hydrogen_RT.grid.rmethod = grid.rmethod_altitude;//_tau_absorber;
+  // fixed altitude grid gives smooth solutions for changes in input parameters,
+  // other kinds of grids do not.
   hydrogen_RT.grid.szamethod = grid.szamethod_uniform_cos;
+  hydrogen_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
 
   oxygen_RT.grid.rmethod = grid.rmethod_log_n_species;
   oxygen_RT.grid.szamethod = grid.szamethod_uniform_cos;
+  oxygen_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
 }
 
 void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations, const vector<vector<Real>> &MSO_directions) {
@@ -75,7 +79,7 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
   chamb_diff_1d atm(nHexo,CO2_exobase_density,&temp,&H_thermosphere);
   atm.copy_H_options(H_cross_section_options);
   
-  if (atmosphere_fname !="")
+  if (atmosphere_fname != "")
     atm.save(atmosphere_fname);
 
   if (plane_parallel) {
@@ -313,9 +317,9 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 }
 
 void observation_fit::generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
-								  const std::vector<double> &alt_nH, const std::vector<double> &log_nH,
-								  const std::vector<double> &alt_nCO2, const std::vector<double> &log_nCO2,
-								  const std::vector<double> &alt_temp, const std::vector<double> &temp,
+								  const std::vector<doubReal> &alt_nH, const std::vector<doubReal> &log_nH,
+								  const std::vector<doubReal> &alt_nCO2, const std::vector<doubReal> &log_nCO2,
+								  const std::vector<doubReal> &alt_temp, const std::vector<doubReal> &temp,
 								  const bool compute_exosphere/* = false*/,
 								  const bool plane_parallel/*= false*/,
 								  const string sourcefn_fname/* = ""*/) {
@@ -463,6 +467,15 @@ vector<vector<Real>> observation_fit::iph_brightness_unextincted() {
   return iph_b;
 }
 
+void observation_fit::save_influence_matrix(const string fname) {
+   hydrogen_RT.save_influence(fname);
+}
+
+void observation_fit::save_influence_matrix_O_1026(const string fname) {
+   oxygen_RT.save_influence(fname);
+}
+
+
 void observation_fit::O_1026_generate_source_function(const Real &nOexo,
 						      const Real &Texo,
 						      const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
@@ -498,7 +511,7 @@ void observation_fit::O_1026_generate_source_function(const Real &nOexo,
   //update the emission density values
   oxygen_1026.define("O_1026",
 		     atm,
-		     &chamb_diff_1d::n_species_voxel_avg,   
+		     &chamb_diff_1d::n_species_voxel_avg,
 		     &chamb_diff_1d::Temp_voxel_avg,
 		     &chamb_diff_1d::n_absorber_voxel_avg,
 		     oxygen_RT.grid.voxels);
@@ -514,6 +527,7 @@ void observation_fit::O_1026_generate_source_function(const Real &nOexo,
   
   if (sourcefn_fname!="")
     oxygen_RT.save_S(sourcefn_fname);
+
 }
 
 vector<vector<Real>> observation_fit::O_1026_brightness() {

@@ -161,9 +161,9 @@ public:
 
   
   void generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
- 						   const std::vector<double> &alt_nH, const std::vector<double> &log_nH,
-						   const std::vector<double> &alt_nCO2, const std::vector<double> &log_nCO2,
-						   const std::vector<double> &alt_temp, const std::vector<double> &temp,
+ 						   const std::vector<doubReal> &alt_nH, const std::vector<doubReal> &log_nH,
+						   const std::vector<doubReal> &alt_nCO2, const std::vector<doubReal> &log_nCO2,
+						   const std::vector<doubReal> &alt_temp, const std::vector<doubReal> &temp,
 						   const bool compute_exosphere = false,
 						   const bool plane_parallel = false,
 						   const string sourcefn_fname="");
@@ -178,6 +178,9 @@ public:
   void reset_H_lyb_xsec_coef(const Real xsec_coef = lyman_beta_line_center_cross_section_coef);
   void reset_CO2_lya_xsec(const Real xsec = CO2_lyman_alpha_absorption_cross_section);
   void reset_CO2_lyb_xsec(const Real xsec = CO2_lyman_beta_absorption_cross_section);
+
+  void save_influence_matrix(const string fname);
+  void save_influence_matrix_O_1026(const string fname);
   
   std::vector<std::vector<Real>> brightness();
   std::vector<std::vector<Real>> tau_species_final();
