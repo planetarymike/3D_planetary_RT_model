@@ -37,7 +37,7 @@ OFLAGS=-O3 -march=native -DNDEBUG
 #device spec
 CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CUDA Capability Major/Minor version number:.*' | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 
-NCC=nvcc -std=c++17 -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
+NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
 #            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
 #                                           (needs Eigen git repo     (added this flag by hand as a wrapper
@@ -145,6 +145,26 @@ py_corona_sim_gpu:
 	export CXX='nvcc'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
+observation_fit_cpu_test:
+	@echo "compiling observation_fit.cpp..."
+	@$(CC) $(IDIR) $(LIBS) -O0 -g -c src/observation_fit.cpp -o bin/src/observation_fit.debug.o
+	@echo "compiling obs_fit_test.cpp..."
+	@$(CC) $(IDIR) $(LIBS) -O0 -g -c python/test/obs_fit_test.cpp -o bin/obs_fit_test.debug.o
+
+	@echo "compiling ipbackgroundCFR_fun.f..."
+	@gfortran -fPIC -Ofast -c -std=legacy \
+	$(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
+	-o $(OBJDIR)/ipbackgroundCFR_fun.o
+	@$(CC) $(IDIR) $(LIBS) -O0 -g -c $(SRCDIR)/quemerais_IPH_model/*.cpp -o bin/quemerais_IPH_model.debug.o
+
+
+	@echo "linking ..."
+	@$(CC) $(SRCFILES) \
+	bin/src/observation_fit.debug.o \
+	bin/obs_fit_test.debug.o \
+	bin/quemerais_IPH_model.debug.o \
+	$(OBJDIR)/ipbackgroundCFR_fun.o -lgfortran \
+	$(IDIR) $(LIBS)  -O0 -g -o python/test/obs_fit_test.x
 
 observation_fit_gpu_test: $(NOBJFILESDBG)
 	@echo "compiling observation_fit.cpp..."
@@ -166,6 +186,8 @@ observation_fit_gpu_test: $(NOBJFILESDBG)
 	bin/quemerais_IPH_model.cuda.debug.o \
 	$(OBJDIR)/ipbackgroundCFR_fun.o -lgfortran \
 	$(NIDIR) $(NLIBS) $(NDBGFLAGS) -o python/test/obs_fit_test.x
+
+
 
 clean_gpu:
 	rm -f generate_source_function_gpu.x
