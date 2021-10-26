@@ -29,7 +29,7 @@ void atmosphere_average_1d::setup() {
   
   //integrate from the top of the atmosphere down to minimize floating
   //point subtraction errors
-  double log_r_int_step = (log((rmax-rMars)/r_int_scale) - log((rmin-rMars)/r_int_scale))/(n_int_steps - 1.);
+  doubReal log_r_int_step = (log((rmax-rMars)/r_int_scale) - log((rmin-rMars)/r_int_scale))/(n_int_steps - 1.);
   log_r_int.push_back(log((rmax-rMars)*(1-ATMEPS)/r_int_scale));
 
   n_species_int.push_back(0);
@@ -44,13 +44,13 @@ void atmosphere_average_1d::setup() {
       log_r_int.back() = log((rmin-rMars)*(1+ATMEPS)/r_int_scale);
 
     //unscaled quantities
-    double r0 = exp(log_r_int[i_int-1])*r_int_scale+rMars;
-    double r1 = exp(log_r_int[i_int])*r_int_scale+rMars;
-    //double dr = r0-r1;
+    doubReal r0 = exp(log_r_int[i_int-1])*r_int_scale+rMars;
+    doubReal r1 = exp(log_r_int[i_int])*r_int_scale+rMars;
+    //doubReal dr = r0-r1;
 
     //scaled quantities
-    double r0s = r0/r_int_scale;
-    double r1s = r1/r_int_scale;
+    doubReal r0s = r0/r_int_scale;
+    doubReal r1s = r1/r_int_scale;
     
     add_integrated(n_species_int,
 		   n_species(r0), n_species(r1),
@@ -84,30 +84,30 @@ void atmosphere_average_1d::setup() {
 		   r0s,           r1s,
 		   /*spherical = */true);
   }
-  n_species_int_spline = cardinal_cubic_b_spline<double>(n_species_int.rbegin(),
+  n_species_int_spline = cardinal_cubic_b_spline<doubReal>(n_species_int.rbegin(),
 							 n_species_int.rend(),
 							 log_r_int.back(),
 							 log_r_int_step);
-  n_species_int_spline_spherical = cardinal_cubic_b_spline<double>(n_species_int_spherical.rbegin(),
+  n_species_int_spline_spherical = cardinal_cubic_b_spline<doubReal>(n_species_int_spherical.rbegin(),
 								   n_species_int_spherical.rend(),
 								   log_r_int.back(),
 								   log_r_int_step);
-  n_absorber_int_spline = Linear_interp<double>(log_r_int, n_absorber_int);
-  n_absorber_int_spline_spherical = Linear_interp<double>(log_r_int, n_absorber_int_spherical);
+  n_absorber_int_spline = Linear_interp<doubReal>(log_r_int, n_absorber_int);
+  n_absorber_int_spline_spherical = Linear_interp<doubReal>(log_r_int, n_absorber_int_spherical);
   
-  Tint_spline = Linear_interp<double>(log_r_int, Tint);
-  Tint_spline_spherical = Linear_interp<double>(log_r_int, Tint_spherical);
+  Tint_spline = Linear_interp<doubReal>(log_r_int, Tint);
+  Tint_spline_spherical = Linear_interp<doubReal>(log_r_int, Tint_spherical);
 
   average_init=true;
 }
 
-void atmosphere_average_1d::add_integrated(vector<double> &vec,
-					   const double q0,  const double q1,
-					   const double r0s, const double r1s,
+void atmosphere_average_1d::add_integrated(vector<doubReal> &vec,
+					   const doubReal q0,  const doubReal q1,
+					   const doubReal r0s, const doubReal r1s,
 					   const bool spherical) {
 
-  double rfactor0, rfactor1;
-  double diff;
+  doubReal rfactor0, rfactor1;
+  doubReal diff;
   
   if (spherical) {
     rfactor0 = r0s * r0s;
@@ -117,12 +117,12 @@ void atmosphere_average_1d::add_integrated(vector<double> &vec,
     rfactor1 = 1.0;
   }
 
-  double rfactorrel = rfactor1/rfactor0;
-  double drs = r0s*(1.0-r1s/r0s);
+  doubReal rfactorrel = rfactor1/rfactor0;
+  doubReal drs = r0s*(1.0-r1s/r0s);
 
   if (q0!=0 && q1!=0) {
     // add up relative values to avoid rounding errors
-    double qrel = q1/q0;
+    doubReal qrel = q1/q0;
     diff = q0*rfactor0*(1.0 + qrel*rfactorrel)/2.0 * drs;
   } else {
     // at least one of the values is zero, need to use absolute addition
@@ -138,8 +138,8 @@ void atmosphere_average_1d::add_integrated(vector<double> &vec,
 	 && "check for nans or no difference (may indicate floating point error)");
 }
 
-double atmosphere_average_1d::ravg(const double &r0, const double &r1,
-				   const double &q0, const double &q1) const {
+doubReal atmosphere_average_1d::ravg(const doubReal &r0, const doubReal &r1,
+				   const doubReal &q0, const doubReal &q1) const {
   //compute average values from integral quantities q;
   if (spherical) {
     return -3*( q1 - q0 )/( r1*r1*r1 - r0*r0*r0 );// volume is
@@ -156,7 +156,7 @@ double atmosphere_average_1d::ravg(const double &r0, const double &r1,
   }
 }
 
-double atmosphere_average_1d::n_absorber_avg(const double &r0, const double &r1) const {
+doubReal atmosphere_average_1d::n_absorber_avg(const doubReal &r0, const doubReal &r1) const {
   if (!average_init)
     assert(false && "atmosphere_average_1d not properly initialized!");
   if (spherical) {
@@ -176,7 +176,7 @@ void atmosphere_average_1d::n_absorber_voxel_avg(const atmo_voxel &vox, Real &re
   assert(!isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
 }
 
-double atmosphere_average_1d::n_species_avg(const double &r0, const double &r1) const {
+doubReal atmosphere_average_1d::n_species_avg(const doubReal &r0, const doubReal &r1) const {
   if (!average_init)
     assert(false && "atmosphere_average_1d not properly initialized!");
   if (spherical) {
@@ -197,7 +197,7 @@ void atmosphere_average_1d::n_species_voxel_avg(const atmo_voxel &vox, Real &ret
 }
 
 
-double atmosphere_average_1d::Temp_avg(const double &r0, const double &r1) const {
+doubReal atmosphere_average_1d::Temp_avg(const doubReal &r0, const doubReal &r1) const {
   if (!average_init)
     assert(false && "atmosphere_average_1d not properly initialized!");
   if (spherical) {

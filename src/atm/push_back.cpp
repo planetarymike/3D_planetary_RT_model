@@ -1,6 +1,6 @@
 #include "push_back.hpp"
 
-void push_back_quantities::operator()( const vector<double> &x , double r )
+void push_back_quantities::operator()( const vector<doubReal> &x , doubReal r )
 {
   for(unsigned int i=0; i<x.size(); i++)
     (*(vec_ptrs[i])).push_back(x[i]);

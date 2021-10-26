@@ -10,17 +10,17 @@ struct chamb_diff_1d : public thermosphere_exosphere,
 		       public atmosphere_average_1d,
 		       public H_cross_sections
 {
-  chamb_diff_1d(double n_species_exoo, // for H, a good number is 10^5-6
-		double nCO2_exoo, //a good number is ~10^9
+  chamb_diff_1d(doubReal n_species_exoo, // for H, a good number is 10^5-6
+		doubReal nCO2_exoo, //a good number is ~10^9
 		temperature *tempp,
 		species_density_parameters *species_thermospheree);
 
-  chamb_diff_1d(double rminn,
-		double rexoo,
-		double rmaxx_or_nspmin,
-		double rmindiffusionn,
-		double n_species_exoo, 
-		double nCO2exo_or_nCO2rmin,
+  chamb_diff_1d(doubReal rminn,
+		doubReal rexoo,
+		doubReal rmaxx_or_nspmin,
+		doubReal rmindiffusionn,
+		doubReal n_species_exoo, 
+		doubReal nCO2exo_or_nCO2rmin,
 		temperature *tempp,
 		species_density_parameters *species_thermospheree,
 		const int method = thermosphere_exosphere::method_nspmin_nCO2exo);

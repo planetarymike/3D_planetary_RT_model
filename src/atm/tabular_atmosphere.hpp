@@ -13,31 +13,31 @@ using std::vector;
 
 struct tabular_atmosphere : virtual public atmosphere {
 protected:
-  Linear_interp<double> log_n_species_spline;
-  Linear_interp<double> inv_log_n_species_spline;
-  Linear_interp<double> Temp_spline;
-  Linear_interp<double> log_n_absorber_spline;
+  Linear_interp<doubReal> log_n_species_spline;
+  Linear_interp<doubReal> inv_log_n_species_spline;
+  Linear_interp<doubReal> Temp_spline;
+  Linear_interp<doubReal> log_n_absorber_spline;
 
   bool compute_exosphere;
-  double m_species;
+  doubReal m_species;
   chamberlain_exosphere exosphere; 
   
 public:
-  tabular_atmosphere(const double rminn, const double rexoo, const double rmaxx,
+  tabular_atmosphere(const doubReal rminn, const doubReal rexoo, const doubReal rmaxx,
 		     const bool compute_exospheree = false,
-		     const double m_species = mH);
+		     const doubReal m_species = mH);
 
-  void load_log_species_density(const vector<double> &alt, const vector<double> &log_n_species);
-  void load_log_absorber_density(const vector<double> &alt, const vector<double> &log_n_absorber);
-  void load_temperature(const vector<double> &alt, const vector<double> &temp);
+  void load_log_species_density(const vector<doubReal> &alt, const vector<doubReal> &log_n_species);
+  void load_log_absorber_density(const vector<doubReal> &alt, const vector<doubReal> &log_n_absorber);
+  void load_temperature(const vector<doubReal> &alt, const vector<doubReal> &temp);
   void check_init();
   void init_exosphere();
 
-  double r_from_n_species(const double &n_species_target) const override;
+  doubReal r_from_n_species(const doubReal &n_species_target) const override;
 
-  double n_species(const double &r) const override;
+  doubReal n_species(const doubReal &r) const override;
 
-  double Temp(const double &r) const override;
+  doubReal Temp(const doubReal &r) const override;
 
-  double n_absorber(const double &r) const override;
+  doubReal n_absorber(const doubReal &r) const override;
 };

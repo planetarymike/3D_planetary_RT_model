@@ -24,22 +24,22 @@ using boost::math::interpolators::cardinal_cubic_b_spline;
 struct atmosphere_average_1d : virtual public atmosphere {
   //integrated quantities to get averages
   static const int n_int_steps = 5000;
-  static constexpr double r_int_scale = 1e8;
+  static constexpr doubReal r_int_scale = 1e8;
 
   //use doubles internally or risk losing precision in computing averages
-  vector<double> log_r_int;
-  vector<double> n_species_int;
-  cardinal_cubic_b_spline<double> n_species_int_spline;
-  vector<double> n_species_int_spherical;
-  cardinal_cubic_b_spline<double> n_species_int_spline_spherical;
-  vector<double> n_absorber_int;
-  Linear_interp<double> n_absorber_int_spline;
-  vector<double> n_absorber_int_spherical;
-  Linear_interp<double> n_absorber_int_spline_spherical;
-  vector<double> Tint;
-  Linear_interp<double> Tint_spline;
-  vector<double> Tint_spherical;
-  Linear_interp<double> Tint_spline_spherical;
+  vector<doubReal> log_r_int;
+  vector<doubReal> n_species_int;
+  cardinal_cubic_b_spline<doubReal> n_species_int_spline;
+  vector<doubReal> n_species_int_spherical;
+  cardinal_cubic_b_spline<doubReal> n_species_int_spline_spherical;
+  vector<doubReal> n_absorber_int;
+  Linear_interp<doubReal> n_absorber_int_spline;
+  vector<doubReal> n_absorber_int_spherical;
+  Linear_interp<doubReal> n_absorber_int_spline_spherical;
+  vector<doubReal> Tint;
+  Linear_interp<doubReal> Tint_spline;
+  vector<doubReal> Tint_spherical;
+  Linear_interp<doubReal> Tint_spline_spherical;
 
   bool spherical;//whether to compute averages in spherical geometry
 
@@ -48,25 +48,25 @@ struct atmosphere_average_1d : virtual public atmosphere {
   atmosphere_average_1d();
 
   void setup();
-  void add_integrated(vector<double> &vec,
-		      double q0, double q1,
-		      double r0, double r1,
+  void add_integrated(vector<doubReal> &vec,
+		      doubReal q0, doubReal q1,
+		      doubReal r0, doubReal r1,
 		      bool spherical);
 
-  double ravg(const double &r0, const double &r1,
-	    const double &q0, const double &q1) const;
+  doubReal ravg(const doubReal &r0, const doubReal &r1,
+	    const doubReal &q0, const doubReal &q1) const;
   
-  double n_absorber_avg(const double &r0, const double &r1) const;
+  doubReal n_absorber_avg(const doubReal &r0, const doubReal &r1) const;
   using atmosphere::n_absorber;
-  //  double n_absorber(const atmo_point &pt) const; 
+  //  doubReal n_absorber(const atmo_point &pt) const; 
   void n_absorber_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 
-  double n_species_avg(const double &r0, const double &r1) const;
+  doubReal n_species_avg(const doubReal &r0, const doubReal &r1) const;
   using atmosphere::n_species;
-  //  double n_species(const atmo_point &pt) const;
+  //  doubReal n_species(const atmo_point &pt) const;
   void n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
   
-  double Temp_avg(const double &r0, const double &r1) const;
+  doubReal Temp_avg(const doubReal &r0, const doubReal &r1) const;
   using atmosphere::Temp;
   void Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const;
 };

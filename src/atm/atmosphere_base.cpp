@@ -1,5 +1,5 @@
 #include "atmosphere_base.hpp"
 
-atmosphere::atmosphere(double rminn, double rexoo, double rmaxx)
+atmosphere::atmosphere(doubReal rminn, doubReal rexoo, doubReal rmaxx)
   : rmin(rminn), rexo(rexoo), rmax(rmaxx), init(false) { }
 

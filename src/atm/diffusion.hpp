@@ -6,16 +6,16 @@
 
 //diffusion coefficients
 struct diffusion_coefs {
-  double DH; // diffusion coefficient of hydrogen through CO2
-  double KK; // eddy diffusion coefficient
+  doubReal DH; // diffusion coefficient of hydrogen through CO2
+  doubReal KK; // eddy diffusion coefficient
 
-  const double DH0;
-  const double s;
+  const doubReal DH0;
+  const doubReal s;
 
-  diffusion_coefs(const double DH00, const double ss);
+  diffusion_coefs(const doubReal DH00, const doubReal ss);
   
   //sets the above using formulas
-  void get(const double &T, const double &Texo, const double &nCO2);  
+  void get(const doubReal &T, const doubReal &Texo, const doubReal &nCO2);  
 };
 
 #endif

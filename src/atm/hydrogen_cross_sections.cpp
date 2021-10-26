@@ -12,7 +12,7 @@ H_cross_sections::H_cross_sections()
 { }
 
 Real H_cross_sections::sH_lya(const Real &T) const {
-  double t_sH = temp_dependent_sH ? T : constant_temp_sH;
+  doubReal t_sH = temp_dependent_sH ? T : constant_temp_sH;
   return H_lya_xsec_coef/sqrt(t_sH);
 } 
 Real H_cross_sections::sCO2_lya(__attribute__((unused)) const Real &T) const {
@@ -23,7 +23,7 @@ Real H_cross_sections::sCO2_lya(__attribute__((unused)) const Real &T) const {
 }
 
 Real H_cross_sections::sH_lyb(const Real &T) const {
-  double t_sH = temp_dependent_sH ? T : constant_temp_sH;
+  doubReal t_sH = temp_dependent_sH ? T : constant_temp_sH;
   return H_lyb_xsec_coef/sqrt(t_sH);
 }
 Real H_cross_sections::sCO2_lyb(__attribute__((unused)) const Real &T) const {

@@ -3,8 +3,8 @@ using std::vector;
 
 #include <fstream>
 
-thermosphere_exosphere::thermosphere_exosphere(double n_species_exoo, 
-					       double nCO2exoo, 
+thermosphere_exosphere::thermosphere_exosphere(doubReal n_species_exoo, 
+					       doubReal nCO2exoo, 
 					       temperature *tempp,
 					       species_density_parameters *species_thermospheree)
   : thermosphere_exosphere(/*          rmin = */rMars + 80e5,
@@ -16,12 +16,12 @@ thermosphere_exosphere::thermosphere_exosphere(double n_species_exoo,
 			   tempp,
 			   species_thermospheree)   { }
 
-thermosphere_exosphere::thermosphere_exosphere(double rminn,
-					       double rexoo,
-					       double rmaxx_or_nspmin,
-					       double rmindiffusionn,
-					       double n_species_exoo, 
-					       double nCO2rmin_or_nCO2exoo, 
+thermosphere_exosphere::thermosphere_exosphere(doubReal rminn,
+					       doubReal rexoo,
+					       doubReal rmaxx_or_nspmin,
+					       doubReal rmindiffusionn,
+					       doubReal n_species_exoo, 
+					       doubReal nCO2rmin_or_nCO2exoo, 
 					       temperature *tempp,
 					       species_density_parameters *species_thermospheree,
 					       const int method)
@@ -30,7 +30,11 @@ thermosphere_exosphere::thermosphere_exosphere(double rminn,
 	      tempp->T_exo,
 	      n_species_exoo,
 	      species_thermospheree->mass), // overwritten in setup()
-    species_thermosphere(species_thermospheree)
+    species_thermosphere(species_thermospheree),
+    CO2_exosphere(rexoo,
+		  tempp->T_exo,
+		  n_species_exoo,
+		  mCO2)
 {
   if (method == method_nspmin_nCO2exo)
     this->setup_nspmin_nCO2exo(rminn,
@@ -50,16 +54,16 @@ thermosphere_exosphere::thermosphere_exosphere(double rminn,
 			      tempp);
 }
 
-void thermosphere_exosphere::setup_nspmin_nCO2exo(double rminn,
-						 double rexoo,
-						 double n_species_min,
-						 double rmindiffusionn,
-						 double n_species_exoo, 
-						 double nCO2exoo, 
+void thermosphere_exosphere::setup_nspmin_nCO2exo(doubReal rminn,
+						 doubReal rexoo,
+						 doubReal n_species_min,
+						 doubReal rmindiffusionn,
+						 doubReal n_species_exoo, 
+						 doubReal nCO2exoo, 
 						 temperature *tempp)
 {
   //set the max altitude by finding the density at which the exosphere = n_species_min
-  double rmaxx = exosphere.r(n_species_min);
+  doubReal rmaxx = exosphere.r(n_species_min);
   
   setup_rmax_nCO2exo(rminn,
 		     rexoo,
@@ -70,12 +74,12 @@ void thermosphere_exosphere::setup_nspmin_nCO2exo(double rminn,
 		     tempp);
 }
 
-void thermosphere_exosphere::setup_rmax_nCO2rmin(double rminn,
-						 double rexoo,
-						 double rmaxx,
-						 double rmindiffusionn,
-						 double n_species_exoo, 
-						 double nCO2rmin, //a good number is 2.6e13 (Chaufray 2008)
+void thermosphere_exosphere::setup_rmax_nCO2rmin(doubReal rminn,
+						 doubReal rexoo,
+						 doubReal rmaxx,
+						 doubReal rmindiffusionn,
+						 doubReal n_species_exoo, 
+						 doubReal nCO2rmin, //a good number is 2.6e13 (Chaufray 2008)
 						 temperature *tempp)
 {
   setup_rmax_nCO2exo(rminn,
@@ -87,12 +91,12 @@ void thermosphere_exosphere::setup_rmax_nCO2rmin(double rminn,
 		     tempp);
 }
 
-void thermosphere_exosphere::setup_rmax_nCO2exo(double rminn,
-						double rexoo,
-						double rmaxx,
-						double rmindiffusionn,
-						double n_species_exoo, 
-						double nCO2exoo, 
+void thermosphere_exosphere::setup_rmax_nCO2exo(doubReal rminn,
+						doubReal rexoo,
+						doubReal rmaxx,
+						doubReal rmindiffusionn,
+						doubReal n_species_exoo, 
+						doubReal nCO2exoo, 
 						temperature *tempp)
 {
   rmin = rminn;
@@ -120,6 +124,7 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(double rminn,
 							n_thermosphere_steps,
 							/*get_interpolation_points = */true);
 
+  CO2_exosphere = chamberlain_exosphere(rexoo, temp->T_exo, nCO2exo, mCO2);
 
 #ifndef DNDEBUG
   //check the thermosphere values for any negatives
@@ -131,11 +136,11 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(double rminn,
 #endif
   
   //interpolate the densities in the thermosphere
-  log_nCO2_thermosphere_spline = Linear_interp<double>(r_thermosphere,log_nCO2_thermosphere);
-  invlog_nCO2_thermosphere = Linear_interp<double>(log_nCO2_thermosphere,r_thermosphere);
+  log_nCO2_thermosphere_spline = Linear_interp<doubReal>(r_thermosphere,log_nCO2_thermosphere);
+  invlog_nCO2_thermosphere = Linear_interp<doubReal>(log_nCO2_thermosphere,r_thermosphere);
 
-  log_n_species_thermosphere_spline = Linear_interp<double>(r_thermosphere,log_n_species_thermosphere);
-  invlog_n_species_thermosphere = Linear_interp<double>(log_n_species_thermosphere,r_thermosphere);
+  log_n_species_thermosphere_spline = Linear_interp<doubReal>(r_thermosphere,log_n_species_thermosphere);
+  invlog_n_species_thermosphere = Linear_interp<doubReal>(log_n_species_thermosphere,r_thermosphere);
 
   n_species_rmindiffusion = n_species(rmindiffusion);
   nCO2rmindiffusion = nCO2(rmindiffusion);
@@ -148,26 +153,40 @@ void thermosphere_exosphere::setup_rmax_nCO2exo(double rminn,
     log_n_species_exosphere.push_back( log( exosphere( exp( log_r_exosphere[iexo] ) ) ) );
     assert(exp(log_n_species_exosphere.back()) > 0 && "densities must be positive");
   }
-  log_n_species_exosphere_spline = Linear_interp<double>(log_r_exosphere,log_n_species_exosphere);
-  invlog_n_species_exosphere = Linear_interp<double>(log_n_species_exosphere,log_r_exosphere);
+  log_n_species_exosphere_spline = Linear_interp<doubReal>(log_r_exosphere,log_n_species_exosphere);
+  invlog_n_species_exosphere = Linear_interp<doubReal>(log_n_species_exosphere,log_r_exosphere);
+
+
+  exosphere_step_CO2_logr = (log(CO2_exo_zero_level) - log(rexo))/(n_exosphere_steps - 1.);
+  for (int iexo = 0; iexo < n_exosphere_steps; iexo++) {
+    log_r_CO2_exosphere.push_back( log(rexo) + iexo * exosphere_step_CO2_logr );
+    assert(log_r_CO2_exosphere.back() > 0 && "radii must be positive");
+    log_n_CO2_exosphere.push_back( log( CO2_exosphere( exp( log_r_CO2_exosphere[iexo] ) ) ) );
+    assert(exp(log_n_CO2_exosphere.back()) > 0 && "densities must be positive");
+  }
+  log_n_CO2_exosphere_spline = Linear_interp<doubReal>(log_r_CO2_exosphere,log_n_CO2_exosphere);
+  invlog_n_CO2_exosphere = Linear_interp<doubReal>(log_n_CO2_exosphere,log_r_CO2_exosphere);
+
 
   init=true;
 }
 
 
-double thermosphere_exosphere::nCO2(const double &r) const {
-  if (r>rexo)
+doubReal thermosphere_exosphere::nCO2(const doubReal &r) const {
+  if (r>CO2_exo_zero_level)
     return 0.0;
+  else if (r>rexo && CO2_exo_zero_level!=rexo)
+    return exp(log_n_CO2_exosphere_spline(log(r)));
   else {
     assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
     return exp(log_nCO2_thermosphere_spline(r));
   }
 }
-double thermosphere_exosphere::n_absorber(const double &r) const  {
+doubReal thermosphere_exosphere::n_absorber(const doubReal &r) const  {
   return nCO2(r);
 }
 
-double thermosphere_exosphere::n_species(const double &r) const {
+doubReal thermosphere_exosphere::n_species(const doubReal &r) const {
   if (r>=rexo)
     return exp(log_n_species_exosphere_spline(log(r)));
   else {
@@ -180,11 +199,11 @@ double thermosphere_exosphere::n_species(const double &r) const {
   }
 }
 
-double thermosphere_exosphere::Temp(const double &r) const {
+doubReal thermosphere_exosphere::Temp(const doubReal &r) const {
   return temp->T(r);
 }
 
-double thermosphere_exosphere::r_from_n_species(const double &nsptarget) const {
+doubReal thermosphere_exosphere::r_from_n_species(const doubReal &nsptarget) const {
   if (nsptarget==n_species_exo) {
     return rexo;
   } else if (nsptarget<n_species_exo) {
@@ -196,13 +215,13 @@ double thermosphere_exosphere::r_from_n_species(const double &nsptarget) const {
   }
 }
 
-double thermosphere_exosphere::nCO2_exact(const double &r) const {
+doubReal thermosphere_exosphere::nCO2_exact(const doubReal &r) const {
   if (r>rexo)
-    return 0.0;
+    return CO2_exosphere(r);
   else {
     assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
 
-    double nCO2_tmp, n_species_tmp;
+    doubReal nCO2_tmp, n_species_tmp;
     species_thermosphere->get_thermosphere_density_exact(n_species_exo,
 							 nCO2exo,
 							 rexo,
@@ -217,14 +236,14 @@ double thermosphere_exosphere::nCO2_exact(const double &r) const {
   }
 }
 
-double thermosphere_exosphere::n_species_exact(const double &r) const {
+doubReal thermosphere_exosphere::n_species_exact(const doubReal &r) const {
   if (r>=rexo)
     return exosphere(r);
   else {
     assert(r>=rmin && "r must be above the lower boundary of the atmosphere.");
     if (r>=rmindiffusion) {
 
-      double nCO2_tmp, n_species_tmp;
+      doubReal nCO2_tmp, n_species_tmp;
       species_thermosphere->get_thermosphere_density_exact(n_species_exo,
 							   nCO2exo,
 							   rexo,
@@ -245,7 +264,7 @@ double thermosphere_exosphere::n_species_exact(const double &r) const {
 
 
 void thermosphere_exosphere::write_vector(std::ofstream &file, const std::string &preamble,
-					  const vector<double> &data) const {
+					  const vector<doubReal> &data) const {
   VectorXd write_out = Eigen::Map<const VectorXd>(data.data(),
 						  data.size());
 

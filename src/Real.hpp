@@ -9,6 +9,7 @@
 #ifdef RT_FLOAT
 
 typedef float Real;
+typedef double doubReal;
 #define REAL(N) (N##f)
 #define EPS REAL(1e-3)
 #define STRICTEPS REAL(1e-5)
@@ -17,6 +18,7 @@ typedef float Real;
 #else //default to double
 
 typedef double Real;
+typedef double doubReal;
 #define REAL(N) (N)
 #define EPS 1e-6
 #define STRICTEPS 1e-10
@@ -27,7 +29,7 @@ typedef double Real;
 #define ATMEPS 1e-10
 
 typedef Eigen::Matrix<Real, Eigen::Dynamic, 1> VectorX;
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorXd;
+typedef Eigen::Matrix<doubReal, Eigen::Dynamic, 1> VectorXd;
 typedef Eigen::Matrix<float, Eigen::Dynamic, 1> VectorXf;
 
 

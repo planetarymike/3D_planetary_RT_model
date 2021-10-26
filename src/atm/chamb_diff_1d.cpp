@@ -1,8 +1,8 @@
 #include "chamb_diff_1d.hpp"
 using std::vector;
 
-chamb_diff_1d::chamb_diff_1d(double n_species_exoo,
-			     double nCO2_exoo, 
+chamb_diff_1d::chamb_diff_1d(doubReal n_species_exoo,
+			     doubReal nCO2_exoo, 
 			     temperature *tempp,
 			     species_density_parameters *species_thermospheree)
   : chamb_diff_1d(/*          rmin = */rMars + 80e5,
@@ -14,12 +14,12 @@ chamb_diff_1d::chamb_diff_1d(double n_species_exoo,
 		  tempp,
 		  species_thermospheree)   { }
 
-chamb_diff_1d::chamb_diff_1d(double rminn,
-			     double rexoo,
-			     double rmaxx_or_nspmin,
-                             double rmindiffusionn,
-                             double n_species_exoo,   
-                             double nCO2rmin_or_nCO2exoo, 
+chamb_diff_1d::chamb_diff_1d(doubReal rminn,
+			     doubReal rexoo,
+			     doubReal rmaxx_or_nspmin,
+                             doubReal rmindiffusionn,
+                             doubReal n_species_exoo,   
+                             doubReal nCO2rmin_or_nCO2exoo, 
                              temperature *tempp,
 			     species_density_parameters *species_thermospheree,
 			     const int method/* = thermosphere_exosphere::method_nspmin_nCO2exo*/)

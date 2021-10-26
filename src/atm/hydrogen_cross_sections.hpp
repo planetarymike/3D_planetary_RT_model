@@ -4,14 +4,14 @@
 #include "Real.hpp"
 
 struct H_cross_sections {
-  double H_lya_xsec_coef;
-  double H_lyb_xsec_coef;
+  doubReal H_lya_xsec_coef;
+  doubReal H_lyb_xsec_coef;
 
-  double CO2_lya_xsec;
-  double CO2_lyb_xsec;
+  doubReal CO2_lya_xsec;
+  doubReal CO2_lyb_xsec;
   
   bool temp_dependent_sH;
-  double constant_temp_sH;
+  doubReal constant_temp_sH;
   
   bool no_CO2_absorption;
   
