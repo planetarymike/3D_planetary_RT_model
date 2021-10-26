@@ -109,6 +109,9 @@ cdef extern from "observation_fit.hpp":
         void reset_CO2_lya_xsec() # uses C++ default
         void reset_CO2_lyb_xsec(Real xsec)
         void reset_CO2_lyb_xsec() # uses C++ default
+
+        void save_influence_matrix(string fname)
+        void save_influence_matrix_O_1026(string fname)
         
         vector[vector[Real]] brightness()
         vector[vector[Real]] tau_species_final()
@@ -372,6 +375,12 @@ cdef class Pyobservation_fit:
 
     def iph_brightness_unextincted(self):
         return np.asarray(self.thisptr.iph_brightness_unextincted())
+
+    def save_influence_matrix(self, fname):
+        self.thisptr.save_influence_matrix(fname.encode('utf-8'))
+
+    def save_influence_matrix_O_1026(self, fname):
+        self.thisptr.save_influence_matrix_O_1026(fname.encode('utf-8'))
 
     
     def O_1026_generate_source_function(self,

@@ -18,8 +18,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   static const int n_rays_phi = 12;
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
   					       n_sza_boundaries,
-  					       n_rays_phi,
-  					       n_rays_theta> grid_type;
+  					       n_rays_theta,
+					       n_rays_phi> grid_type;
   
   grid_type grid;
 
@@ -69,6 +69,9 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   // obsfit.generate_source_function_temp_asym(1e5,300,100);
   // brightness = obsfit.brightness();
 
+  obsfit.generate_source_function(5e5,200);
+  obsfit.save_influence_matrix("/home/mike/Documents/Mars/3D_planetary_RT_model/test/py_influence_matrix_cpu.dat");
+  
   vector<vector<Real>> brightness;
   obsfit.O_1026_generate_source_function(2e7,200,1.69e-3);
   brightness = obsfit.O_1026_brightness();
