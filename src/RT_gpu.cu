@@ -92,8 +92,10 @@ void brightness_kernel(const RT_grid<emission_type, N_EMISSIONS, grid_type> *__r
 		       observation<emission_type, N_EMISSIONS> *obs,
 		       const int n_subsamples = 10)
 {
+#ifdef __PRINT_ELAPSED_TIME_TERMINAL
   if (threadIdx.x==0 && blockIdx.x==0)
     printf("size of RT grid: %i\n",(int) sizeof(*RT));
+#endif
 
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
@@ -170,15 +172,19 @@ void RT_grid<emission_type,
   checkCudaErrors( cudaDeviceSynchronize() );
 
   kernel_clk.stop();
+#ifdef __PRINT_ELAPSED_TIME_TERMINAL
   kernel_clk.print_elapsed("brightness kernel execution takes ");
+#endif
 
   //retrieve brightness from GPU
   obs.to_host();
 
   clk.stop();
+#ifdef __PRINT_ELAPSED_TIME_TERMINAL
   clk.print_elapsed("brightness memory operations take ",
 		    kernel_clk.elapsed());
-
+#endif
+  
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaDeviceSynchronize() );
   obs.device_clear();
@@ -273,8 +279,10 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
   checkCudaErrors( cudaDeviceSynchronize() );
   
   kernel_clk.stop();
+#ifdef __PRINT_ELAPSED_TIME_TERMINAL
   kernel_clk.print_elapsed("influence matrix generation takes ");
-
+#endif
+  
   // //solve on CPU with Eigen
   // emissions_influence_to_host();
   // // save_influence();
@@ -292,9 +300,11 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
 
   // print time elapsed
   clk.stop();
+#ifdef __PRINT_ELAPSED_TIME_TERMINAL
   clk.print_elapsed("source function generation takes ");
   std::cout << std::endl;
-  
+#endif  
+
   return;
 }
 

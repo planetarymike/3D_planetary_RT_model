@@ -209,9 +209,11 @@ struct RT_grid {
   
     // print time elapsed
     clk.stop();
+#ifdef __PRINT_ELAPSED_TIME_TERMINAL
     clk.print_elapsed("source function generation takes ");
     std::cout << std::endl;
-
+#endif
+    
     return;
   }
   void generate_S_gpu();

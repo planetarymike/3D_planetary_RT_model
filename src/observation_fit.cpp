@@ -63,7 +63,9 @@ void observation_fit::get_unextincted_iph() {
   for (int i_obs=0; i_obs < hydrogen_obs.size(); i_obs++) {
     hydrogen_obs.iph_brightness_unextincted[i_obs][0] = iph_brightness_lya[i_obs];
     if (n_hydrogen_emissions==2)
-      hydrogen_obs.iph_brightness_unextincted[i_obs][1] = 0; //could maybe estimate using lyman alpha?
+      hydrogen_obs.iph_brightness_unextincted[i_obs][1] = (lyman_beta.get_emission_g_factor()
+							   / lyman_alpha.get_emission_g_factor()
+							   * iph_brightness_lya[i_obs]); 
   }
 }
 
@@ -73,7 +75,7 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
 					       const string sourcefn_fname/* = ""*/,
 					       bool plane_parallel/* = false*/)
 {
-  std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
+  //std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
 
   temp = krasnopolsky_temperature(Texo);
   chamb_diff_1d atm(nHexo,CO2_exobase_density,&temp,&H_thermosphere);
@@ -133,9 +135,9 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
 								     const string sourcefn_fname/* = ""*/,
 								     bool plane_parallel/* = false*/)
 {
-  std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
-  std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
-  std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
+  // std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
+  // std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
+  // std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
 
   temp = krasnopolsky_temperature(Texo, T_tropo, r_tropo, shape_parameter, false/*shape parameter is in absolute units of km*/);
   chamb_diff_1d atm(rminn,
@@ -292,10 +294,10 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 							 //power for temperature in the expression n*T^p = const.
 							 const Real Tpowerr,
 							 const string sourcefn_fname/* = ""*/) {
-  std::cout << "nHavg = " << nHavg << "; Tnoon = " << Tnoon << "; Tmidnight = " << Tmidnight <<".\n";
-  std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
-  std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
-  std::cout << "Tpower = " << Tpowerr << ".\n";
+  // std::cout << "nHavg = " << nHavg << "; Tnoon = " << Tnoon << "; Tmidnight = " << Tmidnight <<".\n";
+  // std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
+  // std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
+  // std::cout << "Tpower = " << Tpowerr << ".\n";
 
   chamb_diff_temp_asymmetric atm_asym(&H_thermosphere,
 				      nHavg,
@@ -482,8 +484,8 @@ void observation_fit::O_1026_generate_source_function(const Real &nOexo,
 						      const string atmosphere_fname/* = ""*/,
 						      const string sourcefn_fname/* = ""*/)
 {
-  std::cout << "Simulating O 102.6 nm brightness.\n";
-  std::cout << "nOexo = " << nOexo << "; Texo = " << Texo << ".\n";
+  // std::cout << "Simulating O 102.6 nm brightness.\n";
+  // std::cout << "nOexo = " << nOexo << "; Texo = " << Texo << ".\n";
 
   temp = krasnopolsky_temperature(Texo);
 
