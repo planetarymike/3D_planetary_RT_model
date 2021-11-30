@@ -23,8 +23,8 @@ PYNOBJFILES  := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
 
 #include directories
-BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/
-EIGENDIR=-I/home/mike/Documents/Utilities/eigen_git/
+BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/ # make sure to implement BOOST_NO_CUDA (see below)
+EIGENDIR=-I/home/mike/Documents/Utilities/eigen-3.4.0/  # change diag_suppress to nv_diag_suppress in source to suppress warnings
 IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) $(BOOSTDIR) $(EIGENDIR)
 
 # GNU Compiler
@@ -40,8 +40,8 @@ CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CU
 NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
 #            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
-#                                           (needs Eigen git repo     (added this flag by hand as a wrapper
-#                                            master > 21 Oct 2020      around BOOST_GPU_ENABLED in
+#                                                                     (added this flag by hand as a wrapper
+#                                                                      around BOOST_GPU_ENABLED in
 #                                                                      boost/config/compiler/nvcc.hpp)
 NIDIR=$(IDIR) \
       -L$(CUDA_HOME)/lib64/ \
