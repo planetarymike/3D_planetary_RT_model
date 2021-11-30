@@ -26,7 +26,8 @@ compile_flags = os.getenv('COMPILE_FLAGS')
 compile_flags = compile_flags.split()
 print(compile_flags)
 
-extension = Extension("py_corona_sim",
+extension_name = "py_corona_sim"
+extension = Extension(extension_name,
                       sources=source_files,
                       extra_objects=['../bin/ipbackgroundCFR_fun.o'],
                       language="c++",
@@ -52,7 +53,7 @@ else:
     print("compiling with Real=double")
     cython_compile_time = {'RT_FLOAT': False}
 
-    
+
 # monkey-patch for parallel compilation
 def parallelCCompile(self, sources,
                      output_dir=None,
@@ -71,7 +72,15 @@ def parallelCCompile(self, sources,
     def _single_compile(obj):
         try: src, ext = build[obj]
         except KeyError: return
-        self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
+        this_extra_postargs = extra_postargs.copy()
+        if extension_name in src:
+            # for the cython-generated cpp file only, suppress nvcc
+            # warnings 177 and 550 that result from automatic cython
+            # code generation
+            this_extra_postargs += ['--diag-suppress', '177,550']
+
+        self._compile(obj, src, ext, cc_args, this_extra_postargs, pp_opts)
+
     # convert to list, imap is evaluated on-demand
     list(multiprocessing.pool.ThreadPool(N).imap(_single_compile,objects))
     return objects
