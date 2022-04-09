@@ -16,14 +16,28 @@ Maintanance
 
 Validation
 ----------
+--why does multiplet code differ from singlet by 5% for Lyman alpha?
 --comparison with anderson
 --comparison with chaufray
---any analytic test case? Maybe something asymptotic from Holstein?
+--any analytic test case for 3D? Maybe something asymptotic from Holstein? (plane parallel comp worked)
 --alternate source function calculation guaranteed to populate all elements of matrix?
 
 
 New functionality
 -----------------
+--add 3D fully spherical geometry
+--treat H ly alpha and Ly beta as doublet
+  -- Doppler width @ 200 K = 6.2e-4 (lambda / 102.57 nm) (T / 200 K)^0.5
+  -- 8 mA at Ly alpha 
+     fine structure wavelengths are     121.567364 nm
+                                        121.566823 nm
+                                        separation of 5.4 mA 
+                                        overlapping lines have 10% lower absorption than equivalent singlet at line center, wider wings
+  -- 6 mA at Ly beta
+     fine structure wavelengths are     102.572182505
+                                        102.572296565
+                                        separation of 1.1 mA
+                                        difference of <1% from equivalent singlet
 --deuterium and hot H physical densities
 --O I 102.6 nm radiance calculation 
   --requires line blending
@@ -62,7 +76,22 @@ Longer-term
   --A FAST DIRECT SOLVER FOR STRUCTURED LINEAR SYSTEMS BY RECURSIVE SKELETONIZATION: https://arxiv.org/pdf/1110.3105.pdf
   --Solving Inverse Problems with Deep Learning: https://drive.google.com/file/d/1uVZ_obbchNWGV50qNTZXwbAymDuLLaWF/view
   --RESONANCE LINE TRANSFER CALCULATIONS BY DOUBLING THIN LAYERS: http://articles.adsabs.harvard.edu/pdf/1989ApJ...346..481Y
+--Idea to improve CUDA kernel efficiency
+  -- right now los calculations are done with one CUDA block computing all rays departing a single voxel, this could lead to very broad memory access patterns (slow)
+  -- instead, group voxels into NxN(xN) squares / cubes and have each block process one group (one kernel per voxel), looping over rays
+     b/c group is compact, rays look similar, memory access and thread divergence problems will be minimized
+     swizzling / morton ordering grid coordinates would put voxels closer together in memory: https://enoki.readthedocs.io/en/master/morton.html
 
+			       ^     ^
+		     ---------/-----/
+		     |  |    /|    /|
+		     -------/-----/--
+		     |  |  x  |  x  |
+		     ----------------
+		     |  |     |     |
+		     ----------------
+  -- same block grouping technique could be used to group 2D image coordinates into blocks before running LOS integrals through atmosphere
+--automatic differentiation could give derivatives on output parameters
 
 Old/less useful ideas:
   --use monotone cubic interpolation in brightness calculation: 
