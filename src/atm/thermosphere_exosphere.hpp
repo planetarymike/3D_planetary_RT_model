@@ -59,7 +59,7 @@ struct thermosphere_exosphere : virtual public atmosphere {
   Linear_interp<doubReal> log_n_species_exosphere_spline;
   Linear_interp<doubReal> invlog_n_species_exosphere;
 
-  doubReal CO2_exo_zero_level = rexo;// + 500e5;
+  doubReal CO2_exo_zero_level = rexo + 500e5;
   doubReal exosphere_step_CO2_logr;
   vector<doubReal> log_n_CO2_exosphere;
   vector<doubReal> log_r_CO2_exosphere;

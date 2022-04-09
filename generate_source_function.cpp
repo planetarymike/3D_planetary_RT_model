@@ -14,6 +14,7 @@
 
 //#define GENERATE_O_1026
 //#define H_LYMAN_MULTIPLET_TEST
+//#define NO_SIM_BRIGHTNESS
 
 #define __PRINT_ELAPSED_TIME_TERMINAL
 
@@ -94,7 +95,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 #else
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
-  static const int n_rays_theta = 6;
+  static const int n_rays_theta = 7;
   static const int n_rays_phi = 12;
   typedef spherical_azimuthally_symmetric_grid<n_radial_boundaries,
   					       n_sza_boundaries,
@@ -216,15 +217,17 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 #ifndef PLANE_PARALLEL
   sfn_name_tag_dims += std::to_string(n_sza_boundaries) + "x";
 #endif
-  sfn_name_tag_dims += std::to_string(n_rays_phi) + "x";
   sfn_name_tag_dims += std::to_string(n_rays_theta);
+#ifndef PLANE_PARALLEL
+  sfn_name_tag_dims += "x";
+  sfn_name_tag_dims += std::to_string(n_rays_phi);
+#endif
   RT.save_S("test/test_source_function"+sfn_name_tag_dims+".dat");
 
   RT.save_influence("test/influence_matrix"+sfn_name_tag+".dat");
   RT.save_influence("test/influence_matrix"+sfn_name_tag_dims+".dat");
 
-
-  
+#ifndef NO_SIM_BRIGHTNESS
 #ifndef PLANE_PARALLEL
   //simulate a fake observation
   observation<emission_type, n_emissions> obs(emissions);
@@ -299,5 +302,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   }
 #endif
 #endif  
+#endif
   return 0; 
 }

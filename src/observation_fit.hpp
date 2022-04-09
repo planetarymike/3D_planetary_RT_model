@@ -38,7 +38,7 @@ protected:
   //standard resolution case
   static const int n_radial_boundaries = 40;
   static const int n_sza_boundaries = 20;/*20 for 10 deg increments with szamethod_uniform*/
-  static const int n_rays_theta = 6;
+  static const int n_rays_theta = 7;
   static const int n_rays_phi = 12;
   typedef plane_parallel_grid<n_radial_boundaries,
 			      n_rays_theta> plane_parallel_grid_type;

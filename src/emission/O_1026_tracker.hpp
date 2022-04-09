@@ -31,7 +31,7 @@ namespace O_1026_constants_detail {
   //                Cashman+2017 https://ui.adsabs.harvard.edu/abs/2017ApJS..230....8C/abstract
   //                            this paper and the O I study they cite have values perhaps
   //                            5% lower than those used here.
-  // the values used here are the same as those used in Meier+1987
+  // the values used here are the same as those used in Meier+1987, except for the f-values, which differ slightly
   
   //  rest wavelength  
   DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {// singlet
