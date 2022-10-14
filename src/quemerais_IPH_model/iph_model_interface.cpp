@@ -8,14 +8,16 @@ using std::sin;
 
 //fortran function prototype
 extern "C" {
-  void background_(const float *lc,
-		   const float *x_pos, const float *y_pos, const float *z_pos,
-		   const int *n_los, 
-		   const float *x_look, const float *y_look, const float *z_look,
-		   float *iph_b);
+  void background(const char* fname, const int* fname_length,
+		  const float *lc,
+		  const float *x_pos, const float *y_pos, const float *z_pos,
+		  const int *n_los,
+		  const float *x_look, const float *y_look, const float *z_look,
+		  float *iph_b);
 }
 
-vector<Real> quemerais_iph_model(const Real &g_lya, //Lyman alpha g factor at Mars
+vector<Real> quemerais_iph_model(const string sfn_fname, // fully-qualified filename of Quemerais code input file
+				 const Real &g_lya, //Lyman alpha g factor at Mars
 				 const std::vector<Real> &marspos, //position of Mars in ecliptic coordinates [AU]
 				 const vector<Real> &ra, const vector<Real> &dec) {
   //this routine computes the ecliptic look direction corresponding to
@@ -57,12 +59,15 @@ vector<Real> quemerais_iph_model(const Real &g_lya, //Lyman alpha g factor at Ma
     y_look_[i_los]=j2000vec[1]*cos(-eob)-j2000vec[2]*sin(-eob);
     z_look_[i_los]=j2000vec[2]*cos(-eob)+j2000vec[1]*sin(-eob);
   }
-  
-  background_(&lc_,
-	      &x_pos_,&y_pos_,&z_pos_,
-	      &n_los,
-	      x_look_,y_look_,z_look_,
-	      iphb_);
+
+  // call the fortran code
+  int sfn_fname_length_ = sfn_fname.length();
+  background(sfn_fname.c_str(), &sfn_fname_length_,
+	     &lc_,
+	     &x_pos_,&y_pos_,&z_pos_,
+	     &n_los,
+	     &x_look_[0], &y_look_[0], &z_look_[0],
+	     &iphb_[0]);
 
   for (int i_los=0; i_los<n_los; i_los++) {
     iph_brightness[i_los] = iphb_[i_los]/1000.; //iphb is in R, convert to kR

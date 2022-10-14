@@ -21,6 +21,9 @@ struct los_tracker {
   Real tau_species_final;
   Real tau_absorber_final;
   Real max_tau_species;
+  // final species column density
+  // (required for EMUS H retrieval)
+  Real species_col_dens;
 
   // influence functions
   Real holstein_T_final; // aka Holstein T function, transmission probability
@@ -40,6 +43,7 @@ struct los_tracker {
     tau_species_final  = 0.0;
     tau_absorber_final = 0.0;
     holstein_T_final = 1.0;
+    species_col_dens = 0.0;
     // holstein_T_initial = 1.0;
     //max_tau_species not reset because we want to track this across
     //all lines of sight
@@ -72,7 +76,7 @@ struct brightness_tracker : los_tracker {
   CUDA_CALLABLE_MEMBER
   void reset() {
     los_tracker::reset();
-    brightness=0;
+    brightness = 0.0;
   }
 };
 

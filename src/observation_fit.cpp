@@ -1,20 +1,26 @@
 //observation_fit.cpp -- routines to fit an atmosphere observation
 
+#include <string>
 #include "constants.hpp"
 #include "observation_fit.hpp"
 #include "quemerais_IPH_model/iph_model_interface.hpp"
 using std::vector;
 using std::string;
 
-observation_fit::observation_fit()
+observation_fit::observation_fit(const string iph_sfn_fnamee)
   : atm_tabular(),
     hydrogen_RT_pp(grid_pp, hydrogen_emissions_pp),
     hydrogen_RT(grid, hydrogen_emissions),
     hydrogen_obs(hydrogen_emissions),
+    iph_sfn_fname(iph_sfn_fnamee),
     sim_iph(false),
     oxygen_RT(grid, oxygen_emissions),
     oxygen_obs(oxygen_emissions)
 {
+  //std::cout << "iph_sfn_fname = " << iph_sfn_fname << std::endl;
+  
+  CO2_exobase_density = default_CO2_exobase_density;
+
   hydrogen_RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
 
   hydrogen_RT.grid.rmethod = grid.rmethod_altitude;//_tau_absorber;
@@ -56,7 +62,8 @@ void observation_fit::add_observation_ra_dec(const std::vector<Real> &mars_eclip
 
 void observation_fit::get_unextincted_iph() {
   //simulate the IPH brightness using Quemerais' IPH code
-  vector<Real> iph_brightness_lya = quemerais_iph_model(lyman_alpha.get_emission_g_factor(),
+  vector<Real> iph_brightness_lya = quemerais_iph_model(iph_sfn_fname,
+							lyman_alpha.get_emission_g_factor(),
 							hydrogen_obs.mars_ecliptic_pos,
 							hydrogen_obs.ra, hydrogen_obs.dec);
   
@@ -382,6 +389,18 @@ void observation_fit::reset_CO2_lyb_xsec(const Real xsec/* = CO2_lyman_beta_abso
 }
 
 
+Real observation_fit::get_CO2_exobase_density() {
+  return CO2_exobase_density;
+}
+void observation_fit::reset_CO2_exobase_density() {
+  CO2_exobase_density = default_CO2_exobase_density;
+}
+void observation_fit::set_CO2_exobase_density(const double nCO2) {
+  CO2_exobase_density = nCO2;
+}
+
+
+
 vector<vector<Real>> observation_fit::brightness() {
   //compute brightness on the GPU if compiled with NVCC
 #ifdef __CUDACC__
@@ -407,6 +426,20 @@ vector<vector<Real>> observation_fit::brightness() {
   }
   
   return brightness;
+}
+
+vector<vector<Real>> observation_fit::species_col_dens() {
+  vector<vector<Real>> species_col_dens;
+  species_col_dens.resize(n_hydrogen_emissions);
+  
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    species_col_dens[i_emission].resize(hydrogen_obs.size());
+    
+    for (int i=0;i<hydrogen_obs.size();i++)
+      species_col_dens[i_emission][i] = hydrogen_obs.los[i_emission][i].species_col_dens;
+  }
+  
+  return species_col_dens;
 }
 
 vector<vector<Real>> observation_fit::tau_species_final() {

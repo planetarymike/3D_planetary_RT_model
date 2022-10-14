@@ -1,4 +1,6 @@
-      SUBROUTINE BACKGROUND(fs,xpos,ypos,zpos,n_los,u1,v1,w1,fln)
+      SUBROUTINE BACKGROUND(sfname, sfname_length,
+     & fs, xpos, ypos, zpos, n_los, u1, v1, w1, fln)
+     & BIND(C, NAME='background')
 c     September 2013: MAVEN version of intswan.f
 c     Input file: distributions of density and emissivity (multiple scattering)
 c     assumed 2.5 D (axi-symmetric)
@@ -39,7 +41,12 @@ c
 c      
 c     Eric didn't define his variables, which is causing some compiler
 c     problems...
+      use iso_c_binding, only: C_CHAR, c_null_char
       IMPLICIT NONE
+      CHARACTER(kind=c_char,len=1),dimension(1024), INTENT(IN) :: sfname
+      INTEGER, INTENT(IN) :: sfname_length
+      CHARACTER(len=sfname_length) :: SFN_FNAME
+      INTEGER :: I_STR
       REAL, INTENT(IN) :: fs, xpos, ypos, zpos
       INTEGER, INTENT(IN) :: n_los
       REAL, INTENT(IN), DIMENSION(n_los) :: u1, v1, w1
@@ -90,10 +97,14 @@ C     IJKL = 2 DONNEES LYMAN-BETA
 C     IJKL = 3 DONNEES HELIUM
 
 c.... LECTURE DES MODELES ................................................
-      CHARACTER(LEN=*), PARAMETER :: SOURCEFN_FNAME = "/home/mike/"//
-     &"Documents/Mars/3D_planetary_RT_model/src/quemerais_IPH_model/"//
-     &"fsm99td12v20t80"
-      OPEN(UNIT=3,FILE=SOURCEFN_FNAME, 
+c$$$      CHARACTER(LEN=*), PARAMETER :: SOURCEFN_FNAME = "/home/mike/"//
+c$$$     &"Documents/Mars/3D_planetary_RT_model/src/quemerais_IPH_model/"//
+c$$$  &"fsm99td12v20t80"
+      do I_STR=1, sfname_length
+         SFN_FNAME (I_STR:I_STR) = sfname (I_STR)
+      end do
+c      PRINT *, 'FORTRAN SFN_FNAME = ', SFN_FNAME
+      OPEN(UNIT=3,FILE=SFN_FNAME, 
      1     FORM='FORMATTED',STATUS='OLD')
       READ(3,*) KMAX,LMAX,INF
       READ(3,*) VO,VLON,VDEC,TEMP,AMU,TDUR,AN,DINF(1)

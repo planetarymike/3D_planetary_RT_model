@@ -31,7 +31,7 @@ IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) $(BOOSTDIR) $(EIGENDIR)
 CC=g++ -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion #these commands can be used to check for double literals
 LIBS=-lm -lgomp
 MPFLAGS=-fopenmp
-OFLAGS=-O3 -march=native -DNDEBUG 
+OFLAGS=-O3 -DNDEBUG -g #-march=native
 
 # Nvidia CUDA Compiler
 #device spec
@@ -44,20 +44,38 @@ NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_N
 #                                                                      around BOOST_GPU_ENABLED in
 #                                                                      boost/config/compiler/nvcc.hpp)
 NIDIR=$(IDIR) \
-      -L$(CUDA_HOME)/lib64/ \
-      -I$(CUDA_HOME)/samples/common/inc/
+      -I$(CUDA_HOME)lib64/ \
+      -I$(CUDA_HOME)samples/common/inc/
 NLIBS=-lm -lcudart -lcusolver -lcublas
-NOBASEFLAGS= -O3 -DNDEBUG -lineinfo --use_fast_math #--maxrregcount 43
+NOBASEFLAGS=-O3 -DNDEBUG -lineinfo --use_fast_math #--maxrregcount 43
+
 # if we are CUDA 11, link time optimization is possible
 ifeq ($(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d.),11)
 CUDA_DLTO=true
-EXTRA_NOFLAGS = -dlto --gpu-architecture=sm_$(CUDA_DEVICE_CODE)
+CUDA_SM_TYPE=lto
+DLTO=-dlto
 else
-EXTRA_NOFLAGS = --gpu-architecture=sm_$(CUDA_DEVICE_CODE)
+CUDA_SM_TYPE=sm
 endif
-NOFLAGS=$(NOBASEFLAGS) $(EXTRA_NOFLAGS)
-NDBGFLAGS=-g -G -arch sm_$(CUDA_DEVICE_CODE) -Xcompiler -O0 -Xptxas -O0
-#                ^^^ this -G sometimes changes the behavior of the code??
+
+# compilation targets
+ARCH_0=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE) # local machine
+ARCH1=--generate-code arch=compute_61,code=$(CUDA_SM_TYPE)_61 # Mike thinkpad P1
+ARCH2=--generate-code arch=compute_37,code=$(CUDA_SM_TYPE)_37 -Wno-deprecated-gpu-targets # AWS P2 node
+ARCH3=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70 # AWS P3 node
+ARCH=$(ARCH0) $(ARCH1) $(ARCH2) $(ARCH3)
+
+# compilation targets
+ARCH_SM0=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=sm_$(CUDA_DEVICE_CODE) # local machine
+ARCH_SM1=--generate-code arch=compute_61,code=sm_61 # Mike thinkpad P1
+ARCH_SM2=--generate-code arch=compute_37,code=sm_37 -Wno-deprecated-gpu-targets # AWS P2 node
+ARCH_SM3=--generate-code arch=compute_70,code=sm_70 # AWS P3 node
+ARCH_SM=$(ARCH_SM0) $(ARCH_SM1) $(ARCH_SM2) $(ARCH_SM3)
+
+# compile optimization commands
+NOFLAGS=$(NOBASEFLAGS) $(ARCH)
+NDBGFLAGS=-g -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
+#            ^^ this -G sometimes changes the behavior of the code??
 
 generate_source_function:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
@@ -86,7 +104,7 @@ generate_source_function_gpu: $(NOBJFILES)
 ifeq ($(CUDA_DLTO),true)
 	$(info Using CUDA 11 link time optimization)
 endif
-	@$(NCC) $(NOBJFILES) bin/generate_source_function.cuda.o $(NIDIR) $(NLIBS) $(NOFLAGS) -o generate_source_function_gpu.x
+	@$(NCC) $(NOBJFILES) bin/generate_source_function.cuda.o $(NIDIR) $(NLIBS) $(NOBASEFLAGS) $(ARCH_SM) $(DLTO) -o generate_source_function_gpu.x
 
 $(OBJDIR)/%.cuda.o: %.cpp
 	@echo "compiling $<..."
@@ -145,9 +163,12 @@ py_corona_sim_gpu:
 	export CXX='nvcc'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
+py_corona_sim_all:
+	make py_corona_sim_cpu && make py_corona_sim_gpu
+
 observation_fit_cpu_test:
 	@echo "compiling observation_fit.cpp..."
-	@$(CC) $(IDIR) $(LIBS) -O0 -g -c src/observation_fit.cpp -o bin/src/observation_fit.debug.o
+	$(CC) $(IDIR) $(LIBS) -DNDEBUG -O0 -g -c src/observation_fit.cpp -o bin/src/observation_fit.debug.o
 	@echo "compiling obs_fit_test.cpp..."
 	@$(CC) $(IDIR) $(LIBS) -O0 -g -c python/test/obs_fit_test.cpp -o bin/obs_fit_test.debug.o
 

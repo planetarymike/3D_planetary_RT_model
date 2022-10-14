@@ -80,11 +80,18 @@ protected:
   template<bool influence>
   CUDA_CALLABLE_MEMBER
   void update_tracker_start(const Real &current_species_T_ratio,
+			    const Real &current_species_density,
 			    const Real &current_dtau_species,
 			    const Real &current_dtau_absorber,
 			    const Real &current_abs,
 			    const Real &pathlength,
 			    los<influence> &tracker) const {
+    Real species_col_dens_voxel = current_species_density * pathlength;
+    tracker.species_col_dens += species_col_dens_voxel;
+    assert(!std::isnan(tracker.species_col_dens)
+	   && tracker.species_col_dens>=0
+	   && "column densities must be real numbers");
+    
     Real tau_species_voxel = current_dtau_species * pathlength;
     tracker.tau_species_final += tau_species_voxel;
     assert(!std::isnan(tracker.tau_species_final)
@@ -297,6 +304,7 @@ public:
 			    const Real & pathlength,
 			    los<influence> &tracker) const {
     update_tracker_start(species_T_ratio(current_voxel),
+			 species_density(current_voxel),
 			 dtau_species(current_voxel),
 			 dtau_absorber(current_voxel),
 			 abs(current_voxel),
@@ -317,6 +325,9 @@ public:
     parent::interp_voxel_vector(n_interp_points, indices, weights, species_T_ratio_pt, swap_array);
     Real species_T_ratio_interp = swap_array[0];
 
+    parent::interp_voxel_vector(n_interp_points, indices, weights, species_density_pt, swap_array);
+    Real species_density_interp = swap_array[0];
+
     parent::interp_voxel_vector(n_interp_points, indices, weights, dtau_species_pt, swap_array);
     Real dtau_species_interp = swap_array[0];
 
@@ -327,6 +338,7 @@ public:
     Real abs_interp = swap_array[0];
 
     update_tracker_start(species_T_ratio_interp,
+			 species_density_interp,
 			 dtau_species_interp,
 			 dtau_absorber_interp,
 			 abs_interp,
@@ -549,6 +561,7 @@ public:
     //copy the read-only atmosphere arrays
     bool transfer = true;
     vector_to_device(device_emission->species_T_ratio, species_T_ratio, transfer);
+    vector_to_device(device_emission->species_density, species_density, transfer);
     vector_to_device(device_emission->dtau_species, dtau_species, transfer);
     vector_to_device(device_emission->dtau_absorber, dtau_absorber, transfer);
     vector_to_device(device_emission->abs, abs, transfer);
@@ -568,13 +581,13 @@ public:
     //copy the stuff we need to do the calculation on the device
     bool transfer = true;
     vector_to_device(device_emission->dtau_species_pt, dtau_species_pt, transfer);
+    vector_to_device(device_emission->species_density_pt, species_density_pt, transfer);
     vector_to_device(device_emission->species_T_ratio_pt, species_T_ratio_pt, transfer);  
     vector_to_device(device_emission->dtau_absorber_pt, dtau_absorber_pt, transfer);
     vector_to_device(device_emission->abs_pt, abs_pt, transfer);
   }
   
   void device_clear() {
-    species_density.free_d_vec();
     species_density.free_d_vec();
     species_density_pt.free_d_vec();
     species_T_ratio.free_d_vec();

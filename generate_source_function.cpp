@@ -12,7 +12,7 @@
 #include "grid_plane_parallel.hpp"
 #include "grid_spherical_azimuthally_symmetric.hpp"
 
-//#define GENERATE_O_1026
+#define GENERATE_O_1026
 //#define H_LYMAN_MULTIPLET_TEST
 //#define NO_SIM_BRIGHTNESS
 

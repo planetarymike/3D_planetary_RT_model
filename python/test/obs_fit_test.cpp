@@ -4,10 +4,14 @@
 #include "cuda_compatibility.hpp"
 #include "constants.hpp"
 #include "observation_fit.hpp"
+#include <string>
+
+using std::string;
 
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[]) {
 
-  observation_fit obsfit;//the object we're testing
+  string iph_sfn_fname = "/home/mike/Documents/Mars/3D_planetary_RT_model/src/quemerais_IPH_model/fsm99td12v20t80";
+  observation_fit obsfit(iph_sfn_fname);//the object we're testing
 
 
   // grid info
@@ -64,7 +68,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   vector<Real> marspos = {std::sqrt(2.0f),0,0};
 
-  //obsfit.add_observation_ra_dec(marspos, ra, dec);
+  obsfit.add_observation_ra_dec(marspos, ra, dec);
 
   // obsfit.generate_source_function_temp_asym(1e5,300,100);
   // brightness = obsfit.brightness();

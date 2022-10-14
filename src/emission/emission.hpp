@@ -88,8 +88,8 @@ public:
 			    const Real & pathlength,
 			    los<influence,n_elements> &tracker) const {
     static_cast<const emission_type*>(this)->update_tracker_start(current_voxel,
-							    pathlength,
-							    tracker);
+								  pathlength,
+								  tracker);
   }
   
   // update the tracker using an interpolation point inside a voxel 

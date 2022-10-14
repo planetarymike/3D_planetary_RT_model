@@ -23,7 +23,8 @@ protected:
   oxygen_density_parameters O_thermosphere;
   
   krasnopolsky_temperature temp;
-  const Real CO2_exobase_density = 2e8;//cm-3
+  const Real default_CO2_exobase_density = 2e8;//cm-3
+  Real CO2_exobase_density;//cm-3
   //chamb_diff_1d atm;//make sure to use the same exobase alt as in Tconv
   //chamb_diff_1d_asymmetric atm_asym;//make sure to use the same quantities as in atm
   H_cross_sections H_cross_section_options;
@@ -67,6 +68,7 @@ protected:
 
   observation<hydrogen_emission_type, n_hydrogen_emissions> hydrogen_obs;
 
+  string iph_sfn_fname; // quemerais IPH source function filename
   bool sim_iph;
 
   // define oxygen emissions
@@ -81,7 +83,7 @@ protected:
   observation<oxygen_emission_type, n_oxygen_emissions> oxygen_obs;
 
 public:
-  observation_fit();
+  observation_fit(const string iph_sfn_fnamee);
 
   Temp_converter Tconv;//also takes exobase alt argument
 
@@ -179,10 +181,15 @@ public:
   void reset_CO2_lya_xsec(const Real xsec = CO2_lyman_alpha_absorption_cross_section);
   void reset_CO2_lyb_xsec(const Real xsec = CO2_lyman_beta_absorption_cross_section);
 
+  Real get_CO2_exobase_density();
+  void reset_CO2_exobase_density();
+  void set_CO2_exobase_density(const double nCO2);
+
   void save_influence_matrix(const string fname);
   void save_influence_matrix_O_1026(const string fname);
   
   std::vector<std::vector<Real>> brightness();
+  std::vector<std::vector<Real>> species_col_dens();
   std::vector<std::vector<Real>> tau_species_final();
   std::vector<std::vector<Real>> tau_absorber_final();
   std::vector<std::vector<Real>> iph_brightness_observed();

@@ -159,6 +159,9 @@ struct O_1026_tracker {
   
   // Tracked Variables
 
+  // species column density
+  Real species_col_dens[n_lower];
+  
   // optical depths at line center, counting each line individually
   // even though they overlap
   Real tau_species_final[n_lines];
@@ -238,9 +241,9 @@ struct O_1026_tracker {
 
     for (int i_line=0;i_line<n_lines;i_line++) {
       tau_species_final[i_line] = 0.0;
-      tau_absorber_final = 0.0;
       brightness[i_line] = 0.0;
     }
+    tau_absorber_final = 0.0;
     // max_tau_species not reset because we want to track this across
     // all lines of sight
 
@@ -248,8 +251,10 @@ struct O_1026_tracker {
       for (int i_lambda = 0; i_lambda<n_lambda; i_lambda++)
 	transfer_probability_lambda_initial[i_multiplet][i_lambda] = 1.0;
 
-    for (int i_lower = 0; i_lower<n_lower; i_lower++) 
+    for (int i_lower = 0; i_lower<n_lower; i_lower++) {
       species_density_at_origin[i_lower] = density_at_origin[i_lower];
+      species_col_dens[i_lower] = 0.0;
+    }
     
     for (int i_upper = 0; i_upper<n_upper; i_upper++)
       influence[i_upper] = 0.0;

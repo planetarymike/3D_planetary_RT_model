@@ -2,6 +2,8 @@
 # distutils: language = c++
 # cython: language_level=3
 # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+import importlib
+import os
 
 from libcpp cimport bool
 from libcpp.string cimport string
@@ -24,9 +26,13 @@ cdef extern from "chamberlain_exosphere.hpp":
         Real lc_from_T(Real T)
         Real eff_from_T(Real T)
 
+# name of Quemerais IPH source function, packaged along with *.so file
+iph_sfn_basename = 'quemerais_IPH_sourcefn_fsm99td12v20t80.dat' # basename of source file
+# fully qualified name determined when class Pyobservation_fit is created
+        
 cdef extern from "observation_fit.hpp":
     cdef cppclass observation_fit:
-        observation_fit()
+        observation_fit(string sfn_fname)
 
         void add_observation(vector[vector[Real]] MSO_locations, vector[vector[Real]] MSO_directions)
 
@@ -110,10 +116,15 @@ cdef extern from "observation_fit.hpp":
         void reset_CO2_lyb_xsec(Real xsec)
         void reset_CO2_lyb_xsec() # uses C++ default
 
+        Real get_CO2_exobase_density()
+        void reset_CO2_exobase_density()
+        void set_CO2_exobase_density(Real nCO2)
+
         void save_influence_matrix(string fname)
         void save_influence_matrix_O_1026(string fname)
         
         vector[vector[Real]] brightness()
+        vector[vector[Real]] species_col_dens()
         vector[vector[Real]] tau_species_final()
         vector[vector[Real]] tau_absorber_final()
         vector[vector[Real]] iph_brightness_observed()
@@ -132,7 +143,29 @@ cdef extern from "observation_fit.hpp":
 cdef class Pyobservation_fit:
     cdef observation_fit *thisptr #holds the reference to the cpp class
     def __cinit__(self):
-        self.thisptr = new observation_fit()
+        # if we've gotten here, the module must be known to python,
+        # find its origin file
+        module_spec_gpu = importlib.util.find_spec('py_corona_sim_gpu')
+        module_spec_cpu = importlib.util.find_spec('py_corona_sim_cpu')
+        if module_spec_gpu is not None:
+            module_fname = module_spec_gpu.origin
+        elif module_spec_cpu is not None:
+            module_fname = module_spec_cpu.origin
+        else:
+            raise RuntimeError("Cannot locate py_corona_sim package source file")
+
+        module_dirname = os.path.dirname(module_fname)
+        iph_sfn_fname = os.path.join(module_dirname, iph_sfn_basename)
+
+        # check if the file exists
+        if not os.path.exists(iph_sfn_fname):
+            raise FileNotFoundError("Cannot find necessary "
+                                    +"IPH source function file "
+                                    +f"{iph_sfn_fname}, check "
+                                    +"that it exists.")
+
+        print("loading IPH source function from file " + iph_sfn_fname)
+        self.thisptr = new observation_fit(iph_sfn_fname.encode('utf-8'))
     def __dealloc__(self):
         del self.thisptr
 
@@ -361,8 +394,20 @@ cdef class Pyobservation_fit:
         else:
             self.thisptr.reset_CO2_lyb_xsec(xsec)
 
+    def get_CO2_exobase_density(self):
+        return self.thisptr.get_CO2_exobase_density();
+
+    def reset_CO2_exobase_density(self):
+        self.thisptr.reset_CO2_exobase_density();
+
+    def set_CO2_exobase_density(self, nCO2):
+        self.thisptr.set_CO2_exobase_density(nCO2);
+            
     def brightness(self):
         return np.asarray(self.thisptr.brightness())
+
+    def species_col_dens(self):
+        return np.asarray(self.thisptr.species_col_dens())
 
     def tau_species_final(self):
         return np.asarray(self.thisptr.tau_species_final())

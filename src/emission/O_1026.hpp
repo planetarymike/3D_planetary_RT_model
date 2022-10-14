@@ -1,7 +1,7 @@
 //O_1026.hpp --- routines to compute O 102.6 nm emission
 
 // most of the code to compute multiplet emission is generic, and
-// stored in multiplet_CFR_tracker.hpp
+// stored in multiplet_CFR_emission.hpp
 
 // the routines to define the emission densities / temperatures are
 // specific to O 102.6 and stored here, so are the solar excitation
@@ -14,7 +14,7 @@
 #include <boost/type_traits/type_identity.hpp> //for type deduction in define
 #include "emission_voxels.hpp"
 #include "atmo_vec.hpp"
-#include "multiplet_CFR_tracker.hpp"
+#include "multiplet_CFR_emission.hpp"
 #include "O_1026_tracker.hpp"
 
 template <int N_VOXELS>
