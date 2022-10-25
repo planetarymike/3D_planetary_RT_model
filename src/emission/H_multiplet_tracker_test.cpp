@@ -8,7 +8,7 @@
 // __constant__ arrays here to populate the extern directive in the
 // hpp file.
 
-namespace H_lyman_alpha_constants_detail {
+namespace H_lyman_alpha_singlet_constants_detail {
    // DECLARE_STATIC_ARRAY comes from cuda_compatability.hpp
   DECLARE_STATIC_ARRAY_CPP(int, n_lines, multiplet_index   , {0})
   DECLARE_STATIC_ARRAY_CPP(int, n_lines, lower_level_index , {0})
@@ -31,7 +31,7 @@ namespace H_lyman_alpha_constants_detail {
   DECLARE_STATIC_ARRAY_CPP(Real, n_lines, upper_state_decay_rate,   {6.2648e8 /* s^-1 */})
 }
 
-namespace H_lyman_beta_constants_detail {
+namespace H_lyman_beta_singlet_constants_detail {
    // DECLARE_STATIC_ARRAY comes from cuda_compatability.hpp
   DECLARE_STATIC_ARRAY_CPP(int, n_lines, multiplet_index   , {0})
   DECLARE_STATIC_ARRAY_CPP(int, n_lines, lower_level_index , {0})

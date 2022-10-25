@@ -81,4 +81,13 @@ Real constexpr constexpr_sqrt(Real x)
 		       : std::numeric_limits<Real>::quiet_NaN();
 }
 
+CUDA_CALLABLE_MEMBER void assert_finite(const Real &value);
+CUDA_CALLABLE_MEMBER void assert_positive(const Real &value);
+CUDA_CALLABLE_MEMBER void assert_probability(const Real &value);
+CUDA_CALLABLE_MEMBER void assert_leq(const Real &value, const Real &limit);
+CUDA_CALLABLE_MEMBER void assert_small_contribution(const Real &expected_small,
+						    const Real comparison_value=1.0,
+						    const Real abstol=1e-6,
+						    const Real reltol=1e-2);
+
 #endif

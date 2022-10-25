@@ -83,6 +83,15 @@ namespace O_1026_constants_detail {
 								     7.66e7 /* to J=2 */
 								     //   1129 nm branch
 								     + 3.09e7})
+
+  // co2 cross section at lyman beta
+  DECLARE_STATIC_ARRAY_CPP(Real, n_lines, absorber_xsec,            {3.53e-17, // cm2 
+								     3.53e-17,
+								     3.53e-17,
+								     3.53e-17,
+								     3.53e-17,
+								     3.53e-17})
+  
   //  energy of the lower states
   //    note: for atomic O, the J=2 state is the ground state and the
   //          lower J levels increase in energy

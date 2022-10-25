@@ -14,6 +14,11 @@ observation_fit::observation_fit(const string iph_sfn_fnamee)
     hydrogen_obs(hydrogen_emissions),
     iph_sfn_fname(iph_sfn_fnamee),
     sim_iph(false),
+    deuterium_RT_pp(grid_pp, deuterium_emissions_pp),
+    deuterium_RT(grid, deuterium_emissions),
+    deuterium_obs(deuterium_emissions),
+    ly_multiplet_RT(grid, ly_multiplet_emissions),
+    ly_multiplet_obs(ly_multiplet_emissions),
     oxygen_RT(grid, oxygen_emissions),
     oxygen_obs(oxygen_emissions)
 {
@@ -22,12 +27,25 @@ observation_fit::observation_fit(const string iph_sfn_fnamee)
   CO2_exobase_density = default_CO2_exobase_density;
 
   hydrogen_RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
+  deuterium_RT_pp.grid.rmethod = grid_pp.rmethod_log_n_species;
 
   hydrogen_RT.grid.rmethod = grid.rmethod_altitude;//_tau_absorber;
   // fixed altitude grid gives smooth solutions for changes in input parameters,
   // other kinds of grids do not.
   hydrogen_RT.grid.szamethod = grid.szamethod_uniform_cos;
   hydrogen_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
+
+  deuterium_RT.grid.rmethod = grid.rmethod_altitude;//_tau_absorber;
+  // fixed altitude grid gives smooth solutions for changes in input parameters,
+  // other kinds of grids do not.
+  deuterium_RT.grid.szamethod = grid.szamethod_uniform_cos;
+  deuterium_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
+
+  ly_multiplet_RT.grid.rmethod = grid.rmethod_altitude;//_tau_absorber;
+  // fixed altitude grid gives smooth solutions for changes in input parameters,
+  // other kinds of grids do not.
+  ly_multiplet_RT.grid.szamethod = grid.szamethod_uniform_cos;
+  ly_multiplet_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
 
   oxygen_RT.grid.rmethod = grid.rmethod_log_n_species;
   oxygen_RT.grid.szamethod = grid.szamethod_uniform_cos;
@@ -36,14 +54,24 @@ observation_fit::observation_fit(const string iph_sfn_fnamee)
 
 void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations, const vector<vector<Real>> &MSO_directions) {
   hydrogen_obs.add_MSO_observation(MSO_locations,MSO_directions);
+  deuterium_obs.add_MSO_observation(MSO_locations,MSO_directions);
+  ly_multiplet_obs.add_MSO_observation(MSO_locations,MSO_directions);
   oxygen_obs.add_MSO_observation(MSO_locations,MSO_directions);
 }
 
 void observation_fit::set_g_factor(vector<Real> &g) {
   for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
     hydrogen_emissions[i_emission]->set_emission_g_factor(g[i_emission]);
+    deuterium_emissions[i_emission]->set_emission_g_factor(g[i_emission]);
     hydrogen_emissions_pp[i_emission]->set_emission_g_factor(g[i_emission]);
   }
+
+
+  std::cout << "Ly alpha solar brightness = " << g[0]/lyman_alpha_cross_section_total << std::endl;
+  std::cout << "Ly beta solar brightness = " << g[1]/lyman_beta_cross_section_total << std::endl;
+  
+  ly_multiplet.set_solar_brightness(g[0]/lyman_alpha_cross_section_total,
+				    g[1]/lyman_beta_cross_section_total);
 }
 
 void observation_fit::simulate_iph(const bool sim_iphh) {
@@ -80,50 +108,80 @@ void observation_fit::get_unextincted_iph() {
 void observation_fit::generate_source_function(const Real &nHexo, const Real &Texo,
 					       const string atmosphere_fname/* = ""*/,
 					       const string sourcefn_fname/* = ""*/,
-					       bool plane_parallel/* = false*/)
+					       const bool plane_parallel/* = false*/,
+					       const bool deuterium/* = false */)
 {
   //std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
 
   temp = krasnopolsky_temperature(Texo);
-  chamb_diff_1d atm(nHexo,CO2_exobase_density,&temp,&H_thermosphere);
+  chamb_diff_1d atm(nHexo,
+		    CO2_exobase_density,
+		    &temp,
+		    deuterium ? &D_thermosphere : &H_thermosphere);
   atm.copy_H_options(H_cross_section_options);
   
   if (atmosphere_fname != "")
     atm.save(atmosphere_fname);
-
+  
   if (plane_parallel) {
-    generate_source_function_plane_parallel(atm,Texo,
-					    sourcefn_fname);
+    if (!deuterium) {
+      generate_source_function_plane_parallel(atm, Texo,
+					      hydrogen_RT_pp,
+					      lyman_alpha_pp,
+					      lyman_beta_pp,
+					      sourcefn_fname);
+    } else {
+      generate_source_function_plane_parallel(atm, Texo,
+					      deuterium_RT_pp,
+					      D_lyman_alpha_pp,
+					      D_lyman_beta_pp,
+					      sourcefn_fname);
+    }
   } else {
-    generate_source_function_sph_azi_sym(atm,Texo,
-					 sourcefn_fname);
+    if (!deuterium) {
+      generate_source_function_sph_azi_sym(atm, Texo,
+					   hydrogen_RT,
+					   lyman_alpha,
+					   lyman_beta,
+					   sourcefn_fname);
+    } else {
+      generate_source_function_sph_azi_sym(atm, Texo,
+					   deuterium_RT,
+					   D_lyman_alpha,
+					   D_lyman_beta,
+					   sourcefn_fname);
+    }
   }
 }
 
 void observation_fit::generate_source_function_effv(const Real &nHexo, const Real &effv_exo,
 						    const string atmosphere_fname/* = ""*/,
 						    const string sourcefn_fname/* = ""*/,
-						    bool plane_parallel/* = false*/)
+						    const bool plane_parallel/* = false*/,
+						    const bool deuterium/* =false */)
 {
   Real Texo = Tconv.T_from_eff(effv_exo);
   
   generate_source_function(nHexo,Texo,
 			   atmosphere_fname,
 			   sourcefn_fname,
-			   plane_parallel);
+			   plane_parallel,
+			   deuterium);
 }
 
 void observation_fit::generate_source_function_lc(const Real &nHexo, const Real &lc_exo,
 						  const string atmosphere_fname/* = ""*/,
 						  const string sourcefn_fname/* = ""*/,
-						  bool plane_parallel/* = false*/)
+						  const bool plane_parallel/* = false*/,
+						  const bool deuterium/* =false */)
 {
   Real Texo = Tconv.T_from_lc(lc_exo);
   
   generate_source_function(nHexo,Texo,
 			   atmosphere_fname,
 			   sourcefn_fname,
-			   plane_parallel);
+			   plane_parallel,
+			   deuterium);
 }
 
 
@@ -140,7 +198,8 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
 								     const Real shape_parameter,
 								     const string atmosphere_fname/* = ""*/,
 								     const string sourcefn_fname/* = ""*/,
-								     bool plane_parallel/* = false*/)
+								     const bool plane_parallel/* = false*/,
+								     const bool deuterium/* =false */)
 {
   // std::cout << "nHexo = " << nHexo << "; Texo = " << Texo << ".\n";
   // std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
@@ -154,7 +213,7 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
 		    nHexo,
 		    nCO2rminn,
 		    &temp,
-		    &H_thermosphere,
+		    deuterium ? &D_thermosphere : &H_thermosphere,
 		    thermosphere_exosphere::method_rmax_nCO2rmin);
   atm.copy_H_options(H_cross_section_options);
   
@@ -162,117 +221,65 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
     atm.save(atmosphere_fname);
 
   if (plane_parallel) {
-    generate_source_function_plane_parallel(atm,Texo,
-					    sourcefn_fname);
+    if (!deuterium) {
+      generate_source_function_plane_parallel(atm, Texo,
+					      hydrogen_RT_pp,
+					      lyman_alpha_pp,
+					      lyman_beta_pp,
+					      sourcefn_fname);
+    } else {
+      generate_source_function_plane_parallel(atm, Texo,
+					      deuterium_RT_pp,
+					      D_lyman_alpha_pp,
+					      D_lyman_beta_pp,
+					      sourcefn_fname);
+    }
   } else {
-    generate_source_function_sph_azi_sym(atm,Texo,
-					 sourcefn_fname);
+    if (!deuterium) {
+      generate_source_function_sph_azi_sym(atm, Texo,
+					   hydrogen_RT,
+					   lyman_alpha,
+					   lyman_beta,
+					   sourcefn_fname);
+    } else {
+      generate_source_function_sph_azi_sym(atm, Texo,
+					   deuterium_RT,
+					   D_lyman_alpha,
+					   D_lyman_beta,
+					   sourcefn_fname);
+    }
   }
 }
-
-
-
-template <typename A>
-void observation_fit::generate_source_function_plane_parallel(A &atmm, const Real &Texo,
-							      const string sourcefn_fname/* = ""*/)
-{
-  bool atmm_spherical = atmm.spherical;
-  atmm.spherical = false;
-  
-  hydrogen_RT_pp.grid.setup_voxels(atmm);
-  hydrogen_RT_pp.grid.setup_rays();
-
-  //update the emission density values
-  lyman_alpha_pp.define("H Lyman alpha",
-			1.0,
-			Texo, atmm.sH_lya(Texo),
-			atmm,
-			&A::n_species_voxel_avg,   &A::Temp_voxel_avg,
-			&A::n_absorber_voxel_avg,  &A::sCO2_lya,
-			hydrogen_RT_pp.grid.voxels);
-  lyman_beta_pp.define("H Lyman beta",
-  		       lyman_beta_branching_ratio,
-  		       Texo, atmm.sH_lyb(Texo),
-  		       atmm,
-		       &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
-		       &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
-  		       hydrogen_RT_pp.grid.voxels);
-
-  atmm.spherical = atmm_spherical;  
-
-  //compute source function on the GPU if compiled with NVCC
-#ifdef __CUDACC__
-  hydrogen_RT_pp.generate_S_gpu();
-#else
-  hydrogen_RT_pp.generate_S();
-#endif
-
-  if (sourcefn_fname!="")
-    hydrogen_RT_pp.save_S(sourcefn_fname);
-}
-
-template <typename A>
-void observation_fit::generate_source_function_sph_azi_sym(A &atmm, const Real &Texo,
-							   const string sourcefn_fname/* = ""*/)
-{
-  bool change_spherical = false;
-  if (atmm.spherical != true) {
-    change_spherical = true;
-    atmm.spherical = true;
-  }
-
-  hydrogen_RT.grid.setup_voxels(atmm);
-  hydrogen_RT.grid.setup_rays();
-
-
-  //update the emission density values
-  lyman_alpha.define("H Lyman alpha",
-		     1.0,
-		     Texo, atmm.sH_lya(Texo),
-		     atmm,
-		     &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
-		     &A::n_absorber_voxel_avg,  &A::sCO2_lya,
-		     hydrogen_RT.grid.voxels);
-  lyman_beta.define("H Lyman beta",
-  		    lyman_beta_branching_ratio,
-  		    Texo, atmm.sH_lyb(Texo),
-  		    atmm,
-		    &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
-		    &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
-  		    hydrogen_RT.grid.voxels);
-
-  if (change_spherical)
-    atmm.spherical = false;    
-
-  //compute source function on the GPU if compiled with NVCC
-#ifdef __CUDACC__
-  hydrogen_RT.generate_S_gpu();
-#else
-  hydrogen_RT.generate_S();
-#endif
-
-  if (sourcefn_fname!="")
-    hydrogen_RT.save_S(sourcefn_fname);
-}
-
 
 void observation_fit::generate_source_function_nH_asym(const Real &nHexo, const Real &Texo,
 						       const Real &asym,
-						       const string sourcefn_fname/* = ""*/) {
+						       const string sourcefn_fname/* = ""*/,
+						       const bool deuterium/* =false */) {
   
   temp = krasnopolsky_temperature(Texo);
   chamb_diff_1d_asymmetric atm_asym(nHexo,CO2_exobase_density,&temp,&H_thermosphere);
   atm_asym.copy_H_options(H_cross_section_options);
   atm_asym.set_asymmetry(asym);
 
-  generate_source_function_sph_azi_sym(atm_asym,Texo,
-				       sourcefn_fname);
-
+  if (!deuterium) {
+    generate_source_function_sph_azi_sym(atm_asym, Texo,
+					 hydrogen_RT,
+					 lyman_alpha,
+					 lyman_beta,
+					 sourcefn_fname);
+  } else {
+    generate_source_function_sph_azi_sym(atm_asym, Texo,
+					 deuterium_RT,
+					 D_lyman_alpha,
+					 D_lyman_beta,
+					 sourcefn_fname);
+  }
 }
 
 void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 							 const Real &Tnoon, const Real &Tmidnight,
-							 const string sourcefn_fname/* = ""*/) {
+							 const string sourcefn_fname/* = ""*/,
+							 const bool deuterium/* =false */) {
   generate_source_function_temp_asym(nHavg,
 				     Tnoon, Tmidnight,
 				     /*      nCO2rmin = */2.6e13,			       
@@ -284,7 +291,9 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 				     /*         T_tropo = */125.0,
 				     /*         r_tropo = */rMars + 90e5,
 				     /* shape_parameter = */11.4,
-				     /*          Tpower = */2.5);
+				     /*          Tpower = */2.5,
+				     sourcefn_fname,
+				     deuterium);
 }
 
 void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
@@ -300,7 +309,8 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 							 const Real shape_parameter,
 							 //power for temperature in the expression n*T^p = const.
 							 const Real Tpowerr,
-							 const string sourcefn_fname/* = ""*/) {
+							 const string sourcefn_fname/* = ""*/,
+							 const bool deuterium/* =false */) {
   // std::cout << "nHavg = " << nHavg << "; Tnoon = " << Tnoon << "; Tmidnight = " << Tmidnight <<".\n";
   // std::cout << "nCO2rmin = " << nCO2rminn << ".\n";
   // std::cout << "T_tropo = " << T_tropo << "; z_tropo = " << (r_tropo-rMars)/1e5 << "; shape_parameter = " << shape_parameter << ".\n";
@@ -321,8 +331,19 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
 				      Tpowerr);
   atm_asym.copy_H_options(H_cross_section_options);
   
-  generate_source_function_sph_azi_sym(atm_asym,Tnoon,
-				       sourcefn_fname);  
+  if (!deuterium) {
+    generate_source_function_sph_azi_sym(atm_asym, Tnoon,
+					 hydrogen_RT,
+					 lyman_alpha,
+					 lyman_beta,
+					 sourcefn_fname);
+  } else {
+    generate_source_function_sph_azi_sym(atm_asym, Tnoon,
+					 deuterium_RT,
+					 D_lyman_alpha,
+					 D_lyman_beta,
+					 sourcefn_fname);
+  }
 }
 
 void observation_fit::generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
@@ -331,6 +352,7 @@ void observation_fit::generate_source_function_tabular_atmosphere(const Real rmi
 								  const std::vector<doubReal> &alt_temp, const std::vector<doubReal> &temp,
 								  const bool compute_exosphere/* = false*/,
 								  const bool plane_parallel/*= false*/,
+								  const bool deuterium/* =false */,
 								  const string sourcefn_fname/* = ""*/) {
 
   tabular_1d new_atm_tabular(rmin,rexo,rmax,compute_exosphere);
@@ -344,17 +366,40 @@ void observation_fit::generate_source_function_tabular_atmosphere(const Real rmi
   Real Texo = atm_tabular.Temp(rexo);
 
   if (plane_parallel) {
-    generate_source_function_plane_parallel(atm_tabular, Texo,
-					    sourcefn_fname);
+    if (!deuterium) {
+      generate_source_function_plane_parallel(atm_tabular, Texo,
+					      hydrogen_RT_pp,
+					      lyman_alpha_pp,
+					      lyman_beta_pp,
+					      sourcefn_fname);
+    } else {
+      generate_source_function_plane_parallel(atm_tabular, Texo,
+					      deuterium_RT_pp,
+					      D_lyman_alpha_pp,
+					      D_lyman_beta_pp,
+					      sourcefn_fname);
+    }
   } else {
-    generate_source_function_sph_azi_sym(atm_tabular, Texo,
-					 sourcefn_fname);
+    if (!deuterium) {
+      generate_source_function_sph_azi_sym(atm_tabular, Texo,
+					   hydrogen_RT,
+					   lyman_alpha,
+					   lyman_beta,
+					   sourcefn_fname);
+    } else {
+      generate_source_function_sph_azi_sym(atm_tabular, Texo,
+					   deuterium_RT,
+					   D_lyman_alpha,
+					   D_lyman_beta,
+					   sourcefn_fname);
+    }
   }
 }
 
 void observation_fit::set_use_CO2_absorption(const bool use_CO2_absorption/* = true*/) {
   H_cross_section_options.no_CO2_absorption = !use_CO2_absorption;
   atm_tabular.no_CO2_absorption = !use_CO2_absorption;
+  use_CO2_absorption ? ly_multiplet.set_CO2_absorption_on() : ly_multiplet.set_CO2_absorption_off();
 }
 void observation_fit::set_use_temp_dependent_sH(const bool use_temp_dependent_sH/* = true*/, const Real constant_temp_sH/* = -1*/) {
   H_cross_section_options.temp_dependent_sH = use_temp_dependent_sH;
@@ -362,13 +407,20 @@ void observation_fit::set_use_temp_dependent_sH(const bool use_temp_dependent_sH
   
   H_cross_section_options.constant_temp_sH = constant_temp_sH;
   atm_tabular.constant_temp_sH = constant_temp_sH;
+
+  if (use_temp_dependent_sH)
+    ly_multiplet.set_atmosphere_temp_RT();
+  else
+    ly_multiplet.set_constant_temp_RT(constant_temp_sH);
 }
 
 void observation_fit::set_sza_method_uniform() {
   hydrogen_RT.grid.szamethod = hydrogen_RT.grid.szamethod_uniform;
+  ly_multiplet_RT.grid.szamethod = ly_multiplet_RT.grid.szamethod_uniform;
 }
 void observation_fit::set_sza_method_uniform_cos() {
   hydrogen_RT.grid.szamethod = hydrogen_RT.grid.szamethod_uniform_cos;
+  ly_multiplet_RT.grid.szamethod = ly_multiplet_RT.grid.szamethod_uniform_cos;
 }
 
 void observation_fit::reset_H_lya_xsec_coef(const Real xsec_coef/* = lyman_alpha_line_center_cross_secion_coef*/) {
@@ -502,6 +554,61 @@ vector<vector<Real>> observation_fit::iph_brightness_unextincted() {
   return iph_b;
 }
 
+vector<vector<Real>> observation_fit::D_brightness() {
+  //compute brightness on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  deuterium_RT.brightness_gpu(deuterium_obs);
+#else
+  deuterium_RT.brightness(deuterium_obs);
+#endif
+
+  if (sim_iph)
+    deuterium_obs.update_iph_extinction();
+  
+  vector<vector<Real>> brightness;
+  brightness.resize(n_hydrogen_emissions);
+  
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    brightness[i_emission].resize(deuterium_obs.size());
+    
+    for (int i=0;i<deuterium_obs.size();i++) {
+      brightness[i_emission][i] = deuterium_obs.los[i_emission][i].brightness;
+      if (sim_iph)
+	brightness[i_emission][i] += deuterium_obs.iph_brightness_observed[i][i_emission];
+    }
+  }
+  
+  return brightness;
+}
+
+vector<vector<Real>> observation_fit::D_col_dens() {
+  vector<vector<Real>> species_col_dens;
+  species_col_dens.resize(n_hydrogen_emissions);
+  
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    species_col_dens[i_emission].resize(deuterium_obs.size());
+    
+    for (int i=0;i<deuterium_obs.size();i++)
+      species_col_dens[i_emission][i] = deuterium_obs.los[i_emission][i].species_col_dens;
+  }
+  
+  return species_col_dens;
+}
+
+vector<vector<Real>> observation_fit::tau_D_final() {
+  vector<vector<Real>> tau_species;
+  tau_species.resize(n_hydrogen_emissions);
+  
+  for (int i_emission=0;i_emission<n_hydrogen_emissions;i_emission++) {
+    tau_species[i_emission].resize(deuterium_obs.size());
+    
+    for (int i=0;i<deuterium_obs.size();i++)
+      tau_species[i_emission][i] = deuterium_obs.los[i_emission][i].tau_species_final;
+  }
+  
+  return tau_species;
+}
+
 void observation_fit::save_influence_matrix(const string fname) {
    hydrogen_RT.save_influence(fname);
 }
@@ -581,6 +688,77 @@ vector<vector<Real>> observation_fit::O_1026_brightness() {
     
     for (int i=0;i<oxygen_obs.size();i++)
       brightness[i_line][i] = oxygen_obs.los[0][i].brightness[i_line];
+  }
+  
+  return brightness;
+}
+
+
+void observation_fit::lyman_multiplet_generate_source_function(const Real &nHexo,
+							       const Real &Texo,
+							       // const Real &solar_brightness_lyman_alpha,
+							       // const Real &solar_brightness_lyman_beta,
+							       const string atmosphere_fname/* = ""*/,
+							       const string sourcefn_fname/* = ""*/)
+{
+  temp = krasnopolsky_temperature(Texo);
+  chamb_diff_1d atm(nHexo,
+		    CO2_exobase_density,
+		    &temp,
+		    &H_thermosphere);
+  atm.copy_H_options(H_cross_section_options);
+
+  if (atmosphere_fname !="")
+    atm.save(atmosphere_fname);
+  
+  atm.spherical = true;
+
+  ly_multiplet_RT.grid.setup_voxels(atm);
+  ly_multiplet_RT.grid.setup_rays();
+
+  //update the emission density values
+  ly_multiplet.define("Multiplet Lyman alpha and beta",
+		      atm,
+		      &chamb_diff_1d::n_species_voxel_avg,
+		      &chamb_diff_1d::Temp_voxel_avg,
+		      &chamb_diff_1d::n_absorber_voxel_avg,
+		      ly_multiplet_RT.grid.voxels);
+  // ly_multiplet.set_solar_brightness(solar_brightness_lyman_alpha,
+  // 				    solar_brightness_lyman_beta);
+  
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  ly_multiplet_RT.generate_S_gpu();
+#else
+  ly_multiplet_RT.generate_S();
+#endif
+  
+  if (sourcefn_fname!="")
+    ly_multiplet_RT.save_S(sourcefn_fname);
+}
+
+vector<vector<Real>> observation_fit::lyman_multiplet_brightness() {
+  //compute brightness on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  ly_multiplet_RT.brightness_gpu(ly_multiplet_obs);
+#else
+  ly_multiplet_RT.brightness(ly_multiplet_obs);
+#endif
+  
+  vector<vector<Real>> brightness;
+  brightness.resize(2);
+
+  brightness[0].resize(ly_multiplet_obs.size());
+  brightness[1].resize(ly_multiplet_obs.size());
+  
+  for (int i=0;i<ly_multiplet_obs.size();i++) {
+    // lyman alpha
+    brightness[0][i] = (ly_multiplet_obs.los[0][i].brightness[0]
+			+ly_multiplet_obs.los[0][i].brightness[1]);
+
+    // lyman beta
+    brightness[1][i] = (ly_multiplet_obs.los[0][i].brightness[2]
+			+ly_multiplet_obs.los[0][i].brightness[3]);
   }
   
   return brightness;

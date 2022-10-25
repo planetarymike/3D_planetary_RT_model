@@ -11,6 +11,7 @@
 #include "atm/atmosphere_base.hpp"
 #include <fstream>
 #include <cmath>
+#include <string>
 #include "intersections.hpp"
 
 template <int N_RADIAL_BOUNDARIES, int N_RAYS_THETA>

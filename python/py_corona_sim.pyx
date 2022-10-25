@@ -46,15 +46,18 @@ cdef extern from "observation_fit.hpp":
         void generate_source_function(Real nHexo, Real Texo,
                                       string atmosphere_fname,
                                       string sourcefn_fname,
-                                      bool plane_parallel)
+                                      bool plane_parallel,
+                                      bool deuterium)
         void generate_source_function_lc(Real nHexo, Real lc, 
                                       string atmosphere_fname,
                                       string sourcefn_fname,
-                                      bool plane_parallel)
+                                      bool plane_parallel,
+                                      bool deuterium)
         void generate_source_function_effv(Real nHexo, Real effv,
                                            string atmosphere_fname,
                                            string sourcefn_fname,
-                                           bool plane_parallel)
+                                           bool plane_parallel,
+                                           bool deuterium)
 
         void generate_source_function_variable_thermosphere(Real nHexo, Real Texo,
                                                             Real nCO2rminn,
@@ -68,16 +71,19 @@ cdef extern from "observation_fit.hpp":
 						            Real shape_parameter,				  
                                                             string atmosphere_fname,
                                                             string sourcefn_fname,
-                                                            bool plane_parallel)
+                                                            bool plane_parallel,
+                                                            bool deuterium)
         
         void generate_source_function_nH_asym(Real nHexo, Real Texo,
                                               Real asym,
-                                              string sourcefn_fname)
+                                              string sourcefn_fname,
+                                              bool deuterium)
 
         void generate_source_function_temp_asym(Real nHavg,
                                                 Real Tnoon, Real Tmidnight,
-                                                string sourcefn_fname)
-
+                                                string sourcefn_fname,
+                                                bool deuterium)
+        
         void generate_source_function_temp_asym(Real nHavg,
                                                 Real Tnoon, Real Tmidnight,
 						Real nCO2rminn,
@@ -91,7 +97,8 @@ cdef extern from "observation_fit.hpp":
 						Real shape_parameter,
                                                 #power for temperature in the expression n*T^p = const.
                                                 Real Tpower,
-                                                string sourcefn_fname)
+                                                string sourcefn_fname,
+                                                bool deuterium)
 
         void generate_source_function_tabular_atmosphere(Real rmin, Real rexo, Real rmax,
 							 vector[double] &alt_nH, vector[double] &log_nH,
@@ -99,6 +106,7 @@ cdef extern from "observation_fit.hpp":
 							 vector[double] &alt_temp, vector[double] &temp,
 							 bool compute_exosphere,
                                                          bool plane_parallel,
+                                                         bool deuterium,
                                                          string sourcefn_fname)
 
         void set_use_CO2_absorption(bool use_CO2_absorption)
@@ -131,12 +139,24 @@ cdef extern from "observation_fit.hpp":
         vector[vector[Real]] iph_brightness_unextincted()
         Temp_converter Tconv
 
+        vector[vector[Real]] D_brightness()
+        vector[vector[Real]] D_col_dens()
+        vector[vector[Real]] tau_D_final()
+
         void O_1026_generate_source_function(Real nOexo,
                                              Real Texo,
                                              Real solar_brightness_lyman_beta, # 1.69e-3 is a good number for solar minimum
                                              string atmosphere_fname,
                                              string sourcefn_fname)
         vector[vector[Real]] O_1026_brightness()
+
+        void lyman_multiplet_generate_source_function(Real nHexo,
+                                                      Real Texo,
+                                                      # Real solar_brightness_lyman_alpha,
+                                                      # Real solar_brightness_lyman_beta,
+                                                      string atmosphere_fname,
+                                                      string sourcefn_fname)
+        vector[vector[Real]] lyman_multiplet_brightness()
 
 
         
@@ -218,27 +238,33 @@ cdef class Pyobservation_fit:
     def generate_source_function(self, Real nH, Real T,
                                  atmosphere_fname = "",
                                  sourcefn_fname = "",
-                                 plane_parallel = False):
+                                 plane_parallel = False,
+                                 deuterium = False):
         self.thisptr.generate_source_function(nH,T,
                                               atmosphere_fname.encode('utf-8'),
                                               sourcefn_fname.encode('utf-8'),
-                                              plane_parallel)
+                                              plane_parallel,
+                                              deuterium)
     def generate_source_function_lc(self, Real nH, Real lc,
                                     atmosphere_fname = "",
                                     sourcefn_fname = "",
-                                    plane_parallel = False):
+                                    plane_parallel = False,
+                                    deuterium = False):
         self.thisptr.generate_source_function_lc(nH,lc,
                                                  atmosphere_fname.encode('utf-8'),
                                                  sourcefn_fname.encode('utf-8'),
-                                                 plane_parallel)
+                                                 plane_parallel,
+                                                 deuterium)
     def generate_source_function_effv(self, Real nH, Real effv,
                                       atmosphere_fname = "",
                                       sourcefn_fname = "",
-                                      plane_parallel = False):
+                                      plane_parallel = False,
+                                      deuterium = False):
         self.thisptr.generate_source_function_effv(nH,effv,
                                                    atmosphere_fname.encode('utf-8'),
                                                    sourcefn_fname.encode('utf-8'),
-                                                   plane_parallel)
+                                                   plane_parallel,
+                                                   deuterium)
     def generate_source_function_variable_thermosphere(self,
                                                        Real nHexo, Real Texo,
                                                        Real nCO2rminn,
@@ -252,7 +278,8 @@ cdef class Pyobservation_fit:
 						       Real shape_parameter,				  
                                                        atmosphere_fname = "",
                                                        sourcefn_fname = "",
-                                                       plane_parallel = False):
+                                                       plane_parallel = False,
+                                                       deuterium = False):
         self.thisptr.generate_source_function_variable_thermosphere(nHexo, Texo,
                                                                     nCO2rminn,
 						                    rexoo,
@@ -265,21 +292,26 @@ cdef class Pyobservation_fit:
 						                    shape_parameter,
 				                                    atmosphere_fname.encode('utf-8'),
                                                                     sourcefn_fname.encode('utf-8'),
-                                                                    plane_parallel)
+                                                                    plane_parallel,
+                                                                    deuterium)
         
     def generate_source_function_nH_asym(self, Real nH, Real Texo,
-                                      Real asym,
-                                      sourcefn_fname = ""):
+                                         Real asym,
+                                         sourcefn_fname = "",
+                                         deuterium = False):
         self.thisptr.generate_source_function_nH_asym(nH,Texo,
                                                       asym,
-                                                      sourcefn_fname.encode('utf-8'))
+                                                      sourcefn_fname.encode('utf-8'),
+                                                      deuterium)
 
     def generate_source_function_temp_asym(self, Real nHavg,
                                            Real Tnoon, Real Tmidnight,
-                                           sourcefn_fname = ""):
+                                           sourcefn_fname = "",
+                                           deuterium = False):
         self.thisptr.generate_source_function_temp_asym(nHavg,
                                                         Tnoon,Tmidnight,
-                                                        sourcefn_fname.encode('utf-8'))
+                                                        sourcefn_fname.encode('utf-8'),
+                                                        deuterium)
 
     def generate_source_function_temp_asym_full(self, Real nHavg,
                                                 Real Tnoon, Real Tmidnight,
@@ -294,7 +326,8 @@ cdef class Pyobservation_fit:
 					        Real shape_parameter,
 			                        #power for temperature in the expression n*T^p = const.
                                                 Real Tpower,
-                                                sourcefn_fname = ""):
+                                                sourcefn_fname = "",
+                                                deuterium = False):
         self.thisptr.generate_source_function_temp_asym(nHavg,
                                                         Tnoon,Tmidnight,
                                                         nCO2rminn,
@@ -308,7 +341,8 @@ cdef class Pyobservation_fit:
                                                         shape_parameter,
 						        #power for temperature in the expression n*T^p = const.
                                                         Tpower,
-                                                        sourcefn_fname.encode('utf-8'))
+                                                        sourcefn_fname.encode('utf-8'),
+                                                        deuterium)
 
     def get_example_tabular_atmosphere(self):
         rmin = 3395e5 +    80e5
@@ -329,6 +363,7 @@ cdef class Pyobservation_fit:
     def generate_source_function_tabular_atmosphere(self, atm_dict,
                                                     compute_exosphere = False,
                                                     plane_parallel = False,
+                                                    deuterium = False,
                                                     sourcefn_fname = ""):
         cdef vector[double] alt_nH, log_nH, alt_nCO2, log_nCO2, alt_Temp, Temp
         alt_nH.resize(atm_dict['alt_nH'].shape[0])
@@ -355,6 +390,7 @@ cdef class Pyobservation_fit:
                                                                  alt_Temp, Temp,
                                                                  compute_exosphere,
                                                                  plane_parallel,
+                                                                 deuterium,
                                                                  sourcefn_fname.encode('utf-8'))
 
     def set_use_CO2_absorption(self, use_CO2_absorption = True):
@@ -421,6 +457,15 @@ cdef class Pyobservation_fit:
     def iph_brightness_unextincted(self):
         return np.asarray(self.thisptr.iph_brightness_unextincted())
 
+    def D_brightness(self):
+        return np.asarray(self.thisptr.D_brightness())
+
+    def D_col_dens(self):
+        return np.asarray(self.thisptr.D_col_dens())
+
+    def tau_D_final(self):
+        return np.asarray(self.thisptr.tau_D_final())
+
     def save_influence_matrix(self, fname):
         self.thisptr.save_influence_matrix(fname.encode('utf-8'))
 
@@ -441,3 +486,21 @@ cdef class Pyobservation_fit:
                                                      sourcefn_fname.encode('utf-8'))
     def O_1026_brightness(self):
         return np.asarray(self.thisptr.O_1026_brightness())
+
+    def lyman_multiplet_generate_source_function(self,
+                                                 Real nH,
+                                                 Real T,
+                                                 # Real solar_brightness_lyman_alpha,
+                                                 # Real solar_brightness_lyman_beta,
+                                                 atmosphere_fname = "",
+                                                 sourcefn_fname = ""):
+        self.thisptr.lyman_multiplet_generate_source_function(nH,
+                                                              T,
+                                                              # solar_brightness_lyman_alpha,
+                                                              # solar_brightness_lyman_beta,
+                                                              atmosphere_fname.encode('utf-8'),
+                                                              sourcefn_fname.encode('utf-8'))
+
+    def lyman_multiplet_brightness(self):
+        return np.asarray(self.thisptr.lyman_multiplet_brightness())
+

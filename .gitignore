@@ -13,6 +13,8 @@ python/*.cpp
 python/.ipy*
 python/build
 python/build/*
+python/cython_debug
+python/cython_debug/*
 python/model_fit
 python/model_fit/*
 python/test/.ipynb_checkpoints/

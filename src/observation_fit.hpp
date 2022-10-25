@@ -3,6 +3,7 @@
 #ifndef __OBSERVATION_FIT_H
 #define __OBSERVATION_FIT_H
 
+#include <string> 
 #include "Real.hpp"
 #include "observation.hpp"
 #include "atm/temperature.hpp"
@@ -15,11 +16,13 @@
 #include "grid/grid_plane_parallel.hpp"
 #include "grid/grid_spherical_azimuthally_symmetric.hpp"
 #include "emission/singlet_CFR.hpp"
+#include "emission/H_lyman_multiplet.hpp"
 #include "emission/O_1026.hpp"
 
 class observation_fit {
 protected:
   hydrogen_density_parameters H_thermosphere;
+  deuterium_density_parameters D_thermosphere;
   oxygen_density_parameters O_thermosphere;
   
   krasnopolsky_temperature temp;
@@ -58,18 +61,49 @@ protected:
   hydrogen_emission_type_pp lyman_alpha_pp, lyman_beta_pp;
   hydrogen_emission_type_pp *hydrogen_emissions_pp[n_hydrogen_emissions] = {&lyman_alpha_pp, &lyman_beta_pp};
 
-  RT_grid<hydrogen_emission_type_pp, n_hydrogen_emissions, plane_parallel_grid_type> hydrogen_RT_pp;
+  typedef RT_grid<hydrogen_emission_type_pp, n_hydrogen_emissions, plane_parallel_grid_type> H_RT_type_pp;
+  H_RT_type_pp hydrogen_RT_pp;
 
   typedef singlet_CFR<grid_type::n_voxels> hydrogen_emission_type;
   hydrogen_emission_type lyman_alpha, lyman_beta;
   hydrogen_emission_type *hydrogen_emissions[n_hydrogen_emissions] = {&lyman_alpha, &lyman_beta};
 
-  RT_grid<hydrogen_emission_type, n_hydrogen_emissions, grid_type> hydrogen_RT;
+  typedef RT_grid<hydrogen_emission_type, n_hydrogen_emissions, grid_type> H_RT_type;
+  H_RT_type hydrogen_RT;
 
   observation<hydrogen_emission_type, n_hydrogen_emissions> hydrogen_obs;
 
+
+
+  // Interplanetary H Lyman alpha
   string iph_sfn_fname; // quemerais IPH source function filename
   bool sim_iph;
+
+
+
+  // define deuterium emissions
+  hydrogen_emission_type_pp D_lyman_alpha_pp, D_lyman_beta_pp;
+  hydrogen_emission_type_pp *deuterium_emissions_pp[n_hydrogen_emissions] = {&D_lyman_alpha_pp, &D_lyman_beta_pp};
+  H_RT_type_pp deuterium_RT_pp;
+
+  hydrogen_emission_type D_lyman_alpha, D_lyman_beta;
+  hydrogen_emission_type *deuterium_emissions[n_hydrogen_emissions] = {&D_lyman_alpha, &D_lyman_beta};
+  H_RT_type deuterium_RT;
+
+  observation<hydrogen_emission_type, n_hydrogen_emissions> deuterium_obs;
+
+
+
+  // H Lyman alpha multiplet models
+  typedef H_lyman_multiplet<grid_type::n_voxels> ly_multiplet_type;
+  ly_multiplet_type ly_multiplet;
+  ly_multiplet_type *ly_multiplet_emissions[1] = {&ly_multiplet};
+
+  typedef RT_grid<ly_multiplet_type, 1, grid_type> H_RT_ly_multiplet_type;
+  H_RT_ly_multiplet_type ly_multiplet_RT;
+
+  observation<ly_multiplet_type, 1> ly_multiplet_obs;
+  
 
   // define oxygen emissions
   static const int n_oxygen_emissions = 1;
@@ -103,15 +137,18 @@ public:
   void generate_source_function(const Real &nHexo, const Real &Texo,
 				const string atmosphere_fname = "",
 				const string sourcefn_fname = "",
-				bool plane_parallel=false);
+				const bool plane_parallel=false,
+				const bool deuterium=false);
   void generate_source_function_effv(const Real &nHexo, const Real &effv_exo,
 				     const string atmosphere_fname = "",
 				     const string sourcefn_fname = "",
-				     bool plane_parallel=false);
+				     const bool plane_parallel=false,
+				     const bool deuterium=false);
   void generate_source_function_lc(const Real &nHexo, const Real &lc_exo,
 				   const string atmosphere_fname = "",
 				   const string sourcefn_fname = "",
-				   bool plane_parallel=false);
+				   bool plane_parallel=false,
+				   const bool deuterium=false);
 
   void generate_source_function_variable_thermosphere(const Real &nHexo,
 						      const Real &Texo,
@@ -126,25 +163,106 @@ public:
 						      const Real shape_parameter,
 						      const string atmosphere_fname = "",
 						      const string sourcefn_fname = "",
-						      bool plane_parallel=false);
+						      const bool plane_parallel=false,
+						      const bool deuterium=false);
 
-
-
-
-  template <typename A>
-  void generate_source_function_plane_parallel(A &atm, const Real &Texo,
-					       const string sourcefn_fname = "");
-  template <typename A>
-  void generate_source_function_sph_azi_sym(A &atm, const Real &Texo,
-					    const string sourcefn_fname = "");
+  template <typename A, typename RT, typename E>
+  void generate_source_function_plane_parallel(A &atmm, const Real &Texo,
+					       RT &RT_obj,
+					       E &lya_obj,
+					       E &lyb_obj,
+					       const string sourcefn_fname = "")
+  {
+    bool atmm_spherical = atmm.spherical;
+    atmm.spherical = false;
+    
+    RT_obj.grid.setup_voxels(atmm);
+    RT_obj.grid.setup_rays();
+    
+    //update the emission density values
+    lya_obj.define("H Lyman alpha",
+		   1.0,
+		   Texo, atmm.sH_lya(Texo),
+		   atmm,
+		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+		   &A::n_absorber_voxel_avg,  &A::sCO2_lya,
+		   RT_obj.grid.voxels);
+    lyb_obj.define("H Lyman beta",
+		   lyman_beta_branching_ratio,
+		   Texo, atmm.sH_lyb(Texo),
+		   atmm,
+		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+		   &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
+		   RT_obj.grid.voxels);
+    
+    atmm.spherical = atmm_spherical;  
+    
+    //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+    RT_obj.generate_S_gpu();
+#else
+    RT_obj.generate_S();
+#endif
+    
+    if (sourcefn_fname!="")
+      RT_obj.save_S(sourcefn_fname);
+  }
   
+  template <typename A, typename RT, typename E>
+  void generate_source_function_sph_azi_sym(A &atmm, const Real &Texo,
+					    RT &RT_obj,
+					    E &lya_obj,
+					    E &lyb_obj,
+					    const string sourcefn_fname = "")
+  {
+    bool change_spherical = false;
+    if (atmm.spherical != true) {
+      change_spherical = true;
+      atmm.spherical = true;
+    }
+    
+    RT_obj.grid.setup_voxels(atmm);
+    RT_obj.grid.setup_rays();
+    
+    //update the emission density values
+    lya_obj.define("H Lyman alpha",
+		   1.0,
+		   Texo, atmm.sH_lya(Texo),
+		   atmm,
+		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+		   &A::n_absorber_voxel_avg,  &A::sCO2_lya,
+		   RT_obj.grid.voxels);
+    lyb_obj.define("H Lyman beta",
+		   lyman_beta_branching_ratio,
+		   Texo, atmm.sH_lyb(Texo),
+		   atmm,
+		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
+		   &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
+		   RT_obj.grid.voxels);
+    
+    if (change_spherical)
+      atmm.spherical = false;    
+    
+    //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+    RT_obj.generate_S_gpu();
+#else
+    RT_obj.generate_S();
+#endif
+    
+    if (sourcefn_fname!="")
+      RT_obj.save_S(sourcefn_fname);
+  }
+
 
   void generate_source_function_nH_asym(const Real &nHexo, const Real &Texo,
 					const Real &asym,
-					const string sourcefn_fname = "");
+					const string sourcefn_fname = "",
+					const bool deuterium=false);
   void generate_source_function_temp_asym(const Real &nHavg,
 					  const Real &Tnoon, const Real &Tmidnight,
-					  const string sourcefn_fname = "");
+					  const string sourcefn_fname = "",
+					  const bool deuterium=false);
 
   void generate_source_function_temp_asym(const Real &nHavg,
 					  const Real &Tnoon, const Real &Tmidnight,
@@ -159,7 +277,8 @@ public:
 					  const Real shape_parameter,
 					  //power for temperature in the expression n*T^p = const.
 					  const Real Tpowerr,
-					  const string sourcefn_fname = "");
+					  const string sourcefn_fname = "",
+					  const bool deuterium=false);
 
   
   void generate_source_function_tabular_atmosphere(const Real rmin, const Real rexo, const Real rmax,
@@ -168,6 +287,7 @@ public:
 						   const std::vector<doubReal> &alt_temp, const std::vector<doubReal> &temp,
 						   const bool compute_exosphere = false,
 						   const bool plane_parallel = false,
+						   const bool deuterium=false,
 						   const string sourcefn_fname="");
 
   void set_use_CO2_absorption(const bool use_CO2_absorption = true);
@@ -195,12 +315,25 @@ public:
   std::vector<std::vector<Real>> iph_brightness_observed();
   std::vector<std::vector<Real>> iph_brightness_unextincted();
 
+  std::vector<std::vector<Real>> D_brightness();
+  std::vector<std::vector<Real>> D_col_dens();
+  std::vector<std::vector<Real>> tau_D_final();
+
+
   void O_1026_generate_source_function(const Real &nOexo,
   				       const Real &Texo,
   				       const Real &solar_brightness_lyman_beta, // 1.69e-3 is a good number for solar minimum
   				       const string atmosphere_fname = "",
   				       const string sourcefn_fname = "");
   std::vector<std::vector<Real>> O_1026_brightness();
+
+  void lyman_multiplet_generate_source_function(const Real &nHexo,
+						const Real &Texo,
+						// const Real &solar_brightness_lyman_alpha,
+						// const Real &solar_brightness_lyman_beta,
+						const string atmosphere_fname = "",
+						const string sourcefn_fname = "");
+  std::vector<std::vector<Real>> lyman_multiplet_brightness();
 };
 
 #endif

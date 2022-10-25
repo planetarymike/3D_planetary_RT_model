@@ -5,15 +5,16 @@
 #include "cuda_compatibility.hpp"
 #include "atm/temperature.hpp"
 #include "atm/chamb_diff_1d.hpp"
+#include "grid_plane_parallel.hpp"
+#include "grid_spherical_azimuthally_symmetric.hpp"
 #include "RT_grid.hpp"
 #include "emission/singlet_CFR.hpp"
 #include "emission/O_1026.hpp"
 #include "emission/H_lyman_multiplet_test.hpp"
-#include "grid_plane_parallel.hpp"
-#include "grid_spherical_azimuthally_symmetric.hpp"
+#include "emission/H_lyman_multiplet.hpp"
 
-#define GENERATE_O_1026
-//#define H_LYMAN_MULTIPLET_TEST
+//#define GENERATE_O_1026
+#define H_LYMAN_MULTIPLET_TEST
 //#define NO_SIM_BRIGHTNESS
 
 #define __PRINT_ELAPSED_TIME_TERMINAL
@@ -68,7 +69,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
   // atm.temp_dependent_sH=false;
   // atm.constant_temp_sH=exobase_temp;
-  //atm.no_CO2_absorption = true;
+  atm.no_CO2_absorption = true;
 
 #ifdef GENERATE_O_1026
   atm.save("test/test_atmosphere_O_1026.dat");
@@ -166,23 +167,42 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   static const int n_emissions = 1;
 
-  //solve for H lyman alpha
-  typedef H_lyman_emission_multiplet_test<grid_type::n_voxels> emission_type;
-  emission_type lyman_alpha;
+  // // overlapping multiplets, should reproduce singlet treatment
+  // //solve for H lyman alpha
+  // typedef H_lyman_emission_multiplet_test<grid_type::n_voxels> emission_type;
+  // emission_type lyman_alpha;
+  // if (atm.no_CO2_absorption)
+  //   lyman_alpha.set_CO2_absorption_off();
+  // if (not atm.temp_dependent_sH)
+  //   lyman_alpha.set_constant_temp_RT(exobase_temp);
+  // lyman_alpha.define("H Lyman alpha",
+  // 		     atm,
+  // 		     &chamb_diff_1d::n_species_voxel_avg,   
+  // 		     &chamb_diff_1d::Temp_voxel_avg,
+  // 		     &chamb_diff_1d::n_absorber_voxel_avg,
+  // 		     grid.voxels);
+  // lyman_alpha.set_solar_brightness(lyman_alpha_flux_Mars_typical); /* ph/cm2/s/Hz, solar brightness */
+
+  // emission_type *emissions[n_emissions] = {&lyman_alpha};
+
+  // true doublets for Lyman alpha and beta
+  typedef H_lyman_multiplet<grid_type::n_voxels> emission_type;
+  emission_type lyman_emission;
   if (atm.no_CO2_absorption)
-    lyman_alpha.set_CO2_absorption_off();
+    lyman_emission.set_CO2_absorption_off();
   if (not atm.temp_dependent_sH)
-    lyman_alpha.set_constant_temp_RT(exobase_temp);
-  lyman_alpha.define("H Lyman alpha",
-		     atm,
-		     &chamb_diff_1d::n_species_voxel_avg,   
-		     &chamb_diff_1d::Temp_voxel_avg,
-		     &chamb_diff_1d::n_absorber_voxel_avg,
-		     grid.voxels);
-  lyman_alpha.set_solar_brightness(lyman_alpha_flux_Mars_typical); /* ph/cm2/s/Hz, solar brightness */
+    lyman_emission.set_constant_temp_RT(exobase_temp);
+  lyman_emission.define("H Lyman alpha and beta",
+			atm,
+			&chamb_diff_1d::n_species_voxel_avg,
+			&chamb_diff_1d::Temp_voxel_avg,
+			&chamb_diff_1d::n_absorber_voxel_avg,
+			grid.voxels);
+  lyman_emission.set_solar_brightness(lyman_alpha_flux_Mars_typical, /* ph/cm2/s/Hz, solar brightness */
+				      lyman_beta_flux_Mars_typical); 
 
-  emission_type *emissions[n_emissions] = {&lyman_alpha};
-
+  emission_type *emissions[n_emissions] = {&lyman_emission};
+  
 #endif
 #endif
   

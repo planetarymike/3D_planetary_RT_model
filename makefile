@@ -10,7 +10,11 @@ OBJDIR = ./bin
 SRCDIR = ./src
 SRCDIRS = ./src ./src/atm ./src/emission ./src/grid
 PSRCFILES = $(foreach dir,$(SRCDIRS),$(wildcard $(dir)/*.cpp))
+
 SRCFILES = $(filter-out ./src/observation_fit.cpp, $(PSRCFILES))
+OBJFILES    := $(filter %.o, $(SRCFILES:%.cpp=$(OBJDIR)/%.o))
+OBJFILESDBG := $(filter %.o, $(SRCFILES:%.cpp=$(OBJDIR)/%.debug.o))
+
 
 NSRCFILES = $(SRCFILES)
 NOBJFILES    := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
@@ -83,8 +87,15 @@ generate_source_function:
 generate_source_function_profile:
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
 
-generate_source_function_debug_warn:
-	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
+# generate_source_function_debug_warn:
+# 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -v -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
+
+generate_source_function_debug_warn: $(OBJFILESDBG)
+	@echo "compiling generate_source_function.cpp..."
+	@$(CC) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -c generate_source_function.cpp -o bin/generate_source_function.debug.o
+	@echo "linking ..."
+	@$(CC) $(OBJFILESDBG) bin/generate_source_function.debug.o $(IDIR) $(LIBS)  -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
+
 
 generate_source_function_debug_warn_float:
 	$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
@@ -145,6 +156,11 @@ $(OBJDIR)/%.o: %.cpp
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(CC) -c $< $(IDIR) $(LIBS) $(OFLAGS) -o $@
+
+$(OBJDIR)/%.debug.o: %.cpp
+	@echo "compiling $<..."
+	@mkdir -p '$(@D)'
+	@$(CC) -c $< $(IDIR) $(LIBS)  -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o $@
 
 py_corona_sim_gpu: 
 	@mkdir -p bin

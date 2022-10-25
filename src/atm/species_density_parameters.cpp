@@ -76,10 +76,8 @@ void species_density_parameters::get_thermosphere_density_exact(const doubReal &
   n_species = exp(log_n_species_thermosphere_tmp.back());
 }
 
-
-
-hydrogen_density_parameters::hydrogen_density_parameters()
-  : species_density_parameters(mH, alpha_hydrogen, diffusion_coefs(DH0_hydrogen, s_hydrogen) )
+hydrogen_density_parameters::hydrogen_density_parameters(const doubReal mass/* =mH */)
+  : species_density_parameters(mass, alpha_hydrogen, diffusion_coefs(DH0_hydrogen, s_hydrogen) )
 { }
 
 void hydrogen_density_parameters::operator()( const vector<doubReal> &x , vector<doubReal> &dxdr , const doubReal &r ) {
@@ -158,8 +156,13 @@ void hydrogen_density_parameters::get_thermosphere_density_arrays(const doubReal
 }
 
 
-// atomic oxygen
+// atomic deuterium
+deuterium_density_parameters::deuterium_density_parameters()
+  : hydrogen_density_parameters(2.*mH)
+{ }
 
+
+// atomic oxygen
 oxygen_density_parameters::oxygen_density_parameters()
   : species_density_parameters(16*mH, alpha_oxygen, diffusion_coefs(DH0_oxygen, s_oxygen) )
 { }

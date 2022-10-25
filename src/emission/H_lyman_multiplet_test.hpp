@@ -9,8 +9,8 @@
 // calculations
 
 
-#ifndef __H_lyman_multiplet
-#define __H_lyman_multiplet
+#ifndef __H_lyman_multiplet_test
+#define __H_lyman_multiplet_test
 
 #include <boost/type_traits/type_identity.hpp> //for type deduction in define
 #include "emission_voxels.hpp"
@@ -21,11 +21,11 @@
 template <int N_VOXELS>
 struct H_lyman_emission_multiplet_test : multiplet_CFR_emission<N_VOXELS,
 								/*emission_type = */ H_lyman_emission_multiplet_test<N_VOXELS>,
-								/*los_tracker_type = */ H_lyman_alpha_tracker> {
+								/*los_tracker_type = */ H_lyman_alpha_singlet_test_tracker> {
 protected:
   typedef multiplet_CFR_emission<N_VOXELS,
 				 /*emission_type = */ H_lyman_emission_multiplet_test<N_VOXELS>,
-				 /*los_tracker_type = */ H_lyman_alpha_tracker> parent;
+				 /*los_tracker_type = */ H_lyman_alpha_singlet_test_tracker> parent;
   friend parent;
 
 public:
@@ -36,7 +36,7 @@ public:
   using parent::n_lambda;
   
   template <bool influence>
-  using los = H_lyman_alpha_tracker<influence, N_VOXELS>;
+  using los = H_lyman_alpha_singlet_test_tracker<influence, N_VOXELS>;
   using typename parent::brightness_tracker;
   using typename parent::influence_tracker;
 
@@ -227,7 +227,7 @@ public:
     copy_trivial_member_to_device(solar_brightness_Hz, device_emission->solar_brightness_Hz);
     copy_trivial_member_to_device(constant_temp_RT_internal, device_emission->constant_temp_RT_internal);
     copy_trivial_member_to_device(constant_temp_RT, device_emission->constant_temp_RT);
-    copy_trivial_member_to_device(CO2_absorption, device_emission->no_CO2_absorption);
+    copy_trivial_member_to_device(CO2_absorption, device_emission->CO2_absorption);
   }
 
   using parent::copy_trivial_member_to_host;
@@ -235,7 +235,8 @@ public:
     parent::copy_trivial_members_to_host();
     copy_trivial_member_to_host(solar_brightness_Hz, device_emission->solar_brightness_Hz);
     copy_trivial_member_to_host(constant_temp_RT_internal, device_emission->constant_temp_RT_internal);
-    copy_trivial_member_to_host(CO2_absorption, device_emission->no_CO2_absorption);
+    copy_trivial_member_to_host(constant_temp_RT, device_emission->constant_temp_RT);
+    copy_trivial_member_to_host(CO2_absorption, device_emission->CO2_absorption);
   }
 
   using parent::copy_to_device_influence;

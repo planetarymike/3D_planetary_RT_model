@@ -92,7 +92,7 @@ public:
       if (!sun_visible) {
 	// single scattering point is behind limb, populate the tracker with the appropriate values
 	tracker.tau_species_final[i_line]  = -1.0;
-	tracker.tau_absorber_final = -1.0;
+	tracker.tau_absorber_final[i_line] = -1.0;
 	tracker.holstein_T_final[i_line]   = 0.0;
       }
 
@@ -102,10 +102,10 @@ public:
 		 || tau_species_single_scattering(start_voxel, i_line) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
-      tau_absorber_single_scattering(start_voxel) = tracker.tau_absorber_final;
-      assert(!isnan(tau_absorber_single_scattering(start_voxel))
-	     && (tau_absorber_single_scattering(start_voxel) >= 0
-		 ||  tau_absorber_single_scattering(start_voxel) == -1)
+      tau_absorber_single_scattering(start_voxel, i_line) = tracker.tau_absorber_final[i_line];
+      assert(!isnan(tau_absorber_single_scattering(start_voxel, i_line))
+	     && (tau_absorber_single_scattering(start_voxel, i_line) >= 0
+		 ||  tau_absorber_single_scattering(start_voxel, i_line) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
       if (tracker.lower_level_J(i_line) == 2) {

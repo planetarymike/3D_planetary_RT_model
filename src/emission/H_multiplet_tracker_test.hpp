@@ -1,14 +1,14 @@
 // H_multiplet_tracker_test.hpp --- Hydrogen line test tracker for checking consistency of multiplet and singlet codes
 
-#ifndef __H_MULTIPLET_TRACKER_H
-#define __H_MULTIPLET_TRACKER_H
+#ifndef __H_MULTIPLET_TRACKER_TEST_H
+#define __H_MULTIPLET_TRACKER_TEST_H
 
 #include "Real.hpp"
 #include "cuda_compatibility.hpp"
 #include "voxel_vector.hpp"
 #include "constants.hpp"
 
-namespace H_lyman_alpha_constants_detail {
+namespace H_lyman_alpha_singlet_constants_detail {
   static constexpr int n_lines = 1; // Lyman alpha and Lyman beta
   static constexpr int n_multiplets = 1;
   static constexpr int n_lower = 1; 
@@ -38,7 +38,7 @@ namespace H_lyman_alpha_constants_detail {
   DECLARE_STATIC_ARRAY_HPP(Real, n_lines, upper_state_decay_rate,   {6.2648e8 /* s^-1 */})
 }
 
-namespace H_lyman_beta_constants_detail {
+namespace H_lyman_beta_singlet_constants_detail {
   static constexpr int n_lines = 1; // Lyman alpha and Lyman beta
   static constexpr int n_multiplets = 1;
   static constexpr int n_lower = 1; 
@@ -84,30 +84,30 @@ namespace H_lyman_beta_constants_detail {
 }
 
 template <bool is_influence, int N_VOXELS>
-struct H_lyman_alpha_tracker {
-  static const int n_lines      = H_lyman_alpha_constants_detail::n_lines;
-  static const int n_multiplets = H_lyman_alpha_constants_detail::n_multiplets;
-  static const int n_lower      = H_lyman_alpha_constants_detail::n_lower;
-  static const int n_upper      = H_lyman_alpha_constants_detail::n_upper;
+struct H_lyman_alpha_singlet_test_tracker {
+  static const int n_lines      = H_lyman_alpha_singlet_constants_detail::n_lines;
+  static const int n_multiplets = H_lyman_alpha_singlet_constants_detail::n_multiplets;
+  static const int n_lower      = H_lyman_alpha_singlet_constants_detail::n_lower;
+  static const int n_upper      = H_lyman_alpha_singlet_constants_detail::n_upper;
 
   // import the static array data as member functions that can be called
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail,  int, n_lines, multiplet_index   )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail,  int, n_lines, lower_level_index )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail,  int, n_lines, upper_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail,  int, n_lines, multiplet_index   )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail,  int, n_lines, lower_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail,  int, n_lines, upper_level_index )
 
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, Real, n_lines, line_wavelength               )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, Real, n_lines, line_A                        )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, Real, n_lines, line_f                        )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, Real, n_lines, line_sigma_total              )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_constants_detail, Real, n_lines, upper_state_decay_rate        )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_wavelength               )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_A                        )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_f                        )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_sigma_total              )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, upper_state_decay_rate        )
   
   //  CO2 absorption cross section
-  static constexpr Real co2_xsec = H_lyman_alpha_constants_detail::co2_xsec; //cm^2 
+  static constexpr Real co2_xsec = H_lyman_alpha_singlet_constants_detail::co2_xsec; //cm^2 
   
   // set absolute wavelength scale
   //   pick a single normalized wavelength scale for all lines and multiplets
   static constexpr Real doppler_width_reference_T          = 200; // K, should be within a factor of ~2 of expected atmospheric temp
-  static constexpr Real doppler_width_reference_lambda     = H_lyman_alpha_constants_detail::line_wavelength_array[0]; // nm, smallest value of lambda
+  static constexpr Real doppler_width_reference_lambda     = H_lyman_alpha_singlet_constants_detail::line_wavelength_array[0]; // nm, smallest value of lambda
   static constexpr Real doppler_width_reference_velocity   = constexpr_sqrt(2*kB*doppler_width_reference_T/mH); // cm/s, velocity dispersion
   static constexpr Real doppler_width_wavelength_reference = (doppler_width_reference_lambda
 							      * doppler_width_reference_velocity

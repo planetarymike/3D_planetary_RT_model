@@ -3,10 +3,13 @@
 #ifndef __GRID_H
 #define __GRID_H
 
+#include <string>
 #include "Real.hpp"
 #include "cuda_compatibility.hpp"
 #include "boundaries.hpp"
 #include "atm/atmosphere_base.hpp"
+
+using std::string;
 
 template <int NDIM, int NVOXELS, int NRAYS, int N_MAX_INTERSECTIONS, typename derived>
 struct grid {

@@ -71,8 +71,8 @@ struct hydrogen_density_parameters : species_density_parameters {
   static constexpr doubReal s_hydrogen = 0.6;
   static constexpr doubReal alpha_hydrogen = -0.25; // thermal diffusion coefficient
 
-  hydrogen_density_parameters();
-  
+  hydrogen_density_parameters(const doubReal mass=mH);
+
   // returns the diffusion equation derivatives
   void operator()( const vector<doubReal> &x , vector<doubReal> &dxdr , const doubReal &r ) override;
 
@@ -90,6 +90,10 @@ struct hydrogen_density_parameters : species_density_parameters {
 				       vector<doubReal> &r_thermosphere,
 				       const int n_thermosphere_steps,
 				       bool get_interpolation_points) override;
+};
+
+struct deuterium_density_parameters : hydrogen_density_parameters {
+  deuterium_density_parameters();
 };
 
 struct oxygen_density_parameters : species_density_parameters {

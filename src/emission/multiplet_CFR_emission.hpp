@@ -53,7 +53,7 @@ protected:
 
   using parent::influence_matrix;
   using parent::tau_species_single_scattering;
-  //  using parent::tau_absorber_single_scattering;
+  using parent::tau_absorber_single_scattering;
   using parent::singlescat; 
   using parent::sourcefn;
 
@@ -64,7 +64,6 @@ protected:
 
   vv_1 absorber_density; // average and point densities of absorber on the grid 
   vv_1 absorber_density_pt; 
-  vv_1 tau_absorber_single_scattering; // overrides parent, which has n_upper states per voxel
 
   // main update routine
   template<bool influence>
@@ -80,16 +79,14 @@ protected:
     Real lineshape[n_lines][n_lambda];
     Real tau_lambda_voxel[n_multiplets][n_lambda];
     Real tau_species_voxel[n_lines];
-    Real tau_absorber_voxel;
+    Real tau_absorber_voxel[n_lines];
     Real transfer_probability_lambda_voxel[n_multiplets][n_lambda];
     Real transfer_probability_lambda_final[n_multiplets][n_lambda];
 
     // update column density across voxel
     for (int i_lower = 0; i_lower < n_lower; i_lower++) {
       tracker.species_col_dens[i_lower] += current_species_density[i_lower]*pathlength;
-      assert(!std::isnan(tracker.species_col_dens[i_lower])
-	     && tracker.species_col_dens[i_lower]>=0
-	     && "column densities must be positive numbers");
+      assert_positive(tracker.species_col_dens[i_lower]);
     }
 
     // initialize
@@ -107,38 +104,31 @@ protected:
 	lineshape[i_line][i_lambda] = tracker.line_shape_function_normalized(i_line,
 									     i_lambda,
 									     current_species_T);
-	assert(!std::isnan(lineshape[i_line][i_lambda]) && lineshape[i_line][i_lambda] > 0 &&
-	       "lineshape must be real and positive");
+	assert_positive(lineshape[i_line][i_lambda]);
 	
 	tau_lambda_voxel[i_multiplet][i_lambda] += ((current_species_density[i_lower]  // cm-3
 						     *tracker.line_sigma_total(i_line) // cm2 Hz
 						     *lineshape[i_line][i_lambda]      // Hz-1
 						     +
 						     current_absorber_density          // cm-3
-						     *tracker.co2_xsec)                // cm2
+						     * tracker.absorber_xsec(i_line))   // cm2
 						    *pathlength);                      // cm
-	assert(!std::isnan(tau_lambda_voxel[i_multiplet][i_lambda])
-	     && tau_lambda_voxel[i_multiplet][i_lambda]>=0
-	     && "optical depths must be positive numbers");
+	assert_positive(tau_lambda_voxel[i_multiplet][i_lambda]);
       }
 
       // get the line center optical depth due to each individual line
-      tau_species_voxel[i_line] = ((current_species_density[i_lower]                      // cm-3
-				    *tracker.line_sigma_total(i_line)                     // cm2 Hz
-				    *tracker.line_shape_normalization(current_species_T)) // Hz-1
-				   *pathlength);                                          // cm
+      tau_species_voxel[i_line] = ((current_species_density[i_lower]                               // cm-3
+				    *tracker.line_sigma_total(i_line)                              // cm2 Hz
+				    *tracker.line_shape_normalization(i_line, current_species_T))  // Hz-1
+				   *pathlength);                                                    // cm
       tracker.tau_species_final[i_line] += tau_species_voxel[i_line];
-      assert(!std::isnan(tracker.tau_species_final[i_line])
-      	     && tracker.tau_species_final[i_line]>=0
-      	     && "optical depths must be positive numbers");
+      assert_positive(tracker.tau_species_final[i_line]);
 
-      tau_absorber_voxel = (current_absorber_density // cm-3
-			    * tracker.co2_xsec       // cm2
-			    * pathlength);           // cm
-      tracker.tau_absorber_final += tau_absorber_voxel;
-      assert(!std::isnan(tracker.tau_absorber_final)
-	     && tracker.tau_absorber_final>=0
-	     && "optical depths must be positive numbers");
+      tau_absorber_voxel[i_line] = (current_absorber_density         // cm-3
+				    * tracker.absorber_xsec(i_line)  // cm2
+				    * pathlength);                   // cm
+      tracker.tau_absorber_final[i_line] += tau_absorber_voxel[i_line];
+      assert_positive(tracker.tau_absorber_final[i_line]);
     }
 
     // ^^^
@@ -150,10 +140,7 @@ protected:
       for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
     	// because the loop above updated all of the optical depths we can now compute transfer probabilities
 	transfer_probability_lambda_voxel[i_multiplet][i_lambda] = std::exp(-tau_lambda_voxel[i_multiplet][i_lambda]);
-	assert(!std::isnan(transfer_probability_lambda_voxel[i_multiplet][i_lambda]) &&
-	       transfer_probability_lambda_voxel[i_multiplet][i_lambda] >= 0 &&
-	       transfer_probability_lambda_voxel[i_multiplet][i_lambda] <= 1 &&
-	       "transfer probability is a probability.");
+	assert_probability(transfer_probability_lambda_voxel[i_multiplet][i_lambda]);
 	
 	transfer_probability_lambda_final[i_multiplet][i_lambda] = (tracker.transfer_probability_lambda_initial[i_multiplet][i_lambda]
 								    * transfer_probability_lambda_voxel[i_multiplet][i_lambda]);
@@ -186,7 +173,7 @@ protected:
       for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
 	// emission for holstein T int happens at current voxel, use the
 	// normalization there
-	Real holcoef = tracker.weight(i_lambda); // Hz
+	Real holcoef = tracker.weight(i_line, i_lambda); // Hz
 
 	// holstein_T_int represents an effective path length for the
 	// optically thick emission
@@ -207,10 +194,7 @@ protected:
 
 	// the function (1-exp(-tau))/tau is bounded by 0 and 1. Only
 	// floating point errors can put it outside this range.
-	assert(!std::isnan(holstein_T_int_coef[i_line][i_lambda]) &&
-	       holstein_T_int_coef[i_line][i_lambda] >= 0 &&
-	       holstein_T_int_coef[i_line][i_lambda] <= 1
-	       && "voxel contribution must be between 0 and 1.");
+	assert_probability(holstein_T_int_coef[i_line][i_lambda]); // voxel contribution must be between 0 and 1
 
 	// we use the lineshape in this voxel to compute
 	// holstein_T_int because it represents emission in the
@@ -220,12 +204,7 @@ protected:
 						  * tracker.transfer_probability_lambda_initial[i_multiplet][i_lambda]  // unitless
 						  * pathlength);                                                        // cm
 	tracker.holstein_T_int[i_line] += holstein_T_int_coef[i_line][i_lambda];
-
-	assert(!std::isnan(tracker.holstein_T_int[i_line]) && tracker.holstein_T_int[i_line] >= 0 &&
-	       (tracker.holstein_T_int[i_line] <= pathlength ||
-		std::abs(1.0-pathlength/tracker.holstein_T_int[i_line]) < EPS)
-	       //  ^^ this allows for small rounding errors
-	       && "holstein integral must be between 0 and pathlength b/c 0<=HolT<=1");
+	assert_leq(tracker.holstein_T_int[i_line], pathlength); // holstein integral must be between 0 and pathlength b/c 0<=HolT<=1
 	
 	if (influence) {
 	  // for single scattering calculation, we want the frequency
@@ -235,9 +214,7 @@ protected:
 	  lineshape_at_origin[i_line][i_lambda] = tracker.line_shape_function_normalized(i_line,
 											 i_lambda,
 											 tracker.species_T_at_origin);
-	  assert(!std::isnan(lineshape_at_origin[i_line][i_lambda])
-		 && lineshape_at_origin[i_line][i_lambda]>0
-		 && "lineshape must be real and positive");
+	  assert_positive(lineshape_at_origin[i_line][i_lambda]);
 
 	  // holstein T final represents a frequency-averaged
 	  // absorption probability in the origin cell and uses
@@ -245,20 +222,15 @@ protected:
 	  tracker.holstein_T_final[i_line] += (holcoef                                                       // Hz
 					       * lineshape_at_origin[i_line][i_lambda]                       // Hz-1
 					       * transfer_probability_lambda_final[i_multiplet][i_lambda]);  // unitless
-	  assert(!std::isnan(tracker.holstein_T_final[i_line])
-		 && tracker.holstein_T_final[i_line] >= 0
-		 && tracker.holstein_T_final[i_line] <= 1
-		 && "holstein function represents a probability");
+	  assert_probability(tracker.holstein_T_final[i_line]);
 
 	}
       }
-      //check that the first  and last element are not contributing too much to the holstein T integral
-      assert(!(tracker.holstein_T_int[i_line] > 1e-6 &&
-	       holstein_T_int_coef[i_line][0         ] > 1e-2*tracker.holstein_T_int[i_line])
-	     && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in singlet_CFR_tracker.");
-      assert(!(tracker.holstein_T_int[i_line] > 1e-6 &&
-	       holstein_T_int_coef[i_line][n_lambda-1] > 1e-2*tracker.holstein_T_int[i_line])
-	     && "wings of line contribute too much to transmission. Increase LAMBDA_MAX in singlet_CFR_tracker.");
+      // check that the first and last element are not contributing too much to the holstein T integral
+      assert_small_contribution(holstein_T_int_coef[i_line][0         ], tracker.holstein_T_int[i_line]);
+      assert_small_contribution(holstein_T_int_coef[i_line][n_lambda-1], tracker.holstein_T_int[i_line]);
+      // If either of the above fail, wings of line contribute too much to transmission.
+      // Increase LAMBDA_MAX in singlet_CFR_tracker.
     }
 
     // ^^^
@@ -284,9 +256,9 @@ protected:
 	    // lines potentially overlap
 
             for (int i_lambda = 0; i_lambda < n_lambda; i_lambda++) {
-              // the influence coefficient represents probability of
-              // emission in the current voxel being absorbed in the
-              // start voxel, possibly into a different upper state
+              // the holstein G influence coefficient tracks emission
+              // in the current voxel being absorbed in the start
+              // voxel, possibly into a different upper state.
               tracker.holstein_G_int[i_upper_origin][j_upper_current] += (tracker.line_sigma_total(i_line_origin)              // cm2 Hz
 									  * tracker.species_density_at_origin[i_lower_origin]  // cm-3
 									  * tracker.line_A(j_line_current)                     // ph/s
@@ -294,10 +266,9 @@ protected:
 									  * lineshape_at_origin[i_line_origin][i_lambda]       // Hz^-1
 									  * holstein_T_int_coef[j_line_current][i_lambda]      // cm
 									  ); // unitless influence coefficient
-              // assert(!std::isnan(tracker.holstein_G_int[i_upper_origin][j_upper_current])
-	      // 	     && tracker.holstein_G_int[i_upper_origin][j_upper_current] >= 0
-	      // 	     && tracker.holstein_G_int[i_upper_origin][j_upper_current] <= 1
-	      // 	     && "holstein G integral represents a probability"); // actually, this is not true yet because we have not multiplied by domega
+	      // holstein G integral ALMOST represents a probability --- but it needs to be multipled by differential solid angle.
+	      // this is done in update_tracker_influence, after which we can check that it's between 0 and 1.
+
               // note: this coefficient should be added to the influence matrix at
 	      //       (row, col) = (start_voxel_state, current_voxel_state),
 	      //       because it represents emission from the current voxel
@@ -340,8 +311,7 @@ protected:
 				     * tracker.holstein_T_int[i_line] // cm
 				     / REAL(1e9)); // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
 
-      assert(!isnan(tracker.brightness[i_line]) && "brightness must be a real number");
-      assert(tracker.brightness[i_line]>=0 && "brightness must be positive");
+      assert_positive(tracker.brightness[i_line]);
     }
   }
   
@@ -423,9 +393,9 @@ public:
 	//see Bishop1999 for derivation of this formula
 	Real coef = domega;
 	coef *= tracker.holstein_G_int[i_upper_origin][j_upper_current];
-	
-	assert(!isnan(coef) && "influence coefficients must be real numbers");
-	assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
+
+	// influence coefficients represent transition probabilities	
+	assert_probability(coef);
 	
 	tracker.influence[i_upper_origin](current_voxel, j_upper_current) += coef;
       }
@@ -479,8 +449,9 @@ public:
     file << "    Absorber density [cm-3]: " 
 	 <<      function(absorber_density.eigen(), i).transpose() << "\n"
       
-	 << "    Absorber single scattering tau: " 
-	 <<	 function(tau_absorber_single_scattering.eigen(), i).transpose() << "\n";
+	 << "    Absorber single scattering tau: \n";
+    save_voxel_state(file, function, i,
+		     tau_absorber_single_scattering, "line");
       
     file << "    Species single scattering source function S0: \n";
     save_voxel_state(file, function, i,
@@ -519,7 +490,6 @@ public:
     vector_to_device(device_emission->species_density, species_density, transfer);
     vector_to_device(device_emission->species_T, species_T, transfer);
     vector_to_device(device_emission->absorber_density, absorber_density, transfer);
-    vector_to_device(device_emission->tau_absorber_single_scattering, tau_absorber_single_scattering, transfer);
   }
 
   void copy_to_device_brightness()
@@ -531,7 +501,6 @@ public:
     species_density.free_d_vec();
     species_T.free_d_vec();
     absorber_density.free_d_vec();
-    tau_absorber_single_scattering.free_d_vec();
 
     //copy the stuff we need to do the calculation on the device
     bool transfer = true;
@@ -543,7 +512,6 @@ public:
   void copy_solved_to_host() {
     parent::copy_solved_to_host();
     
-    tau_absorber_single_scattering.to_host();
   }
   
   void device_clear() {
@@ -554,7 +522,6 @@ public:
     species_density_pt.free_d_vec();
     species_T_pt.free_d_vec();
     absorber_density_pt.free_d_vec();
-    tau_absorber_single_scattering.free_d_vec();
 
     parent::device_clear();
   }

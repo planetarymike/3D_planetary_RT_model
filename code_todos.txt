@@ -37,11 +37,12 @@ New functionality
      fine structure wavelengths are     102.572182505
                                         102.572296565
                                         separation of 1.1 mA
-                                        difference of <1% from equivalent singlet
---deuterium and hot H physical densities
+                                        difference of <1% from equivalent singlet                                    
+  -- treating both as doublet leads to ~10% increase at low altitudes, larger increase at high altitude--- why?
+     -- could be related to 5% discrepancy noted previously for Lyman alpha, need to run this to ground b/c potentially very important
+--hot H physical densities
 --O I 102.6 nm radiance calculation 
-  --requires line blending
-  --may require frequency redistribution
+  --disk brightness likely requires frequency redistribution
 --include single-scattering anisotropy
 
 
@@ -139,3 +140,6 @@ xx--quemerais IPH background (for IUVS apoapse images)
 xx----In temp_asym:
   xx--switch to constant CO2 at 80km / rmin rather than rexo
   xx--switch to constant rmax instead of min nHexo
+xx--implemented lyman alpha doublet
+xx--implemented deuterium densities + RT
+

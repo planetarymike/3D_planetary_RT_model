@@ -88,6 +88,15 @@ namespace O_1026_constants_detail {
 								     7.66e7 /* to J=2 */
 								     //   1129 nm branch
 								     + 3.09e7})
+
+  // co2 cross section at lyman beta
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, absorber_xsec,            {3.53e-17, // cm2 
+								     3.53e-17,
+								     3.53e-17,
+								     3.53e-17,
+								     3.53e-17,
+								     3.53e-17})
+
   //  energy of the lower states
   //    note: for atomic O, the J=2 state is the ground state and the
   //          lower J levels increase in energy
@@ -135,13 +144,10 @@ struct O_1026_tracker {
   CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lines, line_f                        )
   CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lines, line_sigma_total              )
   CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lines, upper_state_decay_rate        )
+  CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lines, absorber_xsec                 )
   CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lower, lower_state_energy            )
   CUDA_STATIC_ARRAY_MEMBER(O_1026_constants_detail, Real, n_lower, lower_state_statistical_weight)
 
-  
-  //  CO2 cross section at 102.6 nm
-  static constexpr Real co2_xsec = 3.53e-17; //cm^2 
-  
   // set absolute wavelength scale
   //   pick a single normalized wavelength scale for all lines and multiplets
   //     (this slightly simplifies things, in reality there are
@@ -165,7 +171,7 @@ struct O_1026_tracker {
   // optical depths at line center, counting each line individually
   // even though they overlap
   Real tau_species_final[n_lines];
-  Real tau_absorber_final;
+  Real tau_absorber_final[n_lines];
   Real max_tau_species;
 
   // influence functions, one for each upper state
@@ -204,7 +210,8 @@ struct O_1026_tracker {
     return (-lambda_max + i_lambda*delta_lambda);
   }
   CUDA_CALLABLE_MEMBER
-  static Real weight(__attribute__((unused)) const int &i_lambda) {
+  static Real weight(__attribute__((unused)) const int &i_line,
+		     __attribute__((unused)) const int &i_lambda) {
     return delta_lambda*doppler_width_frequency_reference; // Hz
   }
   CUDA_CALLABLE_MEMBER
@@ -220,12 +227,13 @@ struct O_1026_tracker {
     return lambda2;
   }
   CUDA_CALLABLE_MEMBER
-  static Real line_shape_normalization(const Real &T) { 
+  static Real line_shape_normalization(__attribute__((unused)) const int &i_line, 
+				       const Real &T) { 
     return normalization*sqrt(doppler_width_reference_T/T); // Hz-1
   }
   CUDA_CALLABLE_MEMBER
   static Real line_shape_function_normalized(const int &i_line, const int &i_lambda, const Real &T) {
-    return line_shape_normalization(T)*line_shape_function(i_line,i_lambda,T);
+    return line_shape_normalization(i_line, T)*line_shape_function(i_line,i_lambda,T);
   }  
 
   // RT functions required for interaction with rest of code
@@ -241,9 +249,9 @@ struct O_1026_tracker {
 
     for (int i_line=0;i_line<n_lines;i_line++) {
       tau_species_final[i_line] = 0.0;
+      tau_absorber_final[i_line] = 0.0;
       brightness[i_line] = 0.0;
     }
-    tau_absorber_final = 0.0;
     // max_tau_species not reset because we want to track this across
     // all lines of sight
 
@@ -268,7 +276,7 @@ struct O_1026_tracker {
   CUDA_CALLABLE_MEMBER
   void exits_bottom() {
     for (int i_line=0;i_line<n_lines;i_line++)
-      tau_absorber_final = -1.0;
+      tau_absorber_final[i_line] = -1.0;
     // called when the ray exits the bottom of the atmosphere in
     // brightness calculations
   }
