@@ -12,6 +12,7 @@ Maintanance
 -----------
 --remove transmission object; this is superseded by lineshape_tracker
 --fix transmission so that it is specified inside emission
+--fix multiplet specification so that line data 
 
 
 Validation
