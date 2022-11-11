@@ -17,6 +17,7 @@
 #include "grid/grid_spherical_azimuthally_symmetric.hpp"
 #include "emission/singlet_CFR.hpp"
 #include "emission/H_lyman_multiplet.hpp"
+#include "emission/H_lyman_multiplet_test.hpp"
 #include "emission/O_1026.hpp"
 
 class observation_fit {
@@ -103,6 +104,17 @@ protected:
   H_RT_ly_multiplet_type ly_multiplet_RT;
 
   observation<ly_multiplet_type, 1> ly_multiplet_obs;
+
+
+  // H Lyman alpha singlet model in multiplet framework
+  typedef H_lyman_singlet<grid_type::n_voxels> ly_singlet_type;
+  ly_singlet_type ly_singlet;
+  ly_singlet_type *ly_singlet_emissions[1] = {&ly_singlet};
+
+  typedef RT_grid<ly_singlet_type, 1, grid_type> H_RT_ly_singlet_type;
+  H_RT_ly_singlet_type ly_singlet_RT;
+
+  observation<ly_singlet_type, 1> ly_singlet_obs;
   
 
   // define oxygen emissions
@@ -334,6 +346,14 @@ public:
 						const string atmosphere_fname = "",
 						const string sourcefn_fname = "");
   std::vector<std::vector<Real>> lyman_multiplet_brightness();
+
+  void lyman_singlet_generate_source_function(const Real &nHexo,
+					      const Real &Texo,
+					      // const Real &solar_brightness_lyman_alpha,
+					      // const Real &solar_brightness_lyman_beta,
+					      const string atmosphere_fname = "",
+					      const string sourcefn_fname = "");
+  std::vector<std::vector<Real>> lyman_singlet_brightness();
 };
 
 #endif

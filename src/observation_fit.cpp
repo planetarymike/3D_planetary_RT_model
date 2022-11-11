@@ -19,6 +19,8 @@ observation_fit::observation_fit(const string iph_sfn_fnamee)
     deuterium_obs(deuterium_emissions),
     ly_multiplet_RT(grid, ly_multiplet_emissions),
     ly_multiplet_obs(ly_multiplet_emissions),
+    ly_singlet_RT(grid, ly_singlet_emissions),
+    ly_singlet_obs(ly_singlet_emissions),
     oxygen_RT(grid, oxygen_emissions),
     oxygen_obs(oxygen_emissions)
 {
@@ -47,6 +49,12 @@ observation_fit::observation_fit(const string iph_sfn_fnamee)
   ly_multiplet_RT.grid.szamethod = grid.szamethod_uniform_cos;
   ly_multiplet_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
 
+  ly_singlet_RT.grid.rmethod = grid.rmethod_altitude;//_tau_absorber;
+  // fixed altitude grid gives smooth solutions for changes in input parameters,
+  // other kinds of grids do not.
+  ly_singlet_RT.grid.szamethod = grid.szamethod_uniform_cos;
+  ly_singlet_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
+
   oxygen_RT.grid.rmethod = grid.rmethod_log_n_species;
   oxygen_RT.grid.szamethod = grid.szamethod_uniform_cos;
   oxygen_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
@@ -56,6 +64,7 @@ void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations,
   hydrogen_obs.add_MSO_observation(MSO_locations,MSO_directions);
   deuterium_obs.add_MSO_observation(MSO_locations,MSO_directions);
   ly_multiplet_obs.add_MSO_observation(MSO_locations,MSO_directions);
+  ly_singlet_obs.add_MSO_observation(MSO_locations,MSO_directions);
   oxygen_obs.add_MSO_observation(MSO_locations,MSO_directions);
 }
 
@@ -72,6 +81,8 @@ void observation_fit::set_g_factor(vector<Real> &g) {
   
   ly_multiplet.set_solar_brightness(g[0]/lyman_alpha_cross_section_total,
 				    g[1]/lyman_beta_cross_section_total);
+  ly_singlet.set_solar_brightness(g[0]/lyman_alpha_cross_section_total,
+				  g[1]/lyman_beta_cross_section_total);
 }
 
 void observation_fit::simulate_iph(const bool sim_iphh) {
@@ -400,6 +411,7 @@ void observation_fit::set_use_CO2_absorption(const bool use_CO2_absorption/* = t
   H_cross_section_options.no_CO2_absorption = !use_CO2_absorption;
   atm_tabular.no_CO2_absorption = !use_CO2_absorption;
   use_CO2_absorption ? ly_multiplet.set_CO2_absorption_on() : ly_multiplet.set_CO2_absorption_off();
+  use_CO2_absorption ? ly_singlet.set_CO2_absorption_on() : ly_singlet.set_CO2_absorption_off();
 }
 void observation_fit::set_use_temp_dependent_sH(const bool use_temp_dependent_sH/* = true*/, const Real constant_temp_sH/* = -1*/) {
   H_cross_section_options.temp_dependent_sH = use_temp_dependent_sH;
@@ -408,19 +420,24 @@ void observation_fit::set_use_temp_dependent_sH(const bool use_temp_dependent_sH
   H_cross_section_options.constant_temp_sH = constant_temp_sH;
   atm_tabular.constant_temp_sH = constant_temp_sH;
 
-  if (use_temp_dependent_sH)
+  if (use_temp_dependent_sH) {
     ly_multiplet.set_atmosphere_temp_RT();
-  else
+    ly_singlet.set_atmosphere_temp_RT();
+  } else {
     ly_multiplet.set_constant_temp_RT(constant_temp_sH);
+    ly_singlet.set_constant_temp_RT(constant_temp_sH);
+  }
 }
 
 void observation_fit::set_sza_method_uniform() {
   hydrogen_RT.grid.szamethod = hydrogen_RT.grid.szamethod_uniform;
   ly_multiplet_RT.grid.szamethod = ly_multiplet_RT.grid.szamethod_uniform;
+  ly_singlet_RT.grid.szamethod = ly_singlet_RT.grid.szamethod_uniform;
 }
 void observation_fit::set_sza_method_uniform_cos() {
   hydrogen_RT.grid.szamethod = hydrogen_RT.grid.szamethod_uniform_cos;
   ly_multiplet_RT.grid.szamethod = ly_multiplet_RT.grid.szamethod_uniform_cos;
+  ly_singlet_RT.grid.szamethod = ly_singlet_RT.grid.szamethod_uniform_cos;
 }
 
 void observation_fit::reset_H_lya_xsec_coef(const Real xsec_coef/* = lyman_alpha_line_center_cross_secion_coef*/) {
@@ -759,6 +776,74 @@ vector<vector<Real>> observation_fit::lyman_multiplet_brightness() {
     // lyman beta
     brightness[1][i] = (ly_multiplet_obs.los[0][i].brightness[2]
 			+ly_multiplet_obs.los[0][i].brightness[3]);
+  }
+  
+  return brightness;
+}
+
+void observation_fit::lyman_singlet_generate_source_function(const Real &nHexo,
+							       const Real &Texo,
+							       // const Real &solar_brightness_lyman_alpha,
+							       // const Real &solar_brightness_lyman_beta,
+							       const string atmosphere_fname/* = ""*/,
+							       const string sourcefn_fname/* = ""*/)
+{
+  temp = krasnopolsky_temperature(Texo);
+  chamb_diff_1d atm(nHexo,
+		    CO2_exobase_density,
+		    &temp,
+		    &H_thermosphere);
+  atm.copy_H_options(H_cross_section_options);
+
+  if (atmosphere_fname !="")
+    atm.save(atmosphere_fname);
+  
+  atm.spherical = true;
+
+  ly_singlet_RT.grid.setup_voxels(atm);
+  ly_singlet_RT.grid.setup_rays();
+
+  //update the emission density values
+  ly_singlet.define("Singlet Lyman alpha and beta",
+		      atm,
+		      &chamb_diff_1d::n_species_voxel_avg,
+		      &chamb_diff_1d::Temp_voxel_avg,
+		      &chamb_diff_1d::n_absorber_voxel_avg,
+		      ly_singlet_RT.grid.voxels);
+  // ly_singlet.set_solar_brightness(solar_brightness_lyman_alpha,
+  // 				    solar_brightness_lyman_beta);
+  
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  ly_singlet_RT.generate_S_gpu();
+#else
+  ly_singlet_RT.generate_S();
+#endif
+  
+  if (sourcefn_fname!="")
+    ly_singlet_RT.save_S(sourcefn_fname);
+}
+
+vector<vector<Real>> observation_fit::lyman_singlet_brightness() {
+  //compute brightness on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  ly_singlet_RT.brightness_gpu(ly_singlet_obs);
+#else
+  ly_singlet_RT.brightness(ly_singlet_obs);
+#endif
+  
+  vector<vector<Real>> brightness;
+  brightness.resize(2);
+
+  brightness[0].resize(ly_singlet_obs.size());
+  brightness[1].resize(ly_singlet_obs.size());
+  
+  for (int i=0;i<ly_singlet_obs.size();i++) {
+    // lyman alpha
+    brightness[0][i] = ly_singlet_obs.los[0][i].brightness[0];
+
+    // lyman beta
+    brightness[1][i] = ly_singlet_obs.los[0][i].brightness[1];
   }
   
   return brightness;

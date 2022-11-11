@@ -8,113 +8,102 @@
 #include "voxel_vector.hpp"
 #include "constants.hpp"
 
-namespace H_lyman_alpha_singlet_constants_detail {
-  static constexpr int n_lines = 1; // Lyman alpha and Lyman beta
-  static constexpr int n_multiplets = 1;
+namespace H_lyman_singlet_constants_detail {
+  static constexpr int n_lines = 2; // Lyman alpha and Lyman beta
+  static constexpr int n_multiplets = 2;
   static constexpr int n_lower = 1; 
-  static constexpr int n_upper = 1;
-
-  static constexpr Real co2_xsec = CO2_lyman_alpha_absorption_cross_section;
+  static constexpr int n_upper = 2;
 
   // DECLARE_STATIC_ARRAY comes from cu 
-  DECLARE_STATIC_ARRAY_HPP(int, n_lines, multiplet_index   , {0})
-  DECLARE_STATIC_ARRAY_HPP(int, n_lines, lower_level_index , {0})
-  DECLARE_STATIC_ARRAY_HPP(int, n_lines, upper_level_index , {0})
+  DECLARE_STATIC_ARRAY_HPP(int, n_lines, multiplet_index   , {0, 1})
+  DECLARE_STATIC_ARRAY_HPP(int, n_lines, lower_level_index , {0, 0})
+  DECLARE_STATIC_ARRAY_HPP(int, n_lines, upper_level_index , {0, 1})
 
   // line data from NIST ASD
   
   //  rest wavelength  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {lyman_alpha_lambda*1e7}) // nm
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {lyman_alpha_lambda*1e7 /* nm */,
+								     lyman_beta_lambda*1e7})
+
+  //  offset from centroid of multiplet
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength_offset,   {0.0 /* nm */,
+								     0.0})
+
   //  Einstein A  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_A,                   {6.2648e8 /* s^-1 */}) // = one of hyperfine A's (they are nearly identical)
-                                                                                           // technically should use f-value weighted average
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_A,                   {6.2648e8, /* s^-1 */
+								     1.6725e8 }) 
   //  line f-value, used to compute absorption cross section  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_f,                   {lyman_alpha_f}) // = sum of hyperfine f's
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_f,                   {0.2776 + 0.13881,
+								     5.2761e-2 + 2.6381e-2}) 
 
   //  line absorption cross section, from sigma_tot = pi*e^2/mc * f
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_sigma_total,         {line_f_coeff*line_f_array[0]}) // cm2 Hz
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_sigma_total,         {line_f_coeff*line_f_array[0],  // cm2 Hz
+								     line_f_coeff*line_f_array[1]}) 
   
   //  sum of Einstein A's from upper state to all lower states (including all branching)
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, upper_state_decay_rate,   {6.2648e8 /* s^-1 */})
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, upper_state_decay_rate,   {6.2648e8, /* s^-1 */
+								     1.6725e8 + 2.2449e7})
+
+  // CO2 cross section
+  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, absorber_xsec,            {6.3e-20, // cm2
+								     3.52e-17})
 }
 
-namespace H_lyman_beta_singlet_constants_detail {
-  static constexpr int n_lines = 1; // Lyman alpha and Lyman beta
-  static constexpr int n_multiplets = 1;
-  static constexpr int n_lower = 1; 
-  static constexpr int n_upper = 1;
 
-  static constexpr Real co2_xsec = CO2_lyman_beta_absorption_cross_section;
-
-  // DECLARE_STATIC_ARRAY comes from cu 
-  DECLARE_STATIC_ARRAY_HPP(int, n_lines, multiplet_index   , {0})
-  DECLARE_STATIC_ARRAY_HPP(int, n_lines, lower_level_index , {0})
-  DECLARE_STATIC_ARRAY_HPP(int, n_lines, upper_level_index , {0})
-
-  // line data from NIST ASD
-
-  // note: although Lyman beta pumps the 2s state of hydrogen via
-  // Balmer alpha emission, 2s decays by correlated two-photon
-  // emission with an effective A of ~ 8.2/s
-  // (https://ui.adsabs.harvard.edu/abs/1984A%26A...138..495N/abstract),
-  // yielding a g-factor of ~6e-8 ph/s/molecule for solar moderate
-  // conditions. This is ~1e5 times smaller than the Lyman alpha
-  // g-factor, so for a column emitting 2 kR of Lyman alpha only 0.02 R
-  // of two-photon emisison would be produced. This emission is spread
-  // out over ~80-100 nm starting at Lyman alpha and continuing to
-  // >200 nm, so the specific intensity at each wavelength would be
-  // ~2e-4 R / nm, i.e. not detectable.
-  
-  //  rest wavelength  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_wavelength,          {lyman_beta_lambda*1e7}) // nm
-  //  Einstein A  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_A,                   {1.6725e8 /* s^-1 */}) // = one of hyperfine A's (they are nearly identical)
-                                                                                           // technically should use f-value weighted average
-  //  line f-value, used to compute absorption cross section  
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_f,                   {lyman_beta_f}) // = sum of hyperfine f's
-
-  //  line absorption cross section, from sigma_tot = pi*e^2/mc * f
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, line_sigma_total,         {line_f_coeff*line_f_array[0]}) // cm2 Hz
-  
-  //  sum of Einstein A's from upper state to all lower states (including all branching)
-  DECLARE_STATIC_ARRAY_HPP(Real, n_lines, upper_state_decay_rate,   {1.6725e8 /* s^-1 */ 
-								     +
-								     // Balmer alpha
-								     2.2449e7 }) 
-}
+// note: although Lyman beta pumps the 2s state of hydrogen via
+// Balmer alpha emission, 2s decays by correlated two-photon
+// emission with an effective A of ~ 8.2/s
+// (https://ui.adsabs.harvard.edu/abs/1984A%26A...138..495N/abstract),
+// yielding a g-factor of ~6e-8 ph/s/molecule for solar moderate
+// conditions. This is ~1e5 times smaller than the Lyman alpha
+// g-factor, so for a column emitting 2 kR of Lyman alpha only 0.02 R
+// of two-photon emisison would be produced. This emission is spread
+// out over ~80-100 nm starting at Lyman alpha and continuing to
+// >200 nm, so the specific intensity at each wavelength would be
+// ~2e-4 R / nm, i.e. not detectable.
 
 template <bool is_influence, int N_VOXELS>
-struct H_lyman_alpha_singlet_test_tracker {
-  static const int n_lines      = H_lyman_alpha_singlet_constants_detail::n_lines;
-  static const int n_multiplets = H_lyman_alpha_singlet_constants_detail::n_multiplets;
-  static const int n_lower      = H_lyman_alpha_singlet_constants_detail::n_lower;
-  static const int n_upper      = H_lyman_alpha_singlet_constants_detail::n_upper;
+struct H_lyman_singlet_tracker {
+  static const int n_lines      = H_lyman_singlet_constants_detail::n_lines;
+  static const int n_multiplets = H_lyman_singlet_constants_detail::n_multiplets;
+  static const int n_lower      = H_lyman_singlet_constants_detail::n_lower;
+  static const int n_upper      = H_lyman_singlet_constants_detail::n_upper;
 
   // import the static array data as member functions that can be called
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail,  int, n_lines, multiplet_index   )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail,  int, n_lines, lower_level_index )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail,  int, n_lines, upper_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail,  int, n_lines, multiplet_index   )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail,  int, n_lines, lower_level_index )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail,  int, n_lines, upper_level_index )
 
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_wavelength               )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_A                        )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_f                        )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, line_sigma_total              )
-  CUDA_STATIC_ARRAY_MEMBER(H_lyman_alpha_singlet_constants_detail, Real, n_lines, upper_state_decay_rate        )
-  
-  //  CO2 absorption cross section
-  static constexpr Real co2_xsec = H_lyman_alpha_singlet_constants_detail::co2_xsec; //cm^2 
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail, Real, n_lines, line_wavelength               )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail, Real, n_lines, line_wavelength_offset        )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail, Real, n_lines, line_A                        )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail, Real, n_lines, line_f                        )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail, Real, n_lines, line_sigma_total              )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail, Real, n_lines, upper_state_decay_rate        )
+  CUDA_STATIC_ARRAY_MEMBER(H_lyman_singlet_constants_detail, Real, n_lines, absorber_xsec                 )
   
   // set absolute wavelength scale
   //   pick a single normalized wavelength scale for all lines and multiplets
   static constexpr Real doppler_width_reference_T          = 200; // K, should be within a factor of ~2 of expected atmospheric temp
-  static constexpr Real doppler_width_reference_lambda     = H_lyman_alpha_singlet_constants_detail::line_wavelength_array[0]; // nm, smallest value of lambda
   static constexpr Real doppler_width_reference_velocity   = constexpr_sqrt(2*kB*doppler_width_reference_T/mH); // cm/s, velocity dispersion
-  static constexpr Real doppler_width_wavelength_reference = (doppler_width_reference_lambda
-							      * doppler_width_reference_velocity
-							      / clight); // nm, doppler width in wavelength, absolute wavelength scale
-  static constexpr Real doppler_width_frequency_reference  = (1.0/(doppler_width_reference_lambda*1e-7)
-							      * doppler_width_reference_velocity); // Hz, frequency Doppler width
-  static constexpr Real normalization = (one_over_sqrt_pi / doppler_width_frequency_reference); // Hz^-1, lineshape normalization
+
+  //lyman beta
+  static constexpr Real doppler_width_reference_lambda_lyb     = H_lyman_singlet_constants_detail::line_wavelength_array[1]; // nm, smallest value of lambda
+  static constexpr Real doppler_width_wavelength_reference_lyb = (doppler_width_reference_lambda_lyb
+								  * doppler_width_reference_velocity
+								  / clight); // nm, doppler width in wavelength, absolute wavelength scale
+  static constexpr Real doppler_width_frequency_reference_lyb  = (1.0/(doppler_width_reference_lambda_lyb*1e-7)
+								  * doppler_width_reference_velocity); // Hz, frequency Doppler width
+  static constexpr Real normalization_lyb = (one_over_sqrt_pi / doppler_width_frequency_reference_lyb); // Hz^-1, lineshape normalization
+
+  //lyman alpha
+  static constexpr Real doppler_width_reference_lambda_lya     = H_lyman_singlet_constants_detail::line_wavelength_array[0]; // nm, smallest value of lambda
+  static constexpr Real doppler_width_wavelength_reference_lya = (doppler_width_reference_lambda_lya
+								  * doppler_width_reference_velocity
+								  / clight); // nm, doppler width in wavelength, absolute wavelength scale
+  static constexpr Real doppler_width_frequency_reference_lya  = (1.0/(doppler_width_reference_lambda_lya*1e-7)
+								  * doppler_width_reference_velocity); // Hz, frequency Doppler width
+  static constexpr Real normalization_lya = (one_over_sqrt_pi / doppler_width_frequency_reference_lya); // Hz^-1, lineshape normalization
   
   // Tracked Variables
 
@@ -124,7 +113,7 @@ struct H_lyman_alpha_singlet_test_tracker {
   // optical depths at line center, counting each line individually
   // even though they overlap
   Real tau_species_final[n_lines];
-  Real tau_absorber_final;
+  Real tau_absorber_final[n_lines];
   Real max_tau_species;
 
   // influence functions, one for each upper state
@@ -136,7 +125,7 @@ struct H_lyman_alpha_singlet_test_tracker {
                                               across current voxel */
 
   Real brightness[n_lines];
-
+ 
   // if we're computing influence coefficients, carry a voxel_arrray to track these
   typename std::conditional<is_influence,
 			    voxel_array<N_VOXELS, n_upper>,
@@ -163,26 +152,30 @@ struct H_lyman_alpha_singlet_test_tracker {
     return (-lambda_max + i_lambda*delta_lambda);
   }
   CUDA_CALLABLE_MEMBER
-  static Real weight(__attribute__((unused)) const int &i_lambda) {
-    return delta_lambda*doppler_width_frequency_reference; // Hz
+  static Real weight(const int &i_line, __attribute__((unused)) const int &i_lambda) {
+    Real fref = i_line == 0 ? doppler_width_frequency_reference_lya : doppler_width_frequency_reference_lyb;
+    return delta_lambda*fref; // Hz
   }
   CUDA_CALLABLE_MEMBER
-  static Real line_shape_function(__attribute__((unused)) const int &i_line,
+  static Real line_shape_function(const int &i_line,
 				  const int &i_lambda,
 				  const Real &T) {
-    Real lambda2 = lambda(i_lambda);
+    Real waveref = i_line == 0 ? doppler_width_wavelength_reference_lya : doppler_width_wavelength_reference_lyb;
+
+    Real lambda2 = (lambda(i_lambda) - (line_wavelength_offset(i_line) / waveref));
     lambda2 *= lambda2;
     lambda2 = lambda2*doppler_width_reference_T/T;
     lambda2 = exp(-lambda2);
     return lambda2;
   }
   CUDA_CALLABLE_MEMBER
-  static Real line_shape_normalization(const Real &T) { 
-    return normalization*sqrt(doppler_width_reference_T/T); // Hz-1
+  static Real line_shape_normalization(const int &i_line, const Real &T) { 
+    Real norm = i_line == 0 ? normalization_lya : normalization_lyb;
+    return norm*sqrt(doppler_width_reference_T/T); // Hz-1
   }
   CUDA_CALLABLE_MEMBER
   static Real line_shape_function_normalized(const int &i_line, const int &i_lambda, const Real &T) {
-    return line_shape_normalization(T)*line_shape_function(i_line,i_lambda,T);
+    return line_shape_normalization(i_line, T)*line_shape_function(i_line, i_lambda, T);
   }  
 
   // RT functions required for interaction with rest of code
@@ -198,7 +191,7 @@ struct H_lyman_alpha_singlet_test_tracker {
 
     for (int i_line=0;i_line<n_lines;i_line++) {
       tau_species_final[i_line] = 0.0;
-      tau_absorber_final = 0.0;
+      tau_absorber_final[i_line] = 0.0;
       brightness[i_line] = 0.0;
     }
     // max_tau_species not reset because we want to track this across
@@ -225,7 +218,7 @@ struct H_lyman_alpha_singlet_test_tracker {
   CUDA_CALLABLE_MEMBER
   void exits_bottom() {
     for (int i_line=0;i_line<n_lines;i_line++)
-      tau_absorber_final = -1.0;
+      tau_absorber_final[i_line] = -1.0;
     // called when the ray exits the bottom of the atmosphere in
     // brightness calculations
   }

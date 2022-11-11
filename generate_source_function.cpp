@@ -14,10 +14,11 @@
 #include "emission/H_lyman_multiplet.hpp"
 
 //#define GENERATE_O_1026
-#define H_LYMAN_MULTIPLET_TEST
+//#define H_LYMAN_MULTIPLET_TEST
+#define H_LYMAN_SINGLET_TEST
 //#define NO_SIM_BRIGHTNESS
 
-#define __PRINT_ELAPSED_TIME_TERMINAL
+//#define __PRINT_ELAPSED_TIME_TERMINAL
 
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[]) {
 
@@ -69,17 +70,16 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   // // fix temperature to the exobase temp, eliminate CO2 absorption to compare with JY
   // atm.temp_dependent_sH=false;
   // atm.constant_temp_sH=exobase_temp;
-  atm.no_CO2_absorption = true;
+  // atm.no_CO2_absorption = true;
 
-#ifdef GENERATE_O_1026
+#if defined(GENERATE_O_1026)
   atm.save("test/test_atmosphere_O_1026.dat");
-#else
-  atm.save("test/test_atmosphere.dat");
-#ifdef H_LYMAN_MULTIPLET_TEST
+#elif defined(H_LYMAN_MULTIPLET_TEST)
   atm.save("test/test_atmosphere_H_multiplet.dat");
+#elif defined(H_LYMAN_SINGLET_TEST)
+  atm.save("test/test_atmosphere_H_singlet.dat");
 #else
   atm.save("test/test_atmosphere.dat");
-#endif
 #endif
 
   // define the geometry of the grid
@@ -119,7 +119,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
 
   //define the emissions to be solved for
-#ifdef GENERATE_O_1026
+#if defined(GENERATE_O_1026)
   static const int n_emissions = 1;
 
   //solve for O 1026
@@ -136,8 +136,54 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 						solar minimum */
 
   emission_type *emissions[n_emissions] = {&oxygen_1026};
+#elif defined(H_LYMAN_MULTIPLET_TEST)
+
+  static const int n_emissions = 1;
+
+  // true doublets for Lyman alpha and beta
+  typedef H_lyman_multiplet<grid_type::n_voxels> emission_type;
+  emission_type lyman_emission;
+  if (atm.no_CO2_absorption)
+    lyman_emission.set_CO2_absorption_off();
+  if (not atm.temp_dependent_sH)
+    lyman_emission.set_constant_temp_RT(exobase_temp);
+  lyman_emission.define("H Lyman alpha and beta",
+			atm,
+			&chamb_diff_1d::n_species_voxel_avg,
+			&chamb_diff_1d::Temp_voxel_avg,
+			&chamb_diff_1d::n_absorber_voxel_avg,
+			grid.voxels);
+  lyman_emission.set_solar_brightness(lyman_alpha_flux_Mars_typical, /* ph/cm2/s/Hz, solar brightness */
+				      lyman_beta_flux_Mars_typical); 
+
+  emission_type *emissions[n_emissions] = {&lyman_emission};
+
+#elif defined(H_LYMAN_SINGLET_TEST)
+
+  static const int n_emissions = 1;
+
+  // singlet treatment in standard multiplet code
+  typedef H_lyman_singlet<grid_type::n_voxels> emission_type;
+  emission_type lyman_emission;
+  if (atm.no_CO2_absorption)
+    lyman_emission.set_CO2_absorption_off();
+  if (not atm.temp_dependent_sH)
+    lyman_emission.set_constant_temp_RT(exobase_temp);
+  lyman_emission.define("H Lyman alpha and beta",
+			atm,
+			&chamb_diff_1d::n_species_voxel_avg,
+			&chamb_diff_1d::Temp_voxel_avg,
+			&chamb_diff_1d::n_absorber_voxel_avg,
+			grid.voxels);
+  lyman_emission.set_solar_brightness(lyman_alpha_flux_Mars_typical, /* ph/cm2/s/Hz, solar brightness */
+				      lyman_beta_flux_Mars_typical); 
+
+  emission_type *emissions[n_emissions] = {&lyman_emission};
+
+
 #else
-#ifndef H_LYMAN_MULTIPLET_TEST
+  // normal singlet CFR treatment
+  
   //static const int n_emissions = 1;
   static const int n_emissions = 2;
 
@@ -163,47 +209,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 
   //emission_type *emissions[n_emissions] = {&lyman_alpha};
   emission_type *emissions[n_emissions] = {&lyman_alpha, &lyman_beta};
-#else
-
-  static const int n_emissions = 1;
-
-  // // overlapping multiplets, should reproduce singlet treatment
-  // //solve for H lyman alpha
-  // typedef H_lyman_emission_multiplet_test<grid_type::n_voxels> emission_type;
-  // emission_type lyman_alpha;
-  // if (atm.no_CO2_absorption)
-  //   lyman_alpha.set_CO2_absorption_off();
-  // if (not atm.temp_dependent_sH)
-  //   lyman_alpha.set_constant_temp_RT(exobase_temp);
-  // lyman_alpha.define("H Lyman alpha",
-  // 		     atm,
-  // 		     &chamb_diff_1d::n_species_voxel_avg,   
-  // 		     &chamb_diff_1d::Temp_voxel_avg,
-  // 		     &chamb_diff_1d::n_absorber_voxel_avg,
-  // 		     grid.voxels);
-  // lyman_alpha.set_solar_brightness(lyman_alpha_flux_Mars_typical); /* ph/cm2/s/Hz, solar brightness */
-
-  // emission_type *emissions[n_emissions] = {&lyman_alpha};
-
-  // true doublets for Lyman alpha and beta
-  typedef H_lyman_multiplet<grid_type::n_voxels> emission_type;
-  emission_type lyman_emission;
-  if (atm.no_CO2_absorption)
-    lyman_emission.set_CO2_absorption_off();
-  if (not atm.temp_dependent_sH)
-    lyman_emission.set_constant_temp_RT(exobase_temp);
-  lyman_emission.define("H Lyman alpha and beta",
-			atm,
-			&chamb_diff_1d::n_species_voxel_avg,
-			&chamb_diff_1d::Temp_voxel_avg,
-			&chamb_diff_1d::n_absorber_voxel_avg,
-			grid.voxels);
-  lyman_emission.set_solar_brightness(lyman_alpha_flux_Mars_typical, /* ph/cm2/s/Hz, solar brightness */
-				      lyman_beta_flux_Mars_typical); 
-
-  emission_type *emissions[n_emissions] = {&lyman_emission};
-  
-#endif
 #endif
   
   // now set up the RT object
@@ -220,14 +225,14 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 #endif
   //now print out the output
 
-#ifdef GENERATE_O_1026
+#if defined(GENERATE_O_1026)
   string sfn_name_tag = "_O_1026";
-#else
-#ifdef H_LYMAN_MULTIPLET_TEST
+#elif defined(H_LYMAN_MULTIPLET_TEST)
   string sfn_name_tag = "_H_multiplet";
+#elif defined(H_LYMAN_SINGLET_TEST)
+  string sfn_name_tag = "_H_singlet";
 #else
   string sfn_name_tag = "";
-#endif
 #endif
   
   RT.save_S("test/test_source_function"+sfn_name_tag+".dat");
@@ -247,8 +252,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   RT.save_influence("test/influence_matrix"+sfn_name_tag+".dat");
   RT.save_influence("test/influence_matrix"+sfn_name_tag_dims+".dat");
 
-#ifndef NO_SIM_BRIGHTNESS
-#ifndef PLANE_PARALLEL
+#if !defined(NO_SIM_BRIGHTNESS) && !defined(PLANE_PARALLEL)
   //simulate a fake observation
   observation<emission_type, n_emissions> obs(emissions);
   observation<emission_type, n_emissions> obs_nointerp(emissions);
@@ -261,8 +265,9 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
 #else
   Real angle = 30;
   Vector3 loc = {0.,-1.0,0.};
+#endif
 
-#ifndef H_LYMAN_MULTIPLET_TEST
+#if !defined(GENERATE_O_1026) && !defined(H_LYMAN_MULTIPLET_TEST) && !defined(H_LYMAN_SINGLET_TEST)
   lyman_alpha.set_emission_g_factor(lyman_alpha_typical_g_factor);
   lyman_beta.set_emission_g_factor(lyman_beta_typical_g_factor);
   
@@ -286,7 +291,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
   		  /1e6)
   	    << " R" << std::endl;
   std::cout << std::endl;
-#endif
 #endif
 
 #ifndef __CUDACC__
@@ -321,7 +325,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[])
     std::cout << std::endl;
   }
 #endif
-#endif  
 #endif
   return 0; 
 }

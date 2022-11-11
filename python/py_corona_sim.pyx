@@ -158,6 +158,14 @@ cdef extern from "observation_fit.hpp":
                                                       string sourcefn_fname)
         vector[vector[Real]] lyman_multiplet_brightness()
 
+        void lyman_singlet_generate_source_function(Real nHexo,
+                                                    Real Texo,
+                                                    # Real solar_brightness_lyman_alpha,
+                                                    # Real solar_brightness_lyman_beta,
+                                                    string atmosphere_fname,
+                                                    string sourcefn_fname)
+        vector[vector[Real]] lyman_singlet_brightness()
+
 
         
 cdef class Pyobservation_fit:
@@ -503,4 +511,21 @@ cdef class Pyobservation_fit:
 
     def lyman_multiplet_brightness(self):
         return np.asarray(self.thisptr.lyman_multiplet_brightness())
+
+    def lyman_singlet_generate_source_function(self,
+                                                 Real nH,
+                                                 Real T,
+                                                 # Real solar_brightness_lyman_alpha,
+                                                 # Real solar_brightness_lyman_beta,
+                                                 atmosphere_fname = "",
+                                                 sourcefn_fname = ""):
+        self.thisptr.lyman_singlet_generate_source_function(nH,
+                                                            T,
+                                                            # solar_brightness_lyman_alpha,
+                                                            # solar_brightness_lyman_beta,
+                                                            atmosphere_fname.encode('utf-8'),
+                                                            sourcefn_fname.encode('utf-8'))
+
+    def lyman_singlet_brightness(self):
+        return np.asarray(self.thisptr.lyman_singlet_brightness())
 

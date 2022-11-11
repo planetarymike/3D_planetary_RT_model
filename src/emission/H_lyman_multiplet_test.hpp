@@ -19,13 +19,13 @@
 #include "H_multiplet_tracker_test.hpp"
 
 template <int N_VOXELS>
-struct H_lyman_emission_multiplet_test : multiplet_CFR_emission<N_VOXELS,
-								/*emission_type = */ H_lyman_emission_multiplet_test<N_VOXELS>,
-								/*los_tracker_type = */ H_lyman_alpha_singlet_test_tracker> {
+struct H_lyman_singlet : multiplet_CFR_emission<N_VOXELS,
+						  /*emission_type = */ H_lyman_singlet<N_VOXELS>,
+						  /*los_tracker_type = */ H_lyman_singlet_tracker> {
 protected:
   typedef multiplet_CFR_emission<N_VOXELS,
-				 /*emission_type = */ H_lyman_emission_multiplet_test<N_VOXELS>,
-				 /*los_tracker_type = */ H_lyman_alpha_singlet_test_tracker> parent;
+				 /*emission_type = */ H_lyman_singlet<N_VOXELS>,
+				 /*los_tracker_type = */ H_lyman_singlet_tracker> parent;
   friend parent;
 
 public:
@@ -36,7 +36,7 @@ public:
   using parent::n_lambda;
   
   template <bool influence>
-  using los = H_lyman_alpha_singlet_test_tracker<influence, N_VOXELS>;
+  using los = H_lyman_singlet_tracker<influence, N_VOXELS>;
   using typename parent::brightness_tracker;
   using typename parent::influence_tracker;
 
@@ -60,12 +60,15 @@ protected:
 
   using parent::absorber_density; 
   using parent::absorber_density_pt; 
-  using parent::tau_absorber_single_scattering; 
+  using parent::tau_absorber_single_scattering;
 
   //Radiative transfer parameters
-  Real solar_brightness_Hz; /* ph / cm2 / s / Hz <--!
-			       solar lyman alpha / beta brightness
-			       pumping the lower state */
+  Real solar_brightness_lya_Hz; /* ph / cm2 / s / Hz <--!
+			           solar lyman alpha / beta brightness
+			           pumping the lower state */
+  Real solar_brightness_lyb_Hz; /* ph / cm2 / s / Hz <--!
+			           solar lyman alpha / beta brightness
+			           pumping the lower state */
 
   // For lyman alpha, F_lya ~= 2.5-6.0 x 10^12 ph / cm2 / s / nm
   // For lyman beta,  F_lyb ~= F_lya/66
@@ -84,12 +87,17 @@ protected:
   bool CO2_absorption;
   
 public:
-  void set_solar_brightness(const Real &g) {
-    solar_brightness_Hz = g;
+  void set_solar_brightness(const Real &lya, const Real &lyb) {
+    solar_brightness_lya_Hz = lya;
+    solar_brightness_lyb_Hz = lyb;
   };
   
-  Real get_solar_brightness() const {
-    return solar_brightness_Hz;
+  Real get_solar_brightness_lya() const {
+    return solar_brightness_lya_Hz;
+  };
+
+  Real get_solar_brightness_lyb() const {
+    return solar_brightness_lyb_Hz;
   };
 
   void set_atmosphere_temp_RT() {
@@ -109,7 +117,7 @@ public:
     CO2_absorption = true;
   }
 
-  H_lyman_emission_multiplet_test()
+  H_lyman_singlet()
     : constant_temp_RT_internal(false),
       CO2_absorption(true)
   {}
@@ -125,7 +133,7 @@ public:
       if (!sun_visible) {
 	// single scattering point is behind limb, populate the tracker with the appropriate values
 	tracker.tau_species_final[i_line]  = -1.0;
-	tracker.tau_absorber_final = -1.0;
+	tracker.tau_absorber_final[i_line] = -1.0;
 	tracker.holstein_T_final[i_line]   = 0.0;
       }
 
@@ -135,12 +143,13 @@ public:
 		 || tau_species_single_scattering(start_voxel, i_line) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
-      tau_absorber_single_scattering(start_voxel) = tracker.tau_absorber_final;
-      assert(!isnan(tau_absorber_single_scattering(start_voxel))
-	     && (tau_absorber_single_scattering(start_voxel) >= 0
-		 ||  tau_absorber_single_scattering(start_voxel) == -1)
+      tau_absorber_single_scattering(start_voxel, i_line) = tracker.tau_absorber_final[i_line];
+      assert(!isnan(tau_absorber_single_scattering(start_voxel, i_line))
+	     && (tau_absorber_single_scattering(start_voxel, i_line) >= 0
+		 ||  tau_absorber_single_scattering(start_voxel, i_line) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
+      Real solar_brightness_Hz = i_line == 0 ? solar_brightness_lya_Hz : solar_brightness_lyb_Hz;
       Real solar_line_excitation = (solar_brightness_Hz // ph / cm2 / s / Hz
 				    * species_density(start_voxel, i_lower) // cm-3
 				    * tracker.line_sigma_total(i_line) // cm2 Hz
@@ -224,7 +233,8 @@ public:
 
   void copy_trivial_members_to_device() {
     parent::copy_trivial_members_to_device();
-    copy_trivial_member_to_device(solar_brightness_Hz, device_emission->solar_brightness_Hz);
+    copy_trivial_member_to_device(solar_brightness_lya_Hz, device_emission->solar_brightness_lya_Hz);
+    copy_trivial_member_to_device(solar_brightness_lyb_Hz, device_emission->solar_brightness_lyb_Hz);
     copy_trivial_member_to_device(constant_temp_RT_internal, device_emission->constant_temp_RT_internal);
     copy_trivial_member_to_device(constant_temp_RT, device_emission->constant_temp_RT);
     copy_trivial_member_to_device(CO2_absorption, device_emission->CO2_absorption);
@@ -233,7 +243,8 @@ public:
   using parent::copy_trivial_member_to_host;
   void copy_trivial_members_to_host() {
     parent::copy_trivial_members_to_host();
-    copy_trivial_member_to_host(solar_brightness_Hz, device_emission->solar_brightness_Hz);
+    copy_trivial_member_to_host(solar_brightness_lya_Hz, device_emission->solar_brightness_lya_Hz);
+    copy_trivial_member_to_host(solar_brightness_lyb_Hz, device_emission->solar_brightness_lyb_Hz);
     copy_trivial_member_to_host(constant_temp_RT_internal, device_emission->constant_temp_RT_internal);
     copy_trivial_member_to_host(constant_temp_RT, device_emission->constant_temp_RT);
     copy_trivial_member_to_host(CO2_absorption, device_emission->CO2_absorption);
