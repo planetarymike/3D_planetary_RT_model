@@ -38,7 +38,7 @@ MPFLAGS=-fopenmp
 OFLAGS=-O3 -DNDEBUG -g #-march=native
 
 # Nvidia CUDA Compiler
-#device spec
+# device spec
 CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CUDA Capability Major/Minor version number:.*' | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 
 NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
@@ -63,7 +63,7 @@ CUDA_SM_TYPE=sm
 endif
 
 # compilation targets
-ARCH_0=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE) # local machine
+ARCH0=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE) # local machine
 ARCH1=--generate-code arch=compute_61,code=$(CUDA_SM_TYPE)_61 # Mike thinkpad P1
 ARCH2=--generate-code arch=compute_37,code=$(CUDA_SM_TYPE)_37 -Wno-deprecated-gpu-targets # AWS P2 node
 ARCH3=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70 # AWS P3 node
