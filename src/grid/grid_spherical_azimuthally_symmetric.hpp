@@ -281,7 +281,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
 	while (std::log(atm_avg->n_species_int[i_int]) > target && boundary>-1) {
 	  doubReal upper = log(atm_avg->n_species_int[i_int-1]);
 	  doubReal lower = log(atm_avg->n_species_int[i_int]);
-	  if (!isfinite(upper))
+	  if (!std::isfinite(upper))
 	    upper = lower - 10;
 
 	  doubReal frac = ((target - upper)
@@ -465,7 +465,7 @@ struct spherical_azimuthally_symmetric_grid : grid<2, //this is a 2D grid
     stepper.boundaries.reset();
     
     //define the origin
-    boundary<this->n_dimensions> origin;
+    boundary<parent_grid::n_dimensions> origin;
     if (vec.pt.i_voxel == -1) {
       point_to_indices(vec.pt,origin.entering_indices);
       indices_to_voxel(origin.entering_indices,origin.entering);

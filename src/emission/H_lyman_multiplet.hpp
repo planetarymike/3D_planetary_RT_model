@@ -134,13 +134,13 @@ public:
       }
 
       tau_species_single_scattering(start_voxel, i_line) = tracker.tau_species_final[i_line];//line center optical depth
-      assert(!isnan(tau_species_single_scattering(start_voxel, i_line))
+      assert(!std::isnan(tau_species_single_scattering(start_voxel, i_line))
 	     && (tau_species_single_scattering(start_voxel, i_line) >= 0
 		 || tau_species_single_scattering(start_voxel, i_line) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
 	
       tau_absorber_single_scattering(start_voxel, i_line) = tracker.tau_absorber_final[i_line];
-      assert(!isnan(tau_absorber_single_scattering(start_voxel, i_line))
+      assert(!std::isnan(tau_absorber_single_scattering(start_voxel, i_line))
 	     && (tau_absorber_single_scattering(start_voxel, i_line) >= 0
 		 ||  tau_absorber_single_scattering(start_voxel, i_line) == -1)
 	     && "optical depth must be real and positive, or -1 if point is behind limb");
@@ -154,7 +154,7 @@ public:
       
       singlescat(start_voxel, i_upper) = solar_line_excitation*tracker.holstein_T_final[i_line]; // cm-3, single scattering upper state density
  
-      assert(!isnan(singlescat(start_voxel, i_upper))
+      assert(!std::isnan(singlescat(start_voxel, i_upper))
 	     && singlescat(start_voxel, i_upper) >= 0
 	     && "single scattering coefficient must be real and positive");
     }
@@ -183,10 +183,10 @@ public:
 					 species_T(i_voxel),
 					 species_T_pt(i_voxel));
       }
-      assert(!isnan(species_T(i_voxel))
+      assert(!std::isnan(species_T(i_voxel))
 	     && species_T(i_voxel) >= 0
 	     && "temperatures must be real and positive");
-      assert(!isnan(species_T_pt(i_voxel))
+      assert(!std::isnan(species_T_pt(i_voxel))
 	     && species_T_pt(i_voxel) >= 0
 	     && "temperatures must be real and positive");
 
@@ -198,20 +198,20 @@ public:
 	absorber_density(i_voxel) = 0.0;
 	absorber_density_pt(i_voxel) = 0.0;
       }
-      assert(!isnan(absorber_density(i_voxel))
+      assert(!std::isnan(absorber_density(i_voxel))
 	     && absorber_density(i_voxel) >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(absorber_density_pt(i_voxel))
+      assert(!std::isnan(absorber_density_pt(i_voxel))
 	     && absorber_density_pt(i_voxel) >= 0
 	     && "densities must be real and positive");
 
       (atmosphere.*species_density_function)(voxels[i_voxel],
 					     species_density(i_voxel, 0),
 					     species_density_pt(i_voxel, 0));
-      assert(!isnan(species_density(i_voxel, 0))
+      assert(!std::isnan(species_density(i_voxel, 0))
 	     && species_density(i_voxel, 0) >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(species_density_pt(i_voxel, 0))
+      assert(!std::isnan(species_density_pt(i_voxel, 0))
 	     && species_density_pt(i_voxel, 0) >= 0
 	     && "densities must be real and positive");
 

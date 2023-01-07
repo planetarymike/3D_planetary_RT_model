@@ -168,7 +168,7 @@ struct plane_parallel_grid : grid<1,//N_DIMENSIONS, this is a 1D grid
 	while (std::log(atm_avg->n_species_int[i_int]) > target && boundary>-1) {
 	  doubReal upper = log(atm_avg->n_species_int[i_int-1]);
 	  doubReal lower = log(atm_avg->n_species_int[i_int]);
-	  if (!isfinite(upper))
+	  if (!std::isfinite(upper))
 	    upper = lower - 10;
 
 	  doubReal frac = ((target - upper)

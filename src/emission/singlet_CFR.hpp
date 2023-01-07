@@ -271,7 +271,7 @@ protected:
 			   / species_sigma_T_ref
 			   * one_over_sqrt_pi
 			   / REAL(1e9)); // converts to kR, 10^9 ph/cm2/s, see C&H pg 280-282
-    assert(!isnan(tracker.brightness) && "brightness must be a real number");
+    assert(!std::isnan(tracker.brightness) && "brightness must be a real number");
     assert(tracker.brightness>=0 && "brightness must be positive");
   }
   
@@ -361,7 +361,7 @@ public:
     //see Bishop1999 for derivation of this formula
     Real coef = domega;
     coef *= tracker.holstein_G_int;
-    assert(!isnan(coef) && "influence coefficients must be real numbers");
+    assert(!std::isnan(coef) && "influence coefficients must be real numbers");
     assert(0<=coef && coef<=1 && "influence coefficients represent transition probabilities");
 
     tracker.influence[0](current_voxel) += coef;
@@ -380,19 +380,19 @@ public:
     }
     
     tau_species_single_scattering(start_voxel) = tracker.tau_species_final;//line center optical depth
-    assert(!isnan(tau_species_single_scattering(start_voxel))
+    assert(!std::isnan(tau_species_single_scattering(start_voxel))
 	   && (tau_species_single_scattering(start_voxel) >= 0
 	       || tau_species_single_scattering(start_voxel) == -1)
 	   && "optical depth must be real and positive, or -1 if point is behind limb");
     
     tau_absorber_single_scattering(start_voxel) = tracker.tau_absorber_final;
-    assert(!isnan(tau_absorber_single_scattering(start_voxel))
+    assert(!std::isnan(tau_absorber_single_scattering(start_voxel))
 	   && (tau_absorber_single_scattering(start_voxel) >= 0
 	       ||  tau_absorber_single_scattering(start_voxel) == -1)
 	   && "optical depth must be real and positive, or -1 if point is behind limb");
     
     singlescat(start_voxel) = tracker.holstein_T_final;
-    assert(!isnan(singlescat(start_voxel))
+    assert(!std::isnan(singlescat(start_voxel))
 	   && singlescat(start_voxel) >= 0
 	   && "single scattering coefficient must be real and positive");
   }
@@ -436,10 +436,10 @@ public:
       (atmosphere.*species_density_function)(voxels[i_voxel],
 					     species_density(i_voxel),
 					     species_density_pt(i_voxel));
-      assert(!isnan(species_density(i_voxel))
+      assert(!std::isnan(species_density(i_voxel))
 	     && species_density(i_voxel) >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(species_density_pt(i_voxel))
+      assert(!std::isnan(species_density_pt(i_voxel))
 	     && species_density_pt(i_voxel) >= 0
 	     && "densities must be real and positive");
       
@@ -450,30 +450,30 @@ public:
 				       species_T_pt);
       species_T_ratio(i_voxel) = species_T_ref/species_T;
       species_T_ratio_pt(i_voxel) = species_T_ref/species_T_pt;
-      assert(!isnan(species_T_ratio(i_voxel))
+      assert(!std::isnan(species_T_ratio(i_voxel))
 	     && species_T_ratio(i_voxel) >= 0
 	     && "temperatures must be real and positive");
-      assert(!isnan(species_T_ratio_pt(i_voxel))
+      assert(!std::isnan(species_T_ratio_pt(i_voxel))
 	     && species_T_ratio_pt(i_voxel) >= 0
 	     && "temperatures must be real and positive");
       
       (atmosphere.*absorber_density_function)(voxels[i_voxel],
 					      absorber_density(i_voxel),
 					      absorber_density_pt(i_voxel));
-      assert(!isnan(absorber_density(i_voxel))
+      assert(!std::isnan(absorber_density(i_voxel))
 	     && absorber_density(i_voxel) >= 0
 	     && "densities must be real and positive");
-      assert(!isnan(absorber_density_pt(i_voxel))
+      assert(!std::isnan(absorber_density_pt(i_voxel))
 	     && absorber_density_pt(i_voxel) >= 0
 	     && "densities must be real and positive");
       
 
       absorber_sigma(i_voxel) = (atmosphere.*absorber_sigma_function)(species_T);
       absorber_sigma_pt(i_voxel) = (atmosphere.*absorber_sigma_function)(species_T_pt);
-      assert(!isnan(absorber_sigma(i_voxel))
+      assert(!std::isnan(absorber_sigma(i_voxel))
 	     && absorber_sigma(i_voxel) >= 0
 	     && "cross sections must be real and positive");
-      assert(!isnan(absorber_sigma_pt(i_voxel))
+      assert(!std::isnan(absorber_sigma_pt(i_voxel))
 	     && absorber_sigma_pt(i_voxel) >= 0
 	     && "cross sections must be real and positive");
     }

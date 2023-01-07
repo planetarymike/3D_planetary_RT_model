@@ -131,9 +131,9 @@ void atmosphere_average_1d::add_integrated(vector<doubReal> &vec,
 
   vec.push_back( diff + vec.back() );
 
-  assert(!isnan(vec[vec.size()-1]) &&
-	 !isnan(vec[vec.size()-2]) &&
-	 !isnan(diff) &&
+  assert(!std::isnan(vec[vec.size()-1]) &&
+	 !std::isnan(vec[vec.size()-2]) &&
+	 !std::isnan(diff) &&
 	 (vec[vec.size()-2]!=vec[vec.size()-1] || diff==0)
 	 && "check for nans or no difference (may indicate floating point error)");
 }
@@ -171,9 +171,9 @@ doubReal atmosphere_average_1d::n_absorber_avg(const doubReal &r0, const doubRea
 }
 void atmosphere_average_1d::n_absorber_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   ret_avg = n_absorber_avg(vox.rbounds[0], vox.rbounds[1]);
-  assert(!isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
+  assert(!std::isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
   ret_pt  = n_absorber(vox.pt.r);
-  assert(!isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
+  assert(!std::isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
 }
 
 doubReal atmosphere_average_1d::n_species_avg(const doubReal &r0, const doubReal &r1) const {
@@ -191,9 +191,9 @@ doubReal atmosphere_average_1d::n_species_avg(const doubReal &r0, const doubReal
 }
 void atmosphere_average_1d::n_species_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   ret_avg = n_species_avg(vox.rbounds[0],vox.rbounds[1]);
-  assert(!isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
+  assert(!std::isnan(ret_avg) && ret_avg >= 0 && "densities must be real and positive");
   ret_pt  = n_species(vox.pt.r);
-  assert(!isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
+  assert(!std::isnan(ret_pt) && ret_pt >= 0 && "densities must be real and positive");
 }
 
 
@@ -212,7 +212,7 @@ doubReal atmosphere_average_1d::Temp_avg(const doubReal &r0, const doubReal &r1)
 }
 void atmosphere_average_1d::Temp_voxel_avg(const atmo_voxel &vox, Real &ret_avg, Real &ret_pt) const {
   ret_avg = Temp_avg(vox.rbounds[0], vox.rbounds[1]);
-  assert(!isnan(ret_avg) && ret_avg >= 0 && "temperatures must be real and positive");
+  assert(!std::isnan(ret_avg) && ret_avg >= 0 && "temperatures must be real and positive");
   ret_pt = Temp(vox.pt.r);
-  assert(!isnan(ret_pt) && ret_pt >= 0 && "temperatures must be real and positive");
+  assert(!std::isnan(ret_pt) && ret_pt >= 0 && "temperatures must be real and positive");
 }

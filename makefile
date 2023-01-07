@@ -26,25 +26,45 @@ PYOBJFILES   := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.o))
 PYNOBJFILES  := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
 
-#include directories
-BOOSTDIR=-I/home/mike/Documents/Utilities/boost_1_73_0/ # make sure to implement BOOST_NO_CUDA (see below)
-EIGENDIR=-I/home/mike/Documents/Utilities/eigen-3.4.0/  # change diag_suppress to nv_diag_suppress in source to suppress warnings
-IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) $(BOOSTDIR) $(EIGENDIR)
+# External library dependencies
+BOOST_VERSION_NUMBER = 1.81.0
+BOOST_VERSION_NUMBER_ = $(subst .,_,$(BOOST_VERSION_NUMBER))
+BOOSTDIR = lib/boost_$(BOOST_VERSION_NUMBER_)
+EIGEN_VERSION_NUMBER = 3.4.0
+EIGENDIR = lib/eigen-$(EIGEN_VERSION_NUMBER)
 
-# GNU Compiler
-CC=g++ -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion #these commands can be used to check for double literals
-LIBS=-lm -lgomp
-MPFLAGS=-fopenmp
-OFLAGS=-O3 -DNDEBUG -g #-march=native
+# include flags for compiler
+IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
 
+
+#
+# CPU compilation
+#
+
+# Select either GNU Compiler or clang
+ifeq ($(USE_CLANG), true)
+CCOMP = clang++-12
+else
+CCOMP = g++
+LIBS = -lm -lgomp
+endif
+
+CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
+MPFLAGS = -fopenmp
+OFLAGS = -O3 -DNDEBUG -g #-march=native
+
+
+#
 # Nvidia CUDA Compiler
-# device spec
+#
+
+# get device spec
 CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CUDA Capability Major/Minor version number:.*' | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 
 NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
 #            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
-#                                                                     (added this flag by hand as a wrapper
+#                                                                     (this flag added on download as a wrapper
 #                                                                      around BOOST_GPU_ENABLED in
 #                                                                      boost/config/compiler/nvcc.hpp)
 NIDIR=$(IDIR) \
@@ -81,34 +101,39 @@ NOFLAGS=$(NOBASEFLAGS) $(ARCH)
 NDBGFLAGS=-g -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
 #            ^^ this -G sometimes changes the behavior of the code??
 
-generate_source_function:
+
+#
+# recipes
+#
+
+generate_source_function: $(EIGENDIR) $(BOOSTDIR)
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
 
-generate_source_function_profile:
+generate_source_function_profile: $(EIGENDIR) $(BOOSTDIR)
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
 
 # generate_source_function_debug_warn:
 # 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -v -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
 
-generate_source_function_debug_warn: $(OBJFILESDBG)
+generate_source_function_debug_warn: $(OBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling generate_source_function.cpp..."
 	@$(CC) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -c generate_source_function.cpp -o bin/generate_source_function.debug.o
 	@echo "linking ..."
 	@$(CC) $(OBJFILESDBG) bin/generate_source_function.debug.o $(IDIR) $(LIBS)  -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
 
 
-generate_source_function_debug_warn_float:
+generate_source_function_debug_warn_float: $(EIGENDIR) $(BOOSTDIR)
 	$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
 
-generate_source_function_debug_warn_MP:
+generate_source_function_debug_warn_MP: $(EIGENDIR) $(BOOSTDIR)
 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) -O0 -g -Wall -Wextra -o generate_source_function.x
 
-generate_source_function_float:
+generate_source_function_float: $(EIGENDIR) $(BOOSTDIR)
 	$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
 
 
 
-generate_source_function_gpu: $(NOBJFILES) 
+generate_source_function_gpu: $(NOBJFILES) $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling generate_source_function.cpp..."
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc generate_source_function.cpp -o bin/generate_source_function.cuda.o
 	@echo "linking..."
@@ -117,26 +142,26 @@ ifeq ($(CUDA_DLTO),true)
 endif
 	@$(NCC) $(NOBJFILES) bin/generate_source_function.cuda.o $(NIDIR) $(NLIBS) $(NOBASEFLAGS) $(ARCH_SM) $(DLTO) -o generate_source_function_gpu.x
 
-$(OBJDIR)/%.cuda.o: %.cpp
+$(OBJDIR)/%.cuda.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
 
-generate_source_function_gpu_debug: $(NOBJFILESDBG)
+generate_source_function_gpu_debug: $(NOBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling generate_source_function.cpp..."
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc generate_source_function.cpp -o bin/generate_source_function.cuda.debug.o
 	@echo "linking ..."
 	@$(NCC) $(NOBJFILESDBG) bin/generate_source_function.cuda.debug.o $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o generate_source_function_gpu.x
 
-$(OBJDIR)/%.cuda.debug.o: %.cpp
+$(OBJDIR)/%.cuda.debug.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc $< -o $@
 
 
 
-py_corona_sim_cpu:
+py_corona_sim_cpu: $(EIGENDIR) $(BOOSTDIR)
 	@mkdir -p bin
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
@@ -152,17 +177,17 @@ py_corona_sim_cpu:
 	export CXX='g++'; \
 	python setup_corona_sim.py build_ext --inplace
 
-$(OBJDIR)/%.o: %.cpp
+$(OBJDIR)/%.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(CC) -c $< $(IDIR) $(LIBS) $(OFLAGS) -o $@
 
-$(OBJDIR)/%.debug.o: %.cpp
+$(OBJDIR)/%.debug.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(CC) -c $< $(IDIR) $(LIBS)  -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o $@
 
-py_corona_sim_gpu: 
+py_corona_sim_gpu: $(EIGENDIR) $(BOOSTDIR)
 	@mkdir -p bin
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
@@ -179,10 +204,10 @@ py_corona_sim_gpu:
 	export CXX='nvcc'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
-py_corona_sim_all:
+py_corona_sim_all: $(EIGENDIR) $(BOOSTDIR)
 	make py_corona_sim_cpu && make py_corona_sim_gpu
 
-observation_fit_cpu_test:
+observation_fit_cpu_test: $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling observation_fit.cpp..."
 	$(CC) $(IDIR) $(LIBS) -DNDEBUG -O0 -g -c src/observation_fit.cpp -o bin/src/observation_fit.debug.o
 	@echo "compiling obs_fit_test.cpp..."
@@ -203,7 +228,7 @@ observation_fit_cpu_test:
 	$(OBJDIR)/ipbackgroundCFR_fun.o -lgfortran \
 	$(IDIR) $(LIBS)  -O0 -g -o python/test/obs_fit_test.x
 
-observation_fit_gpu_test: $(NOBJFILESDBG)
+observation_fit_gpu_test: $(NOBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling observation_fit.cpp..."
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc src/observation_fit.cpp -o bin/src/observation_fit.cuda.debug.o
 	@echo "compiling obs_fit_test.cpp..."
@@ -224,7 +249,31 @@ observation_fit_gpu_test: $(NOBJFILESDBG)
 	$(OBJDIR)/ipbackgroundCFR_fun.o -lgfortran \
 	$(NIDIR) $(NLIBS) $(NDBGFLAGS) -o python/test/obs_fit_test.x
 
+$(EIGENDIR):
+	@echo "Downloading Eigen library..."
+	@mkdir -p lib
+# remove old versions
+	@cd lib && find . -name "eigen-*" -type d ! -name "eigen-$(EIGEN_VERSION_NUMBER)" -exec rm -rf {} +
+	@cd lib && rm -f *.bz2
+# download and extract
+	@cd lib && wget -nv --no-hsts https://gitlab.com/libeigen/eigen/-/archive/$(EIGEN_VERSION_NUMBER)/eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
+	@cd lib && tar -xf eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
+	@cd lib && rm eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
+	@echo "... done."
 
+$(BOOSTDIR):
+	@echo "Downloading Boost library..."
+	@mkdir -p lib
+# remove old versions
+	@cd lib && find . -name "boost_*" -type d ! -name "boost_$(BOOST_VERSION_NUMBER_)" -exec rm -rf {} +
+	@cd lib && rm -f *.bz2
+# download and extract
+	@cd lib && wget -nv --no-hsts https://boostorg.jfrog.io/artifactory/main/release/$(BOOST_VERSION_NUMBER)/source/boost_$(BOOST_VERSION_NUMBER_).tar.bz2
+	@cd lib && tar -xf boost_$(BOOST_VERSION_NUMBER_).tar.bz2
+	@cd lib && rm boost_$(BOOST_VERSION_NUMBER_).tar.bz2
+# implement BOOST_NO_CUDA flag
+	@sed -i 's/#define BOOST_GPU_ENABLED __host__ __device__/#ifndef BOOST_NO_CUDA\n#define BOOST_GPU_ENABLED __host__ __device__\n#endif/' lib/boost_$(BOOST_VERSION_NUMBER_)/boost/config/compiler/nvcc.hpp
+	@echo "... done."
 
 clean_gpu:
 	rm -f generate_source_function_gpu.x

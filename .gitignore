@@ -1,6 +1,6 @@
 *#*
 callgrind*
-gmon.out
+gmo n.out
 profile.txt
 *.x
 generate_source_function.x
@@ -22,4 +22,5 @@ python/__pycache__
 python/test/__pycache__
 *nvvp*
 bin/
+lib/
 .ccls*

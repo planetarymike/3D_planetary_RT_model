@@ -15,10 +15,8 @@
 
 //#define GENERATE_O_1026
 //#define H_LYMAN_MULTIPLET_TEST
-#define H_LYMAN_SINGLET_TEST
+//#define H_LYMAN_SINGLET_TEST
 //#define NO_SIM_BRIGHTNESS
-
-//#define __PRINT_ELAPSED_TIME_TERMINAL
 
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char* argv[]) {
 

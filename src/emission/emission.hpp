@@ -8,9 +8,6 @@
 #include "los_tracker.hpp"
 #include "gpu_vector.hpp"
 
-using std::string;
-using std::isnan;
-
 template<typename emission_type,
 	 template<bool, int> class los_tracker_type>
 struct emission {
@@ -191,7 +188,7 @@ public:
   template<int n_elements>
   void save_brightness(std::ostream &file,  const gpu_vector<brightness_tracker<n_elements>> &los_brightness) const {
     // save a list of brightness trackers to file
-    static_cast<const emission_type*>(this)->save_brightness(los_brightness);
+    static_cast<const emission_type*>(this)->save_brightness(file, los_brightness);
   }
 
 #ifdef __CUDACC__
