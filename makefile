@@ -1,4 +1,6 @@
+ifneq ($(NO_PARALLEL_COMPILATION), true)
 MAKEFLAGS += -j20 #parallel compilation
+endif
 
 # you may need these in your .bashrc
 # export CUDA_HOME=/usr/local/cuda-11.2
@@ -29,9 +31,9 @@ PYNOBJFILES  := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 # External library dependencies
 BOOST_VERSION_NUMBER = 1.81.0
 BOOST_VERSION_NUMBER_ = $(subst .,_,$(BOOST_VERSION_NUMBER))
-BOOSTDIR = lib/boost_$(BOOST_VERSION_NUMBER_)
+BOOSTDIR = $(shell pwd)/lib/boost_$(BOOST_VERSION_NUMBER_)
 EIGEN_VERSION_NUMBER = 3.4.0
-EIGENDIR = lib/eigen-$(EIGEN_VERSION_NUMBER)
+EIGENDIR = $(shell pwd)/lib/eigen-$(EIGEN_VERSION_NUMBER)
 
 # include flags for compiler
 IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
@@ -41,9 +43,11 @@ IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
 # CPU compilation
 #
 
+CLANGPP = clang++-15
+
 # Select either GNU Compiler or clang
 ifeq ($(USE_CLANG), true)
-CCOMP = clang++-12
+CCOMP = $(CLANGPP)
 else
 CCOMP = g++
 LIBS = -lm -lgomp
@@ -55,12 +59,30 @@ OFLAGS = -O3 -DNDEBUG -g #-march=native
 
 
 #
-# Nvidia CUDA Compiler
+# GPU compilation
 #
 
 # get device spec
 CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CUDA Capability Major/Minor version number:.*' | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 
+ifeq ($(USE_CLANG), true)
+NCC=$(CLANGPP) -std=c++17 -fPIC --offload-new-driver
+NFLAGS=-x cuda -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
+#      ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
+#                                                                     (this flag added on download as a wrapper
+#                                                                      around BOOST_GPU_ENABLED in
+#                                                                      boost/config/compiler/nvcc.hpp)
+NIDIR=$(IDIR) \
+      -I$(CUDA_HOME)lib64/ \
+      -I$(CUDA_HOME)samples/common/inc/
+NLIBS=-lcudart -lcusolver -lcublas -ldl -lrt -pthread -L$(CUDA_HOME)/lib64
+NOBASEFLAGS=-O3 -DNDEBUG -ffast-math #--maxrregcount 43
+
+# compile optimization commands
+NOFLAGS=$(NOBASEFLAGS) --offload-arch=sm_$(CUDA_DEVICE_CODE)
+NDBGFLAGS=-g --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
+
+else # use default nvcc compiler
 NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
 NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
 #            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
@@ -100,6 +122,7 @@ ARCH_SM=$(ARCH_SM0) $(ARCH_SM1) $(ARCH_SM2) $(ARCH_SM3)
 NOFLAGS=$(NOBASEFLAGS) $(ARCH)
 NDBGFLAGS=-g -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
 #            ^^ this -G sometimes changes the behavior of the code??
+endif
 
 
 #
@@ -145,8 +168,11 @@ endif
 $(OBJDIR)/%.cuda.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+	$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
+
+generate_source_function_gpu_monolithic: $(EIGENDIR) $(BOOSTDIR)
+	$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) $(NSRCFILES) generate_source_function.cpp -o generate_source_function_gpu.x
 
 generate_source_function_gpu_debug: $(NOBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling generate_source_function.cpp..."
@@ -173,8 +199,8 @@ py_corona_sim_cpu: $(EIGENDIR) $(BOOSTDIR)
 	export COMPILED_OBJECTS='$(PYOBJFILES)'; \
 	export LIBRARIES='$(LIBS)'; \
 	export SOURCE_FILES='$(PYSRCFILES)'; \
-	export CC='g++'; \
-	export CXX='g++'; \
+	export CC='$(CCOMP)'; \
+	export CXX='$(CCOMP)'; \
 	python setup_corona_sim.py build_ext --inplace
 
 $(OBJDIR)/%.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
@@ -253,26 +279,30 @@ $(EIGENDIR):
 	@echo "Downloading Eigen library..."
 	@mkdir -p lib
 # remove old versions
-	@cd lib && find . -name "eigen-*" -type d ! -name "eigen-$(EIGEN_VERSION_NUMBER)" -exec rm -rf {} +
+	@cd lib && bash -c 'find . -name "eigen-*" -type d ! -name "eigen-$(EIGEN_VERSION_NUMBER)" -exec rm -rf {} +'
 	@cd lib && rm -f *.bz2
 # download and extract
-	@cd lib && wget -nv --no-hsts https://gitlab.com/libeigen/eigen/-/archive/$(EIGEN_VERSION_NUMBER)/eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
-	@cd lib && tar -xf eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
+	@cd lib && bash -c 'wget -nv --no-hsts https://gitlab.com/libeigen/eigen/-/archive/$(EIGEN_VERSION_NUMBER)/eigen-$(EIGEN_VERSION_NUMBER).tar.bz2'
+	@cd lib && bash -c 'tar -xf eigen-$(EIGEN_VERSION_NUMBER).tar.bz2'
 	@cd lib && rm eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
+# fix obsolete usage of diag_suppress to eliminate scores of nvcc warnings
+	@bash -c 'sed -i "s/diag_suppress/nv_diag_suppress/" lib/eigen-3.4.0/Eigen/src/Core/util/DisableStupidWarnings.h'
+# fix improper identification of cuda in an Eigen source file
+	@bash -c 'sed -i "s/#if defined(__clang__) && defined(__CUDA__)/#if defined(EIGEN_HAS_GPU_FP16) || defined(EIGEN_HAS_ARM64_FP16_SCALAR_ARITHMETIC)/" lib/eigen-3.4.0/Eigen/src/Core/arch/Default/Half.h'
 	@echo "... done."
 
 $(BOOSTDIR):
 	@echo "Downloading Boost library..."
 	@mkdir -p lib
 # remove old versions
-	@cd lib && find . -name "boost_*" -type d ! -name "boost_$(BOOST_VERSION_NUMBER_)" -exec rm -rf {} +
+	@cd lib && bash -c 'find . -name "boost_*" -type d ! -name "boost_$(BOOST_VERSION_NUMBER_)" -exec rm -rf {} +'
 	@cd lib && rm -f *.bz2
 # download and extract
-	@cd lib && wget -nv --no-hsts https://boostorg.jfrog.io/artifactory/main/release/$(BOOST_VERSION_NUMBER)/source/boost_$(BOOST_VERSION_NUMBER_).tar.bz2
-	@cd lib && tar -xf boost_$(BOOST_VERSION_NUMBER_).tar.bz2
+	@cd lib && bash -c 'wget -nv --no-hsts https://boostorg.jfrog.io/artifactory/main/release/$(BOOST_VERSION_NUMBER)/source/boost_$(BOOST_VERSION_NUMBER_).tar.bz2'
+	@cd lib && bash -c 'tar -xf boost_$(BOOST_VERSION_NUMBER_).tar.bz2'
 	@cd lib && rm boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 # implement BOOST_NO_CUDA flag
-	@sed -i 's/#define BOOST_GPU_ENABLED __host__ __device__/#ifndef BOOST_NO_CUDA\n#define BOOST_GPU_ENABLED __host__ __device__\n#endif/' lib/boost_$(BOOST_VERSION_NUMBER_)/boost/config/compiler/nvcc.hpp
+	@bash -c 'sed -i "s/#define BOOST_GPU_ENABLED __host__ __device__/#ifndef BOOST_NO_CUDA\n#define BOOST_GPU_ENABLED __host__ __device__\n#endif/" lib/boost_$(BOOST_VERSION_NUMBER_)/boost/config/compiler/nvcc.hpp'
 	@echo "... done."
 
 clean_gpu:
