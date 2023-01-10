@@ -43,14 +43,10 @@ IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
 # CPU compilation
 #
 
-CLANGPP = clang++-15
-
-# Select either GNU Compiler or clang
-ifeq ($(USE_CLANG), true)
-CCOMP = $(CLANGPP)
-else
-CCOMP = g++
-LIBS = -lm -lgomp
+# Select either GNU Compiler or clang based on env CXX
+CCOMP = $(CXX)
+ifeq ($(CCOMP), g++)
+LIBS = -lm -lgomp -lstdc++
 endif
 
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
