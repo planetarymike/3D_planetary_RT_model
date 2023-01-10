@@ -289,7 +289,7 @@ $(EIGENDIR):
 	@sed -i'.original' -e 's/diag_suppress/nv_diag_suppress/' lib/eigen-3.4.0/Eigen/src/Core/util/DisableStupidWarnings.h
 # fix improper identification of cuda in an Eigen source file
 	@sed -i'.original' -e 's/#if defined(__clang__) && defined(__CUDA__)/#if defined(EIGEN_HAS_GPU_FP16) || defined(EIGEN_HAS_ARM64_FP16_SCALAR_ARITHMETIC)/' lib/eigen-3.4.0/Eigen/src/Core/arch/Default/Half.h
-	@echo "... done."
+	@echo "... done downloading Eigen."
 
 $(BOOSTDIR):
 	@echo "Downloading Boost library..."
@@ -303,7 +303,7 @@ $(BOOSTDIR):
 	@cd lib && rm boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 # implement BOOST_NO_CUDA flag
 	@sed -i'.original' -e 's/#define BOOST_GPU_ENABLED __host__ __device__/#ifndef BOOST_NO_CUDA\n#define BOOST_GPU_ENABLED __host__ __device__\n#endif/' lib/boost_$(BOOST_VERSION_NUMBER_)/boost/config/compiler/nvcc.hpp
-	@echo "... done."
+	@echo "... done downloading Boost."
 
 clean_gpu:
 	rm -f generate_source_function_gpu.x
