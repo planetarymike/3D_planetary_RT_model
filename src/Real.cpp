@@ -64,13 +64,10 @@ void assert_small_contribution(const Real &expected_small,
 			       const Real abstol/*=1e-6*/,
 			       const Real reltol/*=1e-2*/) {
 #if !defined(NDEBUG)
-  Real test_val = 1.0;
-  test_val *= expected_small;
-
   Real comp_val = 1.0;
   comp_val *= comparison_value;
 
-  if (comparison_value > abstol && !(reltol*comparison_value > expected_small)) {
+  if (comp_val > abstol && !(reltol*comp_val > expected_small)) {
     printf("value must be small compared to reference.\n");
     assert(false);
   }
