@@ -45,10 +45,6 @@ IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
 
 # Select either GNU Compiler or clang based on env CXX
 CCOMP = $(CXX)
-ifeq ($(CCOMP), g++)
-LIBS = -lm -lgomp -lstdc++
-endif
-
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
 MPFLAGS = -fopenmp
 OFLAGS = -O3 -DNDEBUG -g #-march=native
@@ -138,7 +134,7 @@ generate_source_function_debug_warn: $(OBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
 	@echo "compiling generate_source_function.cpp..."
 	@$(CC) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -c generate_source_function.cpp -o bin/generate_source_function.debug.o
 	@echo "linking ..."
-	@$(CC) $(OBJFILESDBG) bin/generate_source_function.debug.o $(IDIR) $(LIBS)  -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
+	@$(CC) $(OBJFILESDBG) bin/generate_source_function.debug.o $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
 
 
 generate_source_function_debug_warn_float: $(EIGENDIR) $(BOOSTDIR)
