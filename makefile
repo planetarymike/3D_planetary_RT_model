@@ -286,9 +286,9 @@ $(EIGENDIR):
 	@cd lib && tar -xf eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
 	@cd lib && rm eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
 # fix obsolete usage of diag_suppress to eliminate scores of nvcc warnings
-	@sed -i 's/diag_suppress/nv_diag_suppress/' lib/eigen-3.4.0/Eigen/src/Core/util/DisableStupidWarnings.h
+	@bash -c "sed -i 's/diag_suppress/nv_diag_suppress/' lib/eigen-3.4.0/Eigen/src/Core/util/DisableStupidWarnings.h"
 # fix improper identification of cuda in an Eigen source file
-	@sed -i 's/#if defined(__clang__) && defined(__CUDA__)/#if defined(EIGEN_HAS_GPU_FP16) || defined(EIGEN_HAS_ARM64_FP16_SCALAR_ARITHMETIC)/' lib/eigen-3.4.0/Eigen/src/Core/arch/Default/Half.h
+	@bash -c "sed -i 's/#if defined(__clang__) && defined(__CUDA__)/#if defined(EIGEN_HAS_GPU_FP16) || defined(EIGEN_HAS_ARM64_FP16_SCALAR_ARITHMETIC)/' lib/eigen-3.4.0/Eigen/src/Core/arch/Default/Half.h"
 	@echo "... done."
 
 $(BOOSTDIR):
@@ -302,7 +302,7 @@ $(BOOSTDIR):
 	@cd lib && tar -xf boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 	@cd lib && rm boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 # implement BOOST_NO_CUDA flag
-	@sed -i 's/#define BOOST_GPU_ENABLED __host__ __device__/#ifndef BOOST_NO_CUDA\n#define BOOST_GPU_ENABLED __host__ __device__\n#endif/' lib/boost_$(BOOST_VERSION_NUMBER_)/boost/config/compiler/nvcc.hpp
+	@bash -c "sed -i 's/#define BOOST_GPU_ENABLED __host__ __device__/#ifndef BOOST_NO_CUDA\n#define BOOST_GPU_ENABLED __host__ __device__\n#endif/' lib/boost_$(BOOST_VERSION_NUMBER_)/boost/config/compiler/nvcc.hpp"
 	@echo "... done."
 
 clean_gpu:
