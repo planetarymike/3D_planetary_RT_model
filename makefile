@@ -48,6 +48,7 @@ ifeq ($(USE_CLANG),true)
 CCOMP = clang++-15
 else
 CCOMP = g++-9
+LIBS = -lm -lgomp
 endif
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
 MPFLAGS = -fopenmp
