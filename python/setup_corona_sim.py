@@ -70,7 +70,9 @@ compiler_flags_to_remove = ['-O2',
                             '-Wl,-z,relro',
                             '-fwrapv',
                             '-fstack-protector-strong',
-                            '-Werror=format-security']
+                            '-Werror=format-security',
+                            '-Wstrict-prototypes',
+                            '-Wunreachable-code']
 
 
 def remove_compiler_flags(x):
