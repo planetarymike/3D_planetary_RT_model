@@ -38,6 +38,14 @@ EIGENDIR = $(shell pwd)/lib/eigen-$(EIGEN_VERSION_NUMBER)
 # include flags for compiler
 IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
 
+# determine current git hash for versioning
+GIT_HASH_RAW = $(shell git rev-parse HEAD)
+UNCOMMITTED_CHANGES = $(shell git status --porcelain=v1 2>/dev/null | wc -l)
+ifeq ($(UNCOMMITTED_CHANGES), 0)
+GIT_HASH = $(GIT_HASH_RAW)
+else
+GIT_HASH = $(GIT_HASH_RAW)-dirty
+endif
 
 #
 # CPU compilation
@@ -198,6 +206,7 @@ py_corona_sim_cpu: $(EIGENDIR) $(BOOSTDIR)
 	export SOURCE_FILES='$(PYSRCFILES)'; \
 	export CC='$(CCOMP)'; \
 	export CXX='$(CCOMP)'; \
+	export CPP_GIT_HASH='$(GIT_HASH)'; \
 	python setup_corona_sim.py build_ext --inplace
 
 $(OBJDIR)/%.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
@@ -225,6 +234,7 @@ py_corona_sim_gpu: $(EIGENDIR) $(BOOSTDIR)
 	export SOURCE_FILES='$(PYSRCFILES)'; \
 	export CC='nvcc'; \
 	export CXX='nvcc'; \
+	export CPP_GIT_HASH='$(GIT_HASH)'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
 py_corona_sim_all: $(EIGENDIR) $(BOOSTDIR)

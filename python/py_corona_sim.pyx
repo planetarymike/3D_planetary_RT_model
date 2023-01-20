@@ -29,7 +29,7 @@ cdef extern from "chamberlain_exosphere.hpp":
 # name of Quemerais IPH source function, packaged along with *.so file
 iph_sfn_basename = 'quemerais_IPH_sourcefn_fsm99td12v20t80.dat' # basename of source file
 # fully qualified name determined when class Pyobservation_fit is created
-        
+
 cdef extern from "observation_fit.hpp":
     cdef cppclass observation_fit:
         observation_fit(string sfn_fname)
@@ -196,6 +196,11 @@ cdef class Pyobservation_fit:
         self.thisptr = new observation_fit(iph_sfn_fname.encode('utf-8'))
     def __dealloc__(self):
         del self.thisptr
+
+    @staticmethod
+    def corona_model_git_hash():
+        # return git hash of current c++ corona model
+        return CPP_GIT_HASH
 
     def add_observation(self, loc_arr, dir_arr):
         cdef vector[vector[Real]] loc_vec,dir_vec

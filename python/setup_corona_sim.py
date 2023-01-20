@@ -133,6 +133,9 @@ else:
     cython_compile_time = {'RT_FLOAT': False}
 
 
+cython_compile_time['CPP_GIT_HASH'] = os.environ['CPP_GIT_HASH']
+
+
 # monkey-patch for parallel compilation
 def parallelCCompile(self, sources,
                      output_dir=None,
