@@ -58,6 +58,9 @@ observation_fit::observation_fit(const string iph_sfn_fnamee)
   oxygen_RT.grid.rmethod = grid.rmethod_log_n_species;
   oxygen_RT.grid.szamethod = grid.szamethod_uniform_cos;
   oxygen_RT.grid.raymethod_theta = grid.raymethod_theta_uniform;
+
+  tweak_H_density = false;
+  tweak_H_temp = false;
 }
 
 void observation_fit::add_observation(const vector<vector<Real>> &MSO_locations, const vector<vector<Real>> &MSO_directions) {
@@ -466,6 +469,21 @@ void observation_fit::reset_CO2_exobase_density() {
 }
 void observation_fit::set_CO2_exobase_density(const double nCO2) {
   CO2_exobase_density = nCO2;
+}
+
+void observation_fit::set_H_density_tweak(const bool tweak_H_densityy) {
+  tweak_H_density = tweak_H_densityy;
+}
+void observation_fit::set_H_density_tweak_values(const vector<int> voxels_to_tweak, const Real tweak_factor) {
+  tweak_H_density_voxel_numbers = voxels_to_tweak;
+  tweak_H_density_factor = tweak_factor;
+}
+void observation_fit::set_H_temp_tweak(const bool tweak_H_tempp) {
+  tweak_H_temp = tweak_H_tempp;
+}
+void observation_fit::set_H_temp_tweak_values(const vector<int> voxels_to_tweak, const Real tweak_factor) {
+  tweak_H_temp_voxel_numbers = voxels_to_tweak;
+  tweak_H_temp_factor = tweak_factor;
 }
 
 

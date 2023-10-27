@@ -491,6 +491,31 @@ public:
     internal_init=true;
   }
 
+  void tweak_species_density(const vector<int> voxel_numbers, const Real tweak_factor) {
+    for (int i_tweak=0;i_tweak<voxel_numbers.size();i_tweak++) {
+      int vnum = voxel_numbers[i_tweak];
+
+      species_density(vnum) *= tweak_factor;
+      species_density_pt(vnum) *= tweak_factor;
+      dtau_species(vnum) *= tweak_factor;
+      dtau_species_pt(vnum) *= tweak_factor;
+      abs(vnum) /= tweak_factor;
+      abs_pt(vnum) /= tweak_factor;
+    }
+  }
+  void tweak_species_temp(const vector<int> voxel_numbers, const Real tweak_factor) {
+    for (int i_tweak=0;i_tweak<voxel_numbers.size();i_tweak++) {
+      int vnum = voxel_numbers[i_tweak];
+
+      species_T_ratio(vnum) /= tweak_factor;
+      species_T_ratio_pt(vnum) /= tweak_factor;
+      dtau_species(vnum) /= sqrt(tweak_factor);
+      dtau_species_pt(vnum) /= sqrt(tweak_factor);
+      abs(vnum) *= sqrt(tweak_factor);
+      abs_pt(vnum) *= sqrt(tweak_factor);
+    }
+  }
+
   void save(std::ostream &file, VectorX (*function)(VectorX, int), const int i) const {
     file << "    Species density [cm-3]: "
 	 <<      function(species_density.eigen(), i).transpose() << "\n"

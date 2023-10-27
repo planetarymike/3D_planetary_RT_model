@@ -128,6 +128,15 @@ protected:
 
   observation<oxygen_emission_type, n_oxygen_emissions> oxygen_obs;
 
+  // variables used to test sensitivity to density and temperature in each voxel
+  bool tweak_H_density;
+  vector<int> tweak_H_density_voxel_numbers;
+  Real tweak_H_density_factor;
+
+  bool tweak_H_temp;
+  vector<int> tweak_H_temp_voxel_numbers;
+  Real tweak_H_temp_factor;
+
 public:
   observation_fit(const string iph_sfn_fnamee);
 
@@ -206,6 +215,15 @@ public:
 		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		   &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
 		   RT_obj.grid.voxels);
+
+    if (tweak_H_density) {
+      lya_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+      lyb_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+    }
+    if (tweak_H_temp) {
+      lya_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+      lyb_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+    }
     
     atmm.spherical = atmm_spherical;  
     
@@ -251,6 +269,15 @@ public:
 		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		   &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
 		   RT_obj.grid.voxels);
+
+    if (tweak_H_density) {
+      lya_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+      lyb_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+    }
+    if (tweak_H_temp) {
+      lya_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+      lyb_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+    }
     
     if (change_spherical)
       atmm.spherical = false;    
@@ -319,6 +346,11 @@ public:
 
   void save_influence_matrix(const string fname);
   void save_influence_matrix_O_1026(const string fname);
+
+  void set_H_density_tweak(const bool tweak_H_densityy = false);
+  void set_H_density_tweak_values(const vector<int> voxels_to_tweak, const Real tweak_factor);
+  void set_H_temp_tweak(const bool tweak_H_tempp = false);
+  void set_H_temp_tweak_values(const vector<int> voxels_to_tweak, const Real tweak_factor);
   
   std::vector<std::vector<Real>> brightness();
   std::vector<std::vector<Real>> species_col_dens();

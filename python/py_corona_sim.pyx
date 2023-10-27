@@ -130,6 +130,11 @@ cdef extern from "observation_fit.hpp":
 
         void save_influence_matrix(string fname)
         void save_influence_matrix_O_1026(string fname)
+
+        void set_H_density_tweak(bool tweak_H_densityy);
+        void set_H_density_tweak_values(vector[int] voxels_to_tweak, Real tweak_factor);
+        void set_H_temp_tweak(bool tweak_H_tempp);
+        void set_H_temp_tweak_values(vector[int] voxel_to_tweak, Real tweak_factor);
         
         vector[vector[Real]] brightness()
         vector[vector[Real]] species_col_dens()
@@ -485,6 +490,27 @@ cdef class Pyobservation_fit:
     def save_influence_matrix_O_1026(self, fname):
         self.thisptr.save_influence_matrix_O_1026(fname.encode('utf-8'))
 
+    def set_H_density_tweak(self, tweak_H_densityy):
+        self.thisptr.set_H_density_tweak(tweak_H_densityy)
+
+    def set_H_density_tweak_values(self, voxels_to_tweak, tweak_factor):
+        cdef vector[int] vox_nums
+        vox_nums.resize(len(voxels_to_tweak))
+        for i in range(len(voxels_to_tweak)):
+            vox_nums[i] = voxels_to_tweak[i]
+
+        self.thisptr.set_H_density_tweak_values(vox_nums, tweak_factor)
+
+    def set_H_temp_tweak(self, tweak_H_tempp):
+        self.thisptr.set_H_temp_tweak(tweak_H_tempp)
+
+    def set_H_temp_tweak_values(self, voxels_to_tweak, tweak_factor):
+        cdef vector[int] vox_nums
+        vox_nums.resize(len(voxels_to_tweak))
+        for i in range(len(voxels_to_tweak)):
+            vox_nums[i] = voxels_to_tweak[i]
+
+        self.thisptr.set_H_temp_tweak_values(vox_nums, tweak_factor)
     
     def O_1026_generate_source_function(self,
                                         Real nO,
