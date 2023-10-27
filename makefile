@@ -56,7 +56,11 @@ ifeq ($(USE_CLANG),true)
 CCOMP = clang++-15
 else
 CCOMP = g++
-LIBS = -lm -lgomp -Wl,-ld_classic
+LIBS = -lm -lgomp
+ifeq ($(shell /usr/bin/xcodebuild --version), 15)
+# Xcode 15 on mac needs this linker command to compile correctly
+LIBS = $(LIBS) -Wl,-ld_classic
+endif
 endif
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
 MPFLAGS = -fopenmp

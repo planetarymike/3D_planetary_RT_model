@@ -25,7 +25,6 @@ source_files.append("py_corona_sim.pyx")
 libraries = os.getenv('LIBRARIES')
 libraries = libraries.split()
 libraries.append('-lgfortran')
-libraries.append('-Wl,-ld_classic')
 print(f"{libraries = }")
 
 compile_flags = os.getenv('COMPILE_FLAGS')
