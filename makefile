@@ -53,10 +53,18 @@ endif
 
 # Select either GNU Compiler or clang based on env CXX
 ifeq ($(USE_CLANG),true)
-CCOMP = clang++-15
+	CCOMP = clang++-15
 else
-CCOMP = g++-9
-LIBS = -lm -lgomp
+	CCOMP = g++
+	LIBS_BASE = -lm -lgomp
+	ifeq ($(shell uname),Darwin)
+		ifeq ($(shell pkgutil --pkg-info=com.apple.pkg.CLTools_Executables | grep version | cut -d' ' -f2 | cut -d'.' -f1),15)
+# Xcode 15 on mac needs this linker command to compile correctly
+			LIBS = $(LIBS_BASE) -Wl,-ld_classic
+		endif
+	else
+		LIBS = $(LIBS_BASE)
+	endif
 endif
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
 MPFLAGS = -fopenmp
