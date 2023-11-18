@@ -10,9 +10,6 @@
 
 #include "Real.hpp"
 #include "cuda_compatibility.hpp"
-#ifdef __CUDACC__
-#include "helper_cuda.h"
-#endif
 
 template<int N_VOXELS, int N_STATES_PER_VOXEL>
 struct voxel_array {
