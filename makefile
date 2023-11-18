@@ -2,11 +2,6 @@ ifneq ($(NO_PARALLEL_COMPILATION), true)
 MAKEFLAGS += -j20 #parallel compilation
 endif
 
-# you may need these in your .bashrc
-# export CUDA_HOME=/usr/local/cuda-11.2
-# export PATH=$CUDA_HOME/bin${PATH:+:${PATH}}$ 
-# export LD_LIBRARY_PATH=$CUDA_HOME/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
 #files that need compilin'
 OBJDIR = ./bin
 SRCDIR = ./src
@@ -24,12 +19,12 @@ NOBJFILESDBG := $(filter %.o, $(NSRCFILES:%.cpp=$(OBJDIR)/%.cuda.debug.o))
 
 
 PYSRCFILES = $(SRCFILES) ./src/observation_fit.cpp $(wildcard $(SRCDIR)/quemerais_IPH_model/*.cpp)
-PYOBJFILES   := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.o))
-PYNOBJFILES  := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
+PYOBJFILES  := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.o))
+PYNOBJFILES := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
 
 # External library dependencies
-BOOST_VERSION_NUMBER = 1.81.0
+BOOST_VERSION_NUMBER = 1.83.0
 BOOST_VERSION_NUMBER_ = $(subst .,_,$(BOOST_VERSION_NUMBER))
 BOOSTDIR = $(shell pwd)/lib/boost_$(BOOST_VERSION_NUMBER_)
 EIGEN_VERSION_NUMBER = 3.4.0
@@ -39,12 +34,11 @@ EIGENDIR = $(shell pwd)/lib/eigen-$(EIGEN_VERSION_NUMBER)
 IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
 
 # determine current git hash for versioning
-GIT_HASH_RAW = $(shell git rev-parse HEAD)
 UNCOMMITTED_CHANGES = $(shell git status --porcelain=v1 2>/dev/null | wc -l)
 ifeq ($(UNCOMMITTED_CHANGES), 0)
-GIT_HASH = $(GIT_HASH_RAW)
+	GIT_HASH = $(shell git rev-parse HEAD)
 else
-GIT_HASH = $(GIT_HASH_RAW)-dirty
+	GIT_HASH+=$(shell git rev-parse HEAD)-dirty
 endif
 
 #
@@ -52,18 +46,16 @@ endif
 #
 
 # Select either GNU Compiler or clang based on env CXX
-ifeq ($(USE_CLANG),true)
+ifneq ($(USE_CLANG),)
 	CCOMP = clang++-15
 else
-	CCOMP = g++
-	LIBS_BASE = -lm -lgomp
+	CCOMP = g++-9
+	LIBS = -lm -lgomp
 	ifeq ($(shell uname),Darwin)
-		ifeq ($(shell pkgutil --pkg-info=com.apple.pkg.CLTools_Executables | grep version | cut -d' ' -f2 | cut -d'.' -f1),15)
-# Xcode 15 on mac needs this linker command to compile correctly
-			LIBS = $(LIBS_BASE) -Wl,-ld_classic
+		ifeq ($(shell pkgutil --pkg-info=com.apple.pkg.CLTools_Executables \
+			| grep version | cut -d' ' -f2 | cut -d'.' -f1),15)
+			LIBS += -Wl,-ld_classic # Xcode 15 on mac needs this linker command to compile correctly
 		endif
-	else
-		LIBS = $(LIBS_BASE)
 	endif
 endif
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
@@ -74,79 +66,70 @@ OFLAGS = -O3 -DNDEBUG -g #-march=native
 #
 # GPU compilation
 #
+NVCC := $(shell command -v nvcc 2> /dev/null)
+ifneq ($(NVCC),) # if cuda toolkit is installed
+	CUDA_VERSION=$(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d,)
+	CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery \
+			   | grep -o 'CUDA Capability Major/Minor version number:.*' \
+                           | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 
-# get device spec
-CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery | grep -o 'CUDA Capability Major/Minor version number:.*' | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
+	CUDA_SAMPLES_DIR = $(shell pwd)/lib/cuda-samples-$(CUDA_VERSION)
+	NIDIR=$(IDIR) -I$(CUDA_HOME)/lib64/ -I$(CUDA_SAMPLES_DIR)/Common/
 
-ifeq ($(USE_CLANG), true)
-NCC=$(CLANGPP) -std=c++17 -fPIC --offload-new-driver
-NFLAGS=-x cuda -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
-#      ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
-#                                                                     (this flag added on download as a wrapper
-#                                                                      around BOOST_GPU_ENABLED in
-#                                                                      boost/config/compiler/nvcc.hpp)
-NIDIR=$(IDIR) \
-      -I$(CUDA_HOME)lib64/ \
-      -I$(CUDA_HOME)samples/common/inc/
-NLIBS=-lcudart -lcusolver -lcublas -ldl -lrt -pthread -L$(CUDA_HOME)/lib64
-NOBASEFLAGS=-O3 -DNDEBUG -ffast-math #--maxrregcount 43
+	NFLAGS =-D RT_FLOAT # 32-bit calculation
+	NFLAGS += -D EIGEN_NO_CUDA # disable Eigen on device
+	NFLAGS += -D BOOST_NO_CUDA # disable Boost on device (see BOOST_DIR recipe)
 
-# compile optimization commands
-NOFLAGS=$(NOBASEFLAGS) --offload-arch=sm_$(CUDA_DEVICE_CODE)
-NDBGFLAGS=-g --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
+	NLIBS=-lcudart -lcusolver -lcublas
 
-else # use default nvcc compiler
-NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
-NFLAGS=-x cu -D RT_FLOAT              -D EIGEN_NO_CUDA                -D BOOST_NO_CUDA
-#            ^^^^32-bit calculation   ^^^^^ disable Eigen on device   ^^^^^ disable Boost on device
-#                                                                     (this flag added on download as a wrapper
-#                                                                      around BOOST_GPU_ENABLED in
-#                                                                      boost/config/compiler/nvcc.hpp)
-NIDIR=$(IDIR) \
-      -I$(CUDA_HOME)lib64/ \
-      -I$(CUDA_HOME)samples/common/inc/
-NLIBS=-lm -lcudart -lcusolver -lcublas
-NOBASEFLAGS=-O3 -DNDEBUG -lineinfo --use_fast_math #--maxrregcount 43
+	NOFLAGS=-O3 -DNDEBUG  #--maxrregcount 43
+	NDBGFLAGS=-g
 
-# if we are CUDA 11, link time optimization is possible
-ifeq ($(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d.),11)
-CUDA_DLTO=true
-CUDA_SM_TYPE=lto
-DLTO=-dlto
-else
-CUDA_SM_TYPE=sm
+	ifneq ($(USE_CLANG),) # use clang compiler
+		NCC=$(CLANGPP) -std=c++17 -fPIC --offload-new-driver
+		NFLAGS +=-x cuda
+		NOFLAGS += -ffast-math
+
+		NLIBS += -ldl -lrt -pthread -L$(CUDA_HOME)/lib64
+		NOFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)
+		NDBGFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
+	else # use default nvcc compiler
+		NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
+		NFLAGS +=-x cu
+		NLIBS +=-lm
+		NOFLAGS += -lineinfo --use_fast_math
+
+		ifeq ($(shell echo "$(CUDA_VERSION) > 11" |bc -l),1)
+			CUDA_SM_TYPE=lto
+			DLTO=-dlto
+		else
+			CUDA_SM_TYPE=sm
+		endif
+
+		ARCH=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE) # local machine
+		ARCH +=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70 # AWS P3 node
+
+		ARCH_SM=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=sm_$(CUDA_DEVICE_CODE) # local machine
+		ARCH_SM +=--generate-code arch=compute_70,code=sm_70 # AWS P3 node
+
+		NOFLAGS +=$(ARCH)
+		NDBGFLAGS += -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
+#                           ^^ this -G sometimes changes the behavior of the code??
+	endif
 endif
-
-# compilation targets
-ARCH0=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE) # local machine
-ARCH1=--generate-code arch=compute_61,code=$(CUDA_SM_TYPE)_61 # Mike thinkpad P1
-ARCH2=--generate-code arch=compute_37,code=$(CUDA_SM_TYPE)_37 -Wno-deprecated-gpu-targets # AWS P2 node
-ARCH3=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70 # AWS P3 node
-ARCH=$(ARCH0) $(ARCH1) $(ARCH2) $(ARCH3)
-
-# compilation targets
-ARCH_SM0=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=sm_$(CUDA_DEVICE_CODE) # local machine
-ARCH_SM1=--generate-code arch=compute_61,code=sm_61 # Mike thinkpad P1
-ARCH_SM2=--generate-code arch=compute_37,code=sm_37 -Wno-deprecated-gpu-targets # AWS P2 node
-ARCH_SM3=--generate-code arch=compute_70,code=sm_70 # AWS P3 node
-ARCH_SM=$(ARCH_SM0) $(ARCH_SM1) $(ARCH_SM2) $(ARCH_SM3)
-
-# compile optimization commands
-NOFLAGS=$(NOBASEFLAGS) $(ARCH)
-NDBGFLAGS=-g -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
-#            ^^ this -G sometimes changes the behavior of the code??
-endif
-
 
 #
 # recipes
 #
 
+all:
+	$(error "please specify recipe")
+
 generate_source_function: $(EIGENDIR) $(BOOSTDIR)
-	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
+	@$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
 
 generate_source_function_profile: $(EIGENDIR) $(BOOSTDIR)
-	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
+	@$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(OFLAGS) -g -o generate_source_function.x
 
 # generate_source_function_debug_warn:
 # 	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -v -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
@@ -159,41 +142,41 @@ generate_source_function_debug_warn: $(OBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
 
 
 generate_source_function_debug_warn_float: $(EIGENDIR) $(BOOSTDIR)
-	$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
+	@$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o generate_source_function.x
 
 generate_source_function_debug_warn_MP: $(EIGENDIR) $(BOOSTDIR)
-	$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) -O0 -g -Wall -Wextra -o generate_source_function.x
+	@$(CC) generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) -O0 -g -Wall -Wextra -o generate_source_function.x
 
 generate_source_function_float: $(EIGENDIR) $(BOOSTDIR)
-	$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
+	@$(CC) -D RT_FLOAT generate_source_function.cpp $(SRCFILES) $(IDIR) $(LIBS) $(MPFLAGS) $(OFLAGS) -o generate_source_function.x
 
 
 
-generate_source_function_gpu: $(NOBJFILES) $(EIGENDIR) $(BOOSTDIR)
+generate_source_function_gpu: $(NOBJFILES) $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	@echo "compiling generate_source_function.cpp..."
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc generate_source_function.cpp -o bin/generate_source_function.cuda.o
 	@echo "linking..."
-ifeq ($(CUDA_DLTO),true)
-	$(info Using CUDA 11 link time optimization)
+ifneq ($(DLTO),)
+	@echo "Using CUDA link time optimization"
 endif
 	@$(NCC) $(NOBJFILES) bin/generate_source_function.cuda.o $(NIDIR) $(NLIBS) $(NOBASEFLAGS) $(ARCH_SM) $(DLTO) -o generate_source_function_gpu.x
 
-$(OBJDIR)/%.cuda.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
+$(OBJDIR)/%.cuda.o: %.cpp $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
-	$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
+	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) -dc $< -o $@
 
 
-generate_source_function_gpu_monolithic: $(EIGENDIR) $(BOOSTDIR)
+generate_source_function_gpu_monolithic: $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NOFLAGS) $(NSRCFILES) generate_source_function.cpp -o generate_source_function_gpu.x
 
-generate_source_function_gpu_debug: $(NOBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
+generate_source_function_gpu_debug: $(NOBJFILESDBG) $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	@echo "compiling generate_source_function.cpp..."
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc generate_source_function.cpp -o bin/generate_source_function.cuda.debug.o
 	@echo "linking ..."
 	@$(NCC) $(NOBJFILESDBG) bin/generate_source_function.cuda.debug.o $(NIDIR) $(NLIBS) $(NDBGFLAGS) -o generate_source_function_gpu.x
 
-$(OBJDIR)/%.cuda.debug.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
+$(OBJDIR)/%.cuda.debug.o: %.cpp $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	@echo "compiling $<..."
 	@mkdir -p '$(@D)'
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc $< -o $@
@@ -227,7 +210,7 @@ $(OBJDIR)/%.debug.o: %.cpp $(EIGENDIR) $(BOOSTDIR)
 	@mkdir -p '$(@D)'
 	@$(CC) -c $< $(IDIR) $(LIBS)  -O0 -g -Wall -Wextra -Wno-unknown-pragmas -o $@
 
-py_corona_sim_gpu: $(EIGENDIR) $(BOOSTDIR)
+py_corona_sim_gpu: $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	@mkdir -p bin
 	gfortran -fPIC -Ofast -c -std=legacy\
 	  $(SRCDIR)/quemerais_IPH_model/ipbackgroundCFR_fun.f \
@@ -245,7 +228,7 @@ py_corona_sim_gpu: $(EIGENDIR) $(BOOSTDIR)
 	export CPP_GIT_HASH='$(GIT_HASH)'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
-py_corona_sim_all: $(EIGENDIR) $(BOOSTDIR)
+py_corona_sim_all: $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	make py_corona_sim_cpu && make py_corona_sim_gpu
 
 observation_fit_cpu_test: $(EIGENDIR) $(BOOSTDIR)
@@ -269,7 +252,7 @@ observation_fit_cpu_test: $(EIGENDIR) $(BOOSTDIR)
 	$(OBJDIR)/ipbackgroundCFR_fun.o -lgfortran \
 	$(IDIR) $(LIBS)  -O0 -g -o python/test/obs_fit_test.x
 
-observation_fit_gpu_test: $(NOBJFILESDBG) $(EIGENDIR) $(BOOSTDIR)
+observation_fit_gpu_test: $(NOBJFILESDBG) $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	@echo "compiling observation_fit.cpp..."
 	@$(NCC) $(NFLAGS) $(NIDIR) $(NLIBS) $(NDBGFLAGS) -dc src/observation_fit.cpp -o bin/src/observation_fit.cuda.debug.o
 	@echo "compiling obs_fit_test.cpp..."
@@ -319,6 +302,27 @@ $(BOOSTDIR):
 # implement BOOST_NO_CUDA flag
 	@sed -i'.original' -e 's/#define BOOST_GPU_ENABLED __host__ __device__/#ifndef BOOST_NO_CUDA\n#define BOOST_GPU_ENABLED __host__ __device__\n#endif/' lib/boost_$(BOOST_VERSION_NUMBER_)/boost/config/compiler/nvcc.hpp
 	@echo "... done downloading Boost."
+
+$(CUDA_SAMPLES_DIR):
+	@echo "Downloading cuda samples library..."
+	@mkdir -p lib
+# remove old versions
+	@cd lib && find . -name "cuda-samples*" -type d ! -name "cuda_samples_$(CUDA_VERSION)" -exec rm -rf {} +
+	@cd lib && rm -f *.tar.gz
+# download and extract
+	@cd lib && wget -nv --no-hsts https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v$(CUDA_VERSION).tar.gz
+	@cd lib && tar -xf v$(CUDA_VERSION).tar.gz
+	@cd lib && rm v$(CUDA_VERSION).tar.gz
+	@echo "... done downloading cuda samples library."
+
+cuda_installed:
+	@if [ -z "$(CUDA_VERSION)" ] ; \
+	then echo "The CUDA nvcc compiler was not found, please install CUDA to compile GPU code.\n\n"  \
+	"If the CUDA toolkit is installed, you may need to add the following lines to your .bashrc:\n" \
+	"  export CUDA_HOME=/usr/local/cuda/\n" \
+	"  export PATH=""$$""CUDA_HOME/bin""$$""{PATH:+:""$$""{PATH}}""$$\n" \
+	"  export LD_LIBRARY_PATH=""$$""CUDA_HOME/lib64""$$""{LD_LIBRARY_PATH:+:""$$""{LD_LIBRARY_PATH}}\n" \
+	; false ; fi
 
 clean_gpu:
 	rm -f generate_source_function_gpu.x
