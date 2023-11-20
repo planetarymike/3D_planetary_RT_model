@@ -53,7 +53,8 @@ else
 	LIBS = -lm -lgomp
 	ifeq ($(shell uname),Darwin)
 		ifeq ($(shell pkgutil --pkg-info=com.apple.pkg.CLTools_Executables \
-			| grep version | cut -d' ' -f2 | cut -d'.' -f1),15)
+			      | grep version | cut -d' ' -f2 | cut -d'.' -f1),15)
+			CCOMP = g++-13
 			LIBS += -Wl,-ld_classic # Xcode 15 on mac needs this linker command to compile correctly
 		endif
 	endif
