@@ -83,7 +83,8 @@ ifneq ($(NVCC),) # if cuda toolkit is installed
 							| cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
 	endif
 	ifeq ($(CUDA_DEVICE_CODE),)
-		CUDA_DEVICE_CODE := 75
+		 $(error GPU detection failed. Could not detect compute capability via nvidia-smi or deviceQuery. \
+                 Ensure a GPU is available and nvidia-smi is in PATH, or manually set CUDA_DEVICE_CODE)
 	endif
 
 	# Determine SM type based on CUDA version (lto for CUDA 11+, sm otherwise)
