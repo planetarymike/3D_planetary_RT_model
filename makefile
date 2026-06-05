@@ -49,7 +49,7 @@ endif
 ifneq ($(USE_CLANG),)
 	CCOMP = clang++-15
 else
-	CCOMP = g++-9
+	CCOMP = g++-13
 	LIBS = -lm -lgomp
 	ifeq ($(shell uname),Darwin)
 		ifeq ($(shell pkgutil --pkg-info=com.apple.pkg.CLTools_Executables \
