@@ -24,14 +24,14 @@ PYNOBJFILES := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
 
 # External library dependencies
-BOOST_VERSION_NUMBER = 1.83.0
+BOOST_VERSION_NUMBER = 1.88.0
 BOOST_VERSION_NUMBER_ = $(subst .,_,$(BOOST_VERSION_NUMBER))
 BOOSTDIR = $(shell pwd)/lib/boost_$(BOOST_VERSION_NUMBER_)
 EIGEN_VERSION_NUMBER = 3.4.0
 EIGENDIR = $(shell pwd)/lib/eigen-$(EIGEN_VERSION_NUMBER)
 
 # include flags for compiler
-IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
+IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -isystem $(BOOSTDIR) -isystem $(EIGENDIR)
 
 # determine current git hash for versioning
 UNCOMMITTED_CHANGES = $(shell git status --porcelain=v1 2>/dev/null | wc -l)
@@ -49,7 +49,7 @@ endif
 ifneq ($(USE_CLANG),)
 	CCOMP = clang++-15
 else
-	CCOMP = g++-9
+	CCOMP = g++-13
 	LIBS = -lm -lgomp
 	ifeq ($(shell uname),Darwin)
 		ifeq ($(shell pkgutil --pkg-info=com.apple.pkg.CLTools_Executables \
@@ -61,7 +61,7 @@ else
 endif
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
 MPFLAGS = -fopenmp
-OFLAGS = -O3 -DNDEBUG -g #-march=native
+OFLAGS = -O3 -DNDEBUG #-march=native
 
 
 #
@@ -69,54 +69,102 @@ OFLAGS = -O3 -DNDEBUG -g #-march=native
 #
 NVCC := $(shell command -v nvcc 2> /dev/null)
 ifneq ($(NVCC),) # if cuda toolkit is installed
-	CUDA_VERSION=$(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d,)
-	CUDA_DEVICE_CODE=$(shell $$CUDA_HOME/extras/demo_suite/deviceQuery \
-			   | grep -o 'CUDA Capability Major/Minor version number:.*' \
-                           | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
+   CUDA_VERSION=$(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d,)
+   CUDA_MAJOR=$(shell echo $(CUDA_VERSION) | cut -f1 -d.)
 
-	CUDA_SAMPLES_DIR = $(shell pwd)/lib/cuda-samples-$(CUDA_VERSION)
-	NIDIR=$(IDIR) -I$(CUDA_HOME)/lib64/ -I$(CUDA_SAMPLES_DIR)/Common/
+   # Auto-detect GPU compute capability using nvidia-smi (preferred)
+   # Falls back to deviceQuery
+   CUDA_DEVICE_CODE := $(shell nvidia-smi --query-gpu=compute_cap \
+                                          --format=csv,noheader 2>/dev/null \
+                                          | head -1 | sed 's/\.//')
+   ifeq ($(CUDA_DEVICE_CODE),)
+      CUDA_DEVICE_CODE := $(shell $(CUDA_HOME)/extras/demo_suite/deviceQuery 2>/dev/null \
+                                  | grep -o 'CUDA Capability Major/Minor version number:.*' \
+                                  | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
+   endif
+   ifeq ($(CUDA_DEVICE_CODE),)
+       $(error GPU detection failed. Could not detect compute capability via nvidia-smi or deviceQuery. \
+                 Ensure a GPU is available and nvidia-smi is in PATH, or manually set CUDA_DEVICE_CODE)
+   endif
 
-	NFLAGS =-D RT_FLOAT # 32-bit calculation
-	NFLAGS += -D EIGEN_NO_CUDA # disable Eigen on device
-	NFLAGS += -D BOOST_NO_CUDA # disable Boost on device (see BOOST_DIR recipe)
+   CUDA_SAMPLES_DIR = $(shell pwd)/lib/cuda-samples-$(CUDA_VERSION)
+   NIDIR=$(IDIR) -isystem $(CUDA_HOME)/lib64/ -isystem $(CUDA_SAMPLES_DIR)/Common/
 
-	NLIBS=-lcudart -lcusolver -lcublas
+   NFLAGS =-D RT_FLOAT # 32-bit calculation
+   NFLAGS += -D EIGEN_NO_CUDA # disable Eigen on device
+   NFLAGS += -D BOOST_NO_CUDA # disable Boost on device (see BOOST_DIR recipe)
 
-	NOFLAGS=-O3 -DNDEBUG  #--maxrregcount 43
-	NDBGFLAGS=-g
+   NLIBS=-lcudart -lcusolver -lcublas
 
-	ifneq ($(USE_CLANG),) # use clang compiler
-		NCC=$(CLANGPP) -std=c++17 -fPIC --offload-new-driver
-		NFLAGS +=-x cuda
-		NOFLAGS += -ffast-math
+   NOFLAGS=-O3 -DNDEBUG  #--maxrregcount 43
+   NDBGFLAGS=-g
 
-		NLIBS += -ldl -lrt -pthread -L$(CUDA_HOME)/lib64
-		NOFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)
-		NDBGFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
-	else # use default nvcc compiler
-		NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
-		NFLAGS +=-x cu
-		NLIBS +=-lm
-		NOFLAGS += -lineinfo --use_fast_math
+   ifneq ($(USE_CLANG),) # use clang compiler
+      NCC=$(CLANGPP) -std=c++17 -fPIC --offload-new-driver
+      NFLAGS +=-x cuda
+      NOFLAGS += -ffast-math
 
-		ifeq ($(shell echo "$(CUDA_VERSION) > 11" |bc -l),1)
-			CUDA_SM_TYPE=lto
-			DLTO=-dlto
-		else
-			CUDA_SM_TYPE=sm
-		endif
+      NLIBS += -ldl -lrt -pthread -L$(CUDA_HOME)/lib64
+      NOFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)
+      NDBGFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
+   else # use default nvcc compiler
+      NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
+      NFLAGS +=-x cu
+      NLIBS +=-lm
+      NOFLAGS += -lineinfo --use_fast_math
 
-		ARCH=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE) # local machine
-		ARCH +=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70 # AWS P3 node
+      # Determine SM type based on CUDA version (lto for CUDA 11+, sm otherwise)
+      ifeq ($(shell test $(CUDA_MAJOR) -ge 11 && echo yes),yes)
+         CUDA_SM_TYPE=lto
+         DLTO=-dlto
+      else
+         CUDA_SM_TYPE=sm
+      endif
 
-		ARCH_SM=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=sm_$(CUDA_DEVICE_CODE) # local machine
-		ARCH_SM +=--generate-code arch=compute_70,code=sm_70 # AWS P3 node
+      # Architecture flags for detected device
+      ARCH=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE)
+      ARCH_SM=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=sm_$(CUDA_DEVICE_CODE)
 
-		NOFLAGS +=$(ARCH)
-		NDBGFLAGS += -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
-#                           ^^ this -G sometimes changes the behavior of the code??
-	endif
+      # Additional architectures for cross-compatibility (only if supported)
+      # K80/P2 (compute_37) - CUDA < 12 only
+      ifeq ($(shell test $(CUDA_MAJOR) -lt 12 && echo yes),yes)
+         ifneq ($(CUDA_DEVICE_CODE),37)
+            ARCH +=--generate-code arch=compute_37,code=$(CUDA_SM_TYPE)_37
+            ARCH_SM +=--generate-code arch=compute_37,code=sm_37
+         endif
+      endif
+
+      # V100/P3 (compute_70) - CUDA < 12 only
+      ifeq ($(shell test $(CUDA_MAJOR) -lt 12 && echo yes),yes)
+         ifneq ($(CUDA_DEVICE_CODE),70)
+            ARCH +=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70
+            ARCH_SM +=--generate-code arch=compute_70,code=sm_70
+         endif
+      endif
+
+      # T4/g4dn (compute_75) - CUDA 10+
+      ifneq ($(CUDA_DEVICE_CODE),75)
+         ARCH +=--generate-code arch=compute_75,code=$(CUDA_SM_TYPE)_75
+         ARCH_SM +=--generate-code arch=compute_75,code=sm_75
+      endif
+
+      # A10G/g5 (compute_86) - CUDA 11.1+
+      ifeq ($(shell test $(CUDA_MAJOR) -ge 11 && echo yes),yes)
+         ifneq ($(CUDA_DEVICE_CODE),86)
+            ARCH +=--generate-code arch=compute_86,code=$(CUDA_SM_TYPE)_86
+            ARCH_SM +=--generate-code arch=compute_86,code=sm_86
+         endif
+      endif
+
+      # Print detected configuration (for debugging)
+      # $(info CUDA Version: $(CUDA_VERSION) (major: $(CUDA_MAJOR)))
+      # $(info Detected GPU: compute_$(CUDA_DEVICE_CODE))
+      # $(info ARCH flags: $(ARCH))
+
+      NOFLAGS +=$(ARCH)
+      NDBGFLAGS += -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
+      #            ^^ this -G sometimes changes the behavior of the code??
+   endif
 endif
 
 #
@@ -226,6 +274,7 @@ py_corona_sim_gpu: $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	export SOURCE_FILES='$(PYSRCFILES)'; \
 	export CC='nvcc'; \
 	export CXX='nvcc'; \
+	export NVCC_CCBIN='$(CCOMP)'; \
 	export CPP_GIT_HASH='$(GIT_HASH)'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
@@ -297,7 +346,7 @@ $(BOOSTDIR):
 	@cd lib && find . -name "boost_*" -type d ! -name "boost_$(BOOST_VERSION_NUMBER_)" -exec rm -rf {} +
 	@cd lib && rm -f *.bz2
 # download and extract
-	@cd lib && wget -nv --no-hsts https://boostorg.jfrog.io/artifactory/main/release/$(BOOST_VERSION_NUMBER)/source/boost_$(BOOST_VERSION_NUMBER_).tar.bz2
+	@cd lib && wget -nv --no-hsts https://archives.boost.io/release/$(BOOST_VERSION_NUMBER)/source/boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 	@cd lib && tar -xf boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 	@cd lib && rm boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 # implement BOOST_NO_CUDA flag
