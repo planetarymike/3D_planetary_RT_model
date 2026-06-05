@@ -61,7 +61,7 @@ else
 endif
 CC = $(CCOMP) -std=c++17 -fPIC #-D RT_FLOAT -Wfloat-conversion # these commands can be used to check for double literals
 MPFLAGS = -fopenmp
-OFLAGS = -O3 -DNDEBUG -g #-march=native
+OFLAGS = -O3 -DNDEBUG #-march=native
 
 
 #
@@ -109,7 +109,7 @@ ifneq ($(NVCC),) # if cuda toolkit is installed
       NDBGFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
    else # use default nvcc compiler
       NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
-      NFLAGS +=-x cu -rdc=true
+      NFLAGS +=-x cu
       NLIBS +=-lm
       NOFLAGS += -lineinfo --use_fast_math
 
@@ -157,9 +157,9 @@ ifneq ($(NVCC),) # if cuda toolkit is installed
       endif
 
       # Print detected configuration (for debugging)
-      $(info CUDA Version: $(CUDA_VERSION) (major: $(CUDA_MAJOR)))
-      $(info Detected GPU: compute_$(CUDA_DEVICE_CODE))
-      $(info ARCH flags: $(ARCH))
+      # $(info CUDA Version: $(CUDA_VERSION) (major: $(CUDA_MAJOR)))
+      # $(info Detected GPU: compute_$(CUDA_DEVICE_CODE))
+      # $(info ARCH flags: $(ARCH))
 
       NOFLAGS +=$(ARCH)
       NDBGFLAGS += -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
