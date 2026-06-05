@@ -274,6 +274,7 @@ py_corona_sim_gpu: $(EIGENDIR) $(BOOSTDIR) $(CUDA_SAMPLES_DIR) cuda_installed
 	export SOURCE_FILES='$(PYSRCFILES)'; \
 	export CC='nvcc'; \
 	export CXX='nvcc'; \
+	export NVCC_CCBIN='$(CCOMP)'; \
 	export CPP_GIT_HASH='$(GIT_HASH)'; \
 	python setup_corona_sim.py build_ext --inplace -RT_FLOAT -v
 
