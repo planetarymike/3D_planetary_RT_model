@@ -129,7 +129,7 @@ ifneq ($(NVCC),) # if cuda toolkit is installed
       # K80/P2 (compute_37) - CUDA < 12 only
       ifeq ($(shell test $(CUDA_MAJOR) -lt 12 && echo yes),yes)
          ifneq ($(CUDA_DEVICE_CODE),37)
-            ARCH +=--generate-code arch=compute_37,code=sm_37
+            ARCH +=--generate-code arch=compute_37,code=$(CUDA_SM_TYPE)_37
             ARCH_SM +=--generate-code arch=compute_37,code=sm_37
          endif
       endif
@@ -144,14 +144,14 @@ ifneq ($(NVCC),) # if cuda toolkit is installed
 
       # T4/g4dn (compute_75) - CUDA 10+
       ifneq ($(CUDA_DEVICE_CODE),75)
-         ARCH +=--generate-code arch=compute_75,code=sm_75
+         ARCH +=--generate-code arch=compute_75,code=$(CUDA_SM_TYPE)_75
          ARCH_SM +=--generate-code arch=compute_75,code=sm_75
       endif
 
       # A10G/g5 (compute_86) - CUDA 11.1+
       ifeq ($(shell test $(CUDA_MAJOR) -ge 11 && echo yes),yes)
          ifneq ($(CUDA_DEVICE_CODE),86)
-            ARCH +=--generate-code arch=compute_86,code=sm_86
+            ARCH +=--generate-code arch=compute_86,code=$(CUDA_SM_TYPE)_86
             ARCH_SM +=--generate-code arch=compute_86,code=sm_86
          endif
       endif
