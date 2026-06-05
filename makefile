@@ -24,7 +24,7 @@ PYNOBJFILES := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
 
 # External library dependencies
-BOOST_VERSION_NUMBER = 1.83.0
+BOOST_VERSION_NUMBER = 1.88.0
 BOOST_VERSION_NUMBER_ = $(subst .,_,$(BOOST_VERSION_NUMBER))
 BOOSTDIR = $(shell pwd)/lib/boost_$(BOOST_VERSION_NUMBER_)
 EIGEN_VERSION_NUMBER = 3.4.0
@@ -345,7 +345,7 @@ $(BOOSTDIR):
 	@cd lib && find . -name "boost_*" -type d ! -name "boost_$(BOOST_VERSION_NUMBER_)" -exec rm -rf {} +
 	@cd lib && rm -f *.bz2
 # download and extract
-	@cd lib && wget -nv --no-hsts https://boostorg.jfrog.io/artifactory/main/release/$(BOOST_VERSION_NUMBER)/source/boost_$(BOOST_VERSION_NUMBER_).tar.bz2
+	@cd lib && wget -nv --no-hsts https://archives.boost.io/release/$(BOOST_VERSION_NUMBER)/source/boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 	@cd lib && tar -xf boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 	@cd lib && rm boost_$(BOOST_VERSION_NUMBER_).tar.bz2
 # implement BOOST_NO_CUDA flag
