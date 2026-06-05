@@ -109,7 +109,7 @@ ifneq ($(NVCC),) # if cuda toolkit is installed
       NDBGFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
    else # use default nvcc compiler
       NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
-      NFLAGS +=-x cu
+      NFLAGS +=-x cu -rdc=true
       NLIBS +=-lm
       NOFLAGS += -lineinfo --use_fast_math
 
