@@ -31,7 +31,7 @@ EIGEN_VERSION_NUMBER = 3.4.0
 EIGENDIR = $(shell pwd)/lib/eigen-$(EIGEN_VERSION_NUMBER)
 
 # include flags for compiler
-IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -I$(BOOSTDIR) -I$(EIGENDIR)
+IDIR= $(foreach dir,$(SRCDIRS),-I$(abspath $(dir))) -isystem $(BOOSTDIR) -isystem $(EIGENDIR)
 
 # determine current git hash for versioning
 UNCOMMITTED_CHANGES = $(shell git status --porcelain=v1 2>/dev/null | wc -l)
@@ -88,7 +88,7 @@ ifneq ($(NVCC),) # if cuda toolkit is installed
    endif
 
    CUDA_SAMPLES_DIR = $(shell pwd)/lib/cuda-samples-$(CUDA_VERSION)
-   NIDIR=$(IDIR) -I$(CUDA_HOME)/lib64/ -I$(CUDA_SAMPLES_DIR)/Common/
+   NIDIR=$(IDIR) -isystem $(CUDA_HOME)/lib64/ -isystem $(CUDA_SAMPLES_DIR)/Common/
 
    NFLAGS =-D RT_FLOAT # 32-bit calculation
    NFLAGS += -D EIGEN_NO_CUDA # disable Eigen on device
