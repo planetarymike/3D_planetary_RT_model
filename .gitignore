@@ -24,3 +24,4 @@ python/test/__pycache__
 bin/
 lib/
 .ccls*
+.not_ccls
