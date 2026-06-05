@@ -69,108 +69,102 @@ OFLAGS = -O3 -DNDEBUG -g #-march=native
 #
 NVCC := $(shell command -v nvcc 2> /dev/null)
 ifneq ($(NVCC),) # if cuda toolkit is installed
-	CUDA_VERSION=$(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d,)
-	CUDA_MAJOR=$(shell echo $(CUDA_VERSION) | cut -f1 -d.)
+   CUDA_VERSION=$(shell nvcc --version | grep -o 'release.*' | cut -f2 -d' ' | cut -f1 -d,)
+   CUDA_MAJOR=$(shell echo $(CUDA_VERSION) | cut -f1 -d.)
 
-	# Auto-detect GPU compute capability using nvidia-smi (preferred)
-	# Falls back to deviceQuery
-	CUDA_DEVICE_CODE := $(shell nvidia-smi --query-gpu=compute_cap \
-						  --format=csv,noheader 2>/dev/null \
-						  | head -1 | sed 's/\.//')
-	ifeq ($(CUDA_DEVICE_CODE),)
-		CUDA_DEVICE_CODE := $(shell $(CUDA_HOME)/extras/demo_suite/deviceQuery 2>/dev/null \
-							| grep -o 'CUDA Capability Major/Minor version number:.*' \
-							| cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
-	endif
-	ifeq ($(CUDA_DEVICE_CODE),)
-		 $(error GPU detection failed. Could not detect compute capability via nvidia-smi or deviceQuery. \
+   # Auto-detect GPU compute capability using nvidia-smi (preferred)
+   # Falls back to deviceQuery
+   CUDA_DEVICE_CODE := $(shell nvidia-smi --query-gpu=compute_cap \
+                                          --format=csv,noheader 2>/dev/null \
+                                          | head -1 | sed 's/\.//')
+   ifeq ($(CUDA_DEVICE_CODE),)
+      CUDA_DEVICE_CODE := $(shell $(CUDA_HOME)/extras/demo_suite/deviceQuery 2>/dev/null \
+                                  | grep -o 'CUDA Capability Major/Minor version number:.*' \
+                                  | cut -f2 -d ':' | sed -r 's/\s+//g' | sed 's/\.//')
+   endif
+   ifeq ($(CUDA_DEVICE_CODE),)
+       $(error GPU detection failed. Could not detect compute capability via nvidia-smi or deviceQuery. \
                  Ensure a GPU is available and nvidia-smi is in PATH, or manually set CUDA_DEVICE_CODE)
-	endif
+   endif
 
-	# Determine SM type based on CUDA version (lto for CUDA 11+, sm otherwise)
-	ifeq ($(shell test $(CUDA_MAJOR) -ge 11 && echo yes),yes)
-		CUDA_SM_TYPE := lto
-	else
-		CUDA_SM_TYPE := sm
-	endif
+   CUDA_SAMPLES_DIR = $(shell pwd)/lib/cuda-samples-$(CUDA_VERSION)
+   NIDIR=$(IDIR) -I$(CUDA_HOME)/lib64/ -I$(CUDA_SAMPLES_DIR)/Common/
 
-	CUDA_SAMPLES_DIR = $(shell pwd)/lib/cuda-samples-$(CUDA_VERSION)
-	NIDIR=$(IDIR) -I$(CUDA_HOME)/lib64/ -I$(CUDA_SAMPLES_DIR)/Common/
+   NFLAGS =-D RT_FLOAT # 32-bit calculation
+   NFLAGS += -D EIGEN_NO_CUDA # disable Eigen on device
+   NFLAGS += -D BOOST_NO_CUDA # disable Boost on device (see BOOST_DIR recipe)
 
-	NFLAGS =-D RT_FLOAT # 32-bit calculation
-	NFLAGS += -D EIGEN_NO_CUDA # disable Eigen on device
-	NFLAGS += -D BOOST_NO_CUDA # disable Boost on device (see BOOST_DIR recipe)
+   NLIBS=-lcudart -lcusolver -lcublas
 
-	NLIBS=-lcudart -lcusolver -lcublas
+   NOFLAGS=-O3 -DNDEBUG  #--maxrregcount 43
+   NDBGFLAGS=-g
 
-	NOFLAGS=-O3 -DNDEBUG  #--maxrregcount 43
-	NDBGFLAGS=-g
+   ifneq ($(USE_CLANG),) # use clang compiler
+      NCC=$(CLANGPP) -std=c++17 -fPIC --offload-new-driver
+      NFLAGS +=-x cuda
+      NOFLAGS += -ffast-math
 
-	ifneq ($(USE_CLANG),) # use clang compiler
-		NCC=$(CLANGPP) -std=c++17 -fPIC --offload-new-driver
-		NFLAGS +=-x cuda
-		NOFLAGS += -ffast-math
+      NLIBS += -ldl -lrt -pthread -L$(CUDA_HOME)/lib64
+      NOFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)
+      NDBGFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
+   else # use default nvcc compiler
+      NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
+      NFLAGS +=-x cu
+      NLIBS +=-lm
+      NOFLAGS += -lineinfo --use_fast_math
 
-		NLIBS += -ldl -lrt -pthread -L$(CUDA_HOME)/lib64
-		NOFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)
-		NDBGFLAGS += --offload-arch=sm_$(CUDA_DEVICE_CODE)$(ARCH_SM) -O0
-	else # use default nvcc compiler
-		NCC=nvcc -Xcompiler -fPIC -Xcudafe --display_error_number #--disable-warnings
-		NFLAGS +=-x cu
-		NLIBS +=-lm
-		NOFLAGS += -lineinfo --use_fast_math
+      # Determine SM type based on CUDA version (lto for CUDA 11+, sm otherwise)
+      ifeq ($(shell test $(CUDA_MAJOR) -ge 11 && echo yes),yes)
+         CUDA_SM_TYPE=lto
+         DLTO=-dlto
+      else
+         CUDA_SM_TYPE=sm
+      endif
 
-		ifeq ($(shell echo "$(CUDA_VERSION) > 11" |bc -l),1)
-			CUDA_SM_TYPE=lto
-			DLTO=-dlto
-		else
-			CUDA_SM_TYPE=sm
-		endif
+      # Architecture flags for detected device
+      ARCH=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE)
+      ARCH_SM=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=sm_$(CUDA_DEVICE_CODE)
 
-		# Architecture flags for detected device
-		ARCH=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=$(CUDA_SM_TYPE)_$(CUDA_DEVICE_CODE)
-		ARCH_SM=--generate-code arch=compute_$(CUDA_DEVICE_CODE),code=sm_$(CUDA_DEVICE_CODE)
+      # Additional architectures for cross-compatibility (only if supported)
+      # K80/P2 (compute_37) - CUDA < 12 only
+      ifeq ($(shell test $(CUDA_MAJOR) -lt 12 && echo yes),yes)
+         ifneq ($(CUDA_DEVICE_CODE),37)
+            ARCH +=--generate-code arch=compute_37,code=sm_37
+            ARCH_SM +=--generate-code arch=compute_37,code=sm_37
+         endif
+      endif
 
-		# Additional architectures for cross-compatibility (only if supported)
-		# K80/P2 (compute_37) - CUDA < 12 only
-		ifeq ($(shell test $(CUDA_MAJOR) -lt 12 && echo yes),yes)
-			ifneq ($(CUDA_DEVICE_CODE),37)
-				ARCH +=--generate-code arch=compute_37,code=sm_37
-				ARCH_SM +=--generate-code arch=compute_37,code=sm_37
-			endif
-		endif
+      # V100/P3 (compute_70) - CUDA < 12 only
+      ifeq ($(shell test $(CUDA_MAJOR) -lt 12 && echo yes),yes)
+         ifneq ($(CUDA_DEVICE_CODE),70)
+            ARCH +=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70
+            ARCH_SM +=--generate-code arch=compute_70,code=sm_70
+         endif
+      endif
 
-		# V100/P3 (compute_70) - CUDA < 12 only
-		ifeq ($(shell test $(CUDA_MAJOR) -lt 12 && echo yes),yes)
-			ifneq ($(CUDA_DEVICE_CODE),70)
-				ARCH +=--generate-code arch=compute_70,code=$(CUDA_SM_TYPE)_70
-				ARCH_SM +=--generate-code arch=compute_70,code=sm_70
-			endif
-		endif
+      # T4/g4dn (compute_75) - CUDA 10+
+      ifneq ($(CUDA_DEVICE_CODE),75)
+         ARCH +=--generate-code arch=compute_75,code=sm_75
+         ARCH_SM +=--generate-code arch=compute_75,code=sm_75
+      endif
 
-		# T4/g4dn (compute_75) - CUDA 10+
-		ifneq ($(CUDA_DEVICE_CODE),75)
-			ARCH +=--generate-code arch=compute_75,code=sm_75
-			ARCH_SM +=--generate-code arch=compute_75,code=sm_75
-		endif
+      # A10G/g5 (compute_86) - CUDA 11.1+
+      ifeq ($(shell test $(CUDA_MAJOR) -ge 11 && echo yes),yes)
+         ifneq ($(CUDA_DEVICE_CODE),86)
+            ARCH +=--generate-code arch=compute_86,code=sm_86
+            ARCH_SM +=--generate-code arch=compute_86,code=sm_86
+         endif
+      endif
 
-		# A10G/g5 (compute_86) - CUDA 11.1+
-		ifeq ($(shell test $(CUDA_MAJOR) -ge 11 && echo yes),yes)
-			ifneq ($(CUDA_DEVICE_CODE),86)
-				ARCH +=--generate-code arch=compute_86,code=sm_86
-				ARCH_SM +=--generate-code arch=compute_86,code=sm_86
-			endif
-		endif
+      # Print detected configuration (for debugging)
+      $(info CUDA Version: $(CUDA_VERSION) (major: $(CUDA_MAJOR)))
+      $(info Detected GPU: compute_$(CUDA_DEVICE_CODE))
+      $(info ARCH flags: $(ARCH))
 
-		# Print detected configuration (for debugging)
-		$(info CUDA Version: $(CUDA_VERSION) (major: $(CUDA_MAJOR)))
-		$(info Detected GPU: compute_$(CUDA_DEVICE_CODE))
-		$(info ARCH flags: $(ARCH))
-
-		NOFLAGS +=$(ARCH)
-		NDBGFLAGS += -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
-#                           ^^ this -G sometimes changes the behavior of the code??
-	endif
+      NOFLAGS +=$(ARCH)
+      NDBGFLAGS += -G $(ARCH_SM) -Xcompiler -O0 -Xptxas -O0
+      #            ^^ this -G sometimes changes the behavior of the code??
+   endif
 endif
 
 #
