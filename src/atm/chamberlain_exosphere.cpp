@@ -83,7 +83,6 @@ doubReal chamberlain_exosphere::r(const doubReal &ntarget) const {
   std::pair<doubReal, doubReal> r = bracket_and_solve_root(find,
 						       guess, factor, is_rising, tol, it);
 
-
   assert(it < maxit && "we must find the value we want in less than the maximum number of iterations.");
   // if (it >= maxit)
   //   {
