@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <helper_cuda.h>
 #include <cusolverDn.h>
-
+//#include <cuda_profiler_api.h>
+//#include <cudaProfiler.h>
 
 template<typename emission_type, int N_EMISSIONS, typename grid_type>
 void RT_grid<emission_type, N_EMISSIONS, grid_type>::RT_to_device() {
@@ -270,7 +271,8 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
   
   my_clock kernel_clk;
   kernel_clk.start();
-  
+
+  //  cudaProfilerStart();
   influence_kernel<emission_type,
 		   N_EMISSIONS,
   		   grid_type><<<numBlocks,blockSize>>>(d_RT);
@@ -282,6 +284,7 @@ void RT_grid<emission_type, N_EMISSIONS, grid_type>::generate_S_gpu() {
 #ifdef __PRINT_ELAPSED_TIME_TERMINAL
   kernel_clk.print_elapsed("influence matrix generation takes ");
 #endif
+  //  cudaProfilerStop();
   
   // //solve on CPU with Eigen
   // emissions_influence_to_host();
