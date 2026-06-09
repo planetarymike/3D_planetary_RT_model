@@ -24,10 +24,10 @@ PYNOBJFILES := $(filter %.o, $(PYSRCFILES:%.cpp=$(OBJDIR)/%.cuda.o))
 
 
 # External library dependencies
-BOOST_VERSION_NUMBER = 1.88.0
+BOOST_VERSION_NUMBER = 1.90.0
 BOOST_VERSION_NUMBER_ = $(subst .,_,$(BOOST_VERSION_NUMBER))
 BOOSTDIR = $(shell pwd)/lib/boost_$(BOOST_VERSION_NUMBER_)
-EIGEN_VERSION_NUMBER = 3.4.0
+EIGEN_VERSION_NUMBER = 3.4.1
 EIGENDIR = $(shell pwd)/lib/eigen-$(EIGEN_VERSION_NUMBER)
 
 # include flags for compiler
@@ -334,9 +334,9 @@ $(EIGENDIR):
 	@cd lib && tar -xf eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
 	@cd lib && rm eigen-$(EIGEN_VERSION_NUMBER).tar.bz2
 # fix obsolete usage of diag_suppress to eliminate scores of nvcc warnings
-	@sed -i'.original' -e 's/diag_suppress/nv_diag_suppress/' lib/eigen-3.4.0/Eigen/src/Core/util/DisableStupidWarnings.h
+	@sed -i'.original' -e 's/diag_suppress/nv_diag_suppress/' lib/eigen-$(EIGEN_VERSION_NUMBER)/Eigen/src/Core/util/DisableStupidWarnings.h
 # fix improper identification of cuda in an Eigen source file
-	@sed -i'.original' -e 's/#if defined(__clang__) && defined(__CUDA__)/#if defined(EIGEN_HAS_GPU_FP16) || defined(EIGEN_HAS_ARM64_FP16_SCALAR_ARITHMETIC)/' lib/eigen-3.4.0/Eigen/src/Core/arch/Default/Half.h
+	@sed -i'.original' -e 's/#if defined(__clang__) && defined(__CUDA__)/#if defined(EIGEN_HAS_GPU_FP16) || defined(EIGEN_HAS_ARM64_FP16_SCALAR_ARITHMETIC)/' lib/eigen-$(EIGEN_VERSION_NUMBER)/Eigen/src/Core/arch/Default/Half.h
 	@echo "... done downloading Eigen."
 
 $(BOOSTDIR):

@@ -31,8 +31,8 @@ if "-I" in include_dirs:
 else:
     include_dirs = []
 sysinclude_dirs.append(numpy.get_include())
-print(f"{sysinclude_dirs = }")
-print(f"{include_dirs = }")
+# print(f"{sysinclude_dirs = }")
+# print(f"{include_dirs = }")
 
 source_files = os.getenv('SOURCE_FILES')
 source_files = source_files.replace('./src', '../src').split()
@@ -42,7 +42,7 @@ source_files.append("py_corona_sim.pyx")
 libraries = os.getenv('LIBRARIES')
 libraries = libraries.split()
 libraries.append('-lgfortran')
-print(f"{libraries = }")
+# print(f"{libraries = }")
 
 compile_flags = os.getenv('COMPILE_FLAGS')
 compile_flags = compile_flags.split()
@@ -51,7 +51,7 @@ for d in sysinclude_dirs:
         compile_flags.append("-isystem="+d)
     else:
         compile_flags.append("-isystem"+d)
-print(f"{compile_flags = }")
+# print(f"{compile_flags = }")
 
 # set name of extension based on selected compiler
 extension_name = 'py_corona_sim'
