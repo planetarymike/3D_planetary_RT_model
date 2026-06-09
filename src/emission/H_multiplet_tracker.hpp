@@ -168,14 +168,14 @@ struct H_lyman_multiplet_tracker {
   }
   CUDA_CALLABLE_MEMBER
   static Real weight(const int &i_line, __attribute__((unused)) const int &i_lambda) {
-    Real fref = i_line < 2 ? doppler_width_frequency_reference_lya : doppler_width_frequency_reference_lyb;
+    const Real fref = i_line < 2 ? doppler_width_frequency_reference_lya : doppler_width_frequency_reference_lyb;
     return delta_lambda*fref; // Hz
   }
   CUDA_CALLABLE_MEMBER
   static Real line_shape_function(const int &i_line,
 				  const int &i_lambda,
 				  const Real &T) {
-    Real waveref = i_line < 2 ? doppler_width_wavelength_reference_lya : doppler_width_wavelength_reference_lyb;
+    const Real waveref = i_line < 2 ? doppler_width_wavelength_reference_lya : doppler_width_wavelength_reference_lyb;
 
     Real lambda2 = (lambda(i_lambda) - (line_wavelength_offset(i_line) / waveref));
     lambda2 *= lambda2;
@@ -185,7 +185,7 @@ struct H_lyman_multiplet_tracker {
   }
   CUDA_CALLABLE_MEMBER
   static Real line_shape_normalization(const int &i_line, const Real &T) { 
-    Real norm = i_line < 2 ? normalization_lya : normalization_lyb;
+    const Real norm = i_line < 2 ? normalization_lya : normalization_lyb;
     return norm*sqrt(doppler_width_reference_T/T); // Hz-1
   }
   CUDA_CALLABLE_MEMBER
