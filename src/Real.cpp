@@ -8,7 +8,7 @@ CUDA_CALLABLE_MEMBER
 void assert_finite(const Real &value) {
 #if !defined(NDEBUG)
   bool isnan = true;
-  isnan *= std::isnan(value);
+  isnan = isnan && std::isnan(value);
   
   if (isnan) {
     printf("value must be finite.\n");
