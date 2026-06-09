@@ -161,6 +161,19 @@ cdef extern from "observation_fit.hpp":
                                                       # Real solar_brightness_lyman_beta,
                                                       string atmosphere_fname,
                                                       string sourcefn_fname)
+        void lyman_multiplet_generate_source_function_variable_thermosphere(Real nHexo,
+                                                                            Real Texo,
+                                                                            Real nCO2rminn,
+						                            Real rexoo,
+						                            Real rminn,
+						                            Real rmindiffusionn,
+						                            #extra args for krasnopolsky_temp
+						                            Real T_tropo,
+						                            Real r_tropo,
+						                            Real shape_parameter,
+                                                                            string atmosphere_fname,
+                                                                            string sourcefn_fname)
+
         vector[vector[Real]] lyman_multiplet_brightness()
 
         void lyman_singlet_generate_source_function(Real nHexo,
@@ -169,6 +182,18 @@ cdef extern from "observation_fit.hpp":
                                                     # Real solar_brightness_lyman_beta,
                                                     string atmosphere_fname,
                                                     string sourcefn_fname)
+        void lyman_singlet_generate_source_function_variable_thermosphere(Real nHexo,
+                                                                          Real Texo,
+                                                                          Real nCO2rminn,
+						                          Real rexoo,
+						                          Real rminn,
+						                          Real rmindiffusionn,
+						                          #extra args for krasnopolsky_temp
+						                          Real T_tropo,
+						                          Real r_tropo,
+						                          Real shape_parameter,
+                                                                          string atmosphere_fname,
+                                                                          string sourcefn_fname)
         vector[vector[Real]] lyman_singlet_brightness()
 
 
@@ -529,16 +554,38 @@ cdef class Pyobservation_fit:
     def lyman_multiplet_generate_source_function(self,
                                                  Real nH,
                                                  Real T,
-                                                 # Real solar_brightness_lyman_alpha,
-                                                 # Real solar_brightness_lyman_beta,
                                                  atmosphere_fname = "",
                                                  sourcefn_fname = ""):
         self.thisptr.lyman_multiplet_generate_source_function(nH,
                                                               T,
-                                                              # solar_brightness_lyman_alpha,
-                                                              # solar_brightness_lyman_beta,
                                                               atmosphere_fname.encode('utf-8'),
                                                               sourcefn_fname.encode('utf-8'))
+    def lyman_multiplet_generate_source_function_variable_thermosphere(self,
+                                                                       Real nHexo, 
+                                                                       Real Texo,
+                                                                       Real nCO2rminn,
+						                       Real rexoo,
+						                       Real rminn,
+						                       Real rmindiffusionn,
+						                       #extra args for krasnopolsky_temp
+						                       Real T_tropo,
+						                       Real r_tropo,
+						                       Real shape_parameter,
+                                                                       atmosphere_fname = "",
+                                                                       sourcefn_fname = ""):
+        self.thisptr.lyman_multiplet_generate_source_function_variable_thermosphere(nHexo, 
+                                                                                    Texo,
+                                                                                    nCO2rminn,
+						                                    rexoo,
+						                                    rminn,
+						                                    rmindiffusionn,
+						                                    #extra args for krasnopolsky_temp
+						                                    T_tropo,
+						                                    r_tropo,
+						                                    shape_parameter,
+				                                                    atmosphere_fname.encode('utf-8'),
+                                                                                    sourcefn_fname.encode('utf-8'))
+
 
     def lyman_multiplet_brightness(self):
         return np.asarray(self.thisptr.lyman_multiplet_brightness())
@@ -546,17 +593,37 @@ cdef class Pyobservation_fit:
     def lyman_singlet_generate_source_function(self,
                                                  Real nH,
                                                  Real T,
-                                                 # Real solar_brightness_lyman_alpha,
-                                                 # Real solar_brightness_lyman_beta,
                                                  atmosphere_fname = "",
                                                  sourcefn_fname = ""):
         self.thisptr.lyman_singlet_generate_source_function(nH,
                                                             T,
-                                                            # solar_brightness_lyman_alpha,
-                                                            # solar_brightness_lyman_beta,
                                                             atmosphere_fname.encode('utf-8'),
                                                             sourcefn_fname.encode('utf-8'))
-
+    def lyman_singlet_generate_source_function_variable_thermosphere(self,
+                                                                       Real nHexo, 
+                                                                       Real Texo,
+                                                                       Real nCO2rminn,
+						                       Real rexoo,
+						                       Real rminn,
+						                       Real rmindiffusionn,
+						                       #extra args for krasnopolsky_temp
+						                       Real T_tropo,
+						                       Real r_tropo,
+						                       Real shape_parameter,
+                                                                       atmosphere_fname = "",
+                                                                       sourcefn_fname = ""):
+        self.thisptr.lyman_singlet_generate_source_function_variable_thermosphere(nHexo,
+                                                                                  Texo,
+                                                                                  nCO2rminn,
+						                                  rexoo,
+						                                  rminn,
+						                                  rmindiffusionn,
+						                                  #extra args for krasnopolsky_temp
+						                                  T_tropo,
+						                                  r_tropo,
+						                                  shape_parameter,
+				                                                  atmosphere_fname.encode('utf-8'),
+                                                                                  sourcefn_fname.encode('utf-8'))
     def lyman_singlet_brightness(self):
         return np.asarray(self.thisptr.lyman_singlet_brightness())
 

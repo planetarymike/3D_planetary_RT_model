@@ -20,6 +20,8 @@
 #include "emission/H_lyman_multiplet_test.hpp"
 #include "emission/O_1026.hpp"
 
+//#define ONLY_LYA
+
 class observation_fit {
 protected:
   hydrogen_density_parameters H_thermosphere;
@@ -56,18 +58,32 @@ protected:
   grid_type grid;
 
   // define hydrogen emissions
+#ifdef ONLY_LYA
+  static const int n_hydrogen_emissions = 1;
+#else
   static const int n_hydrogen_emissions = 2;
+#endif
 
   typedef singlet_CFR<plane_parallel_grid_type::n_voxels> hydrogen_emission_type_pp;
+#ifdef ONLY_LYA
+  hydrogen_emission_type_pp lyman_alpha_pp;
+  hydrogen_emission_type_pp *hydrogen_emissions_pp[n_hydrogen_emissions] = {&lyman_alpha_pp};
+#else
   hydrogen_emission_type_pp lyman_alpha_pp, lyman_beta_pp;
   hydrogen_emission_type_pp *hydrogen_emissions_pp[n_hydrogen_emissions] = {&lyman_alpha_pp, &lyman_beta_pp};
+#endif
 
   typedef RT_grid<hydrogen_emission_type_pp, n_hydrogen_emissions, plane_parallel_grid_type> H_RT_type_pp;
   H_RT_type_pp hydrogen_RT_pp;
 
   typedef singlet_CFR<grid_type::n_voxels> hydrogen_emission_type;
+#ifdef ONLY_LYA
+  hydrogen_emission_type lyman_alpha;
+  hydrogen_emission_type *hydrogen_emissions[n_hydrogen_emissions] = {&lyman_alpha};
+#else
   hydrogen_emission_type lyman_alpha, lyman_beta;
   hydrogen_emission_type *hydrogen_emissions[n_hydrogen_emissions] = {&lyman_alpha, &lyman_beta};
+#endif
 
   typedef RT_grid<hydrogen_emission_type, n_hydrogen_emissions, grid_type> H_RT_type;
   H_RT_type hydrogen_RT;
@@ -83,12 +99,22 @@ protected:
 
 
   // define deuterium emissions
+#ifdef ONLY_LYA
+  hydrogen_emission_type_pp D_lyman_alpha_pp;
+  hydrogen_emission_type_pp *deuterium_emissions_pp[n_hydrogen_emissions] = {&D_lyman_alpha_pp};
+#else
   hydrogen_emission_type_pp D_lyman_alpha_pp, D_lyman_beta_pp;
   hydrogen_emission_type_pp *deuterium_emissions_pp[n_hydrogen_emissions] = {&D_lyman_alpha_pp, &D_lyman_beta_pp};
+#endif
   H_RT_type_pp deuterium_RT_pp;
 
+#ifdef ONLY_LYA
+  hydrogen_emission_type D_lyman_alpha;
+  hydrogen_emission_type *deuterium_emissions[n_hydrogen_emissions] = {&D_lyman_alpha};
+#else
   hydrogen_emission_type D_lyman_alpha, D_lyman_beta;
   hydrogen_emission_type *deuterium_emissions[n_hydrogen_emissions] = {&D_lyman_alpha, &D_lyman_beta};
+#endif
   H_RT_type deuterium_RT;
 
   observation<hydrogen_emission_type, n_hydrogen_emissions> deuterium_obs;
@@ -191,7 +217,9 @@ public:
   void generate_source_function_plane_parallel(A &atmm, const Real &Texo,
 					       RT &RT_obj,
 					       E &lya_obj,
+#ifndef ONLY_LYA
 					       E &lyb_obj,
+#endif
 					       const string sourcefn_fname = "")
   {
     bool atmm_spherical = atmm.spherical;
@@ -208,6 +236,7 @@ public:
 		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		   &A::n_absorber_voxel_avg,  &A::sCO2_lya,
 		   RT_obj.grid.voxels);
+#ifndef ONLY_LYA
     lyb_obj.define("H Lyman beta",
 		   lyman_beta_branching_ratio,
 		   Texo, atmm.sH_lyb(Texo),
@@ -215,14 +244,19 @@ public:
 		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		   &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
 		   RT_obj.grid.voxels);
+#endif
 
     if (tweak_H_density) {
       lya_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+#ifndef ONLY_LYA
       lyb_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+#endif
     }
     if (tweak_H_temp) {
       lya_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+#ifndef ONLY_LYA
       lyb_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+#endif
     }
     
     atmm.spherical = atmm_spherical;  
@@ -242,7 +276,9 @@ public:
   void generate_source_function_sph_azi_sym(A &atmm, const Real &Texo,
 					    RT &RT_obj,
 					    E &lya_obj,
+#ifndef ONLY_LYA
 					    E &lyb_obj,
+#endif
 					    const string sourcefn_fname = "")
   {
     bool change_spherical = false;
@@ -262,6 +298,7 @@ public:
 		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		   &A::n_absorber_voxel_avg,  &A::sCO2_lya,
 		   RT_obj.grid.voxels);
+#ifndef ONLY_LYA
     lyb_obj.define("H Lyman beta",
 		   lyman_beta_branching_ratio,
 		   Texo, atmm.sH_lyb(Texo),
@@ -269,14 +306,19 @@ public:
 		   &A::n_species_voxel_avg,   &A::Temp_voxel_avg,
 		   &A::n_absorber_voxel_avg,  &A::sCO2_lyb,
 		   RT_obj.grid.voxels);
+#endif
 
     if (tweak_H_density) {
       lya_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+#ifndef ONLY_LYA
       lyb_obj.tweak_species_density(tweak_H_density_voxel_numbers, tweak_H_density_factor);
+#endif
     }
     if (tweak_H_temp) {
       lya_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+#ifndef ONLY_LYA
       lyb_obj.tweak_species_temp(tweak_H_temp_voxel_numbers, tweak_H_temp_factor);
+#endif
     }
     
     if (change_spherical)
@@ -373,18 +415,38 @@ public:
 
   void lyman_multiplet_generate_source_function(const Real &nHexo,
 						const Real &Texo,
-						// const Real &solar_brightness_lyman_alpha,
-						// const Real &solar_brightness_lyman_beta,
 						const string atmosphere_fname = "",
 						const string sourcefn_fname = "");
+  void lyman_multiplet_generate_source_function_variable_thermosphere(const Real &nHexo,
+								      const Real &Texo,
+								      const Real nCO2rexo, //a good number is 2.6e13 (Chaufray2008)
+								      const Real rexoo,
+								      const Real rminn,
+								      const Real rmindiffusionn,
+								      //extra args for krasnopolsky_temp
+								      const Real T_tropo,
+								      const Real r_tropo,
+								      const Real shape_parameter,
+								      const string atmosphere_fname = "",
+								      const string sourcefn_fname = "");
   std::vector<std::vector<Real>> lyman_multiplet_brightness();
 
   void lyman_singlet_generate_source_function(const Real &nHexo,
 					      const Real &Texo,
-					      // const Real &solar_brightness_lyman_alpha,
-					      // const Real &solar_brightness_lyman_beta,
 					      const string atmosphere_fname = "",
 					      const string sourcefn_fname = "");
+  void lyman_singlet_generate_source_function_variable_thermosphere(const Real &nHexo,
+								    const Real &Texo,
+								    const Real nCO2rexo, //a good number is 2.6e13 (Chaufray2008)
+								    const Real rexoo,
+								    const Real rminn,
+								    const Real rmindiffusionn,
+								    //extra args for krasnopolsky_temp
+								    const Real T_tropo,
+								    const Real r_tropo,
+								    const Real shape_parameter,
+								    const string atmosphere_fname = "",
+								    const string sourcefn_fname = "");
   std::vector<std::vector<Real>> lyman_singlet_brightness();
 };
 

@@ -111,15 +111,17 @@ void observation_fit::get_unextincted_iph() {
   
   for (int i_obs=0; i_obs < hydrogen_obs.size(); i_obs++) {
     hydrogen_obs.iph_brightness_unextincted[i_obs][0] = iph_brightness_lya[i_obs];
-    if (n_hydrogen_emissions==2)
-      hydrogen_obs.iph_brightness_unextincted[i_obs][1] = (lyman_beta.get_emission_g_factor()
-							   / lyman_alpha.get_emission_g_factor()
-							   * iph_brightness_lya[i_obs]); 
+#ifndef ONLY_LYA
+    hydrogen_obs.iph_brightness_unextincted[i_obs][1] = (lyman_beta.get_emission_g_factor()
+							 / lyman_alpha.get_emission_g_factor()
+							 * iph_brightness_lya[i_obs]); 
+#endif
   }
 }
 
 
 void observation_fit::generate_source_function(const Real &nHexo, const Real &Texo,
+                                               
 					       const string atmosphere_fname/* = ""*/,
 					       const string sourcefn_fname/* = ""*/,
 					       const bool plane_parallel/* = false*/,
@@ -142,13 +144,17 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
       generate_source_function_plane_parallel(atm, Texo,
 					      hydrogen_RT_pp,
 					      lyman_alpha_pp,
+#ifndef ONLY_LYA
 					      lyman_beta_pp,
+#endif
 					      sourcefn_fname);
     } else {
       generate_source_function_plane_parallel(atm, Texo,
 					      deuterium_RT_pp,
 					      D_lyman_alpha_pp,
+#ifndef ONLY_LYA
 					      D_lyman_beta_pp,
+#endif
 					      sourcefn_fname);
     }
   } else {
@@ -156,13 +162,17 @@ void observation_fit::generate_source_function(const Real &nHexo, const Real &Te
       generate_source_function_sph_azi_sym(atm, Texo,
 					   hydrogen_RT,
 					   lyman_alpha,
+#ifndef ONLY_LYA
 					   lyman_beta,
+#endif
 					   sourcefn_fname);
     } else {
       generate_source_function_sph_azi_sym(atm, Texo,
 					   deuterium_RT,
 					   D_lyman_alpha,
+#ifndef ONLY_LYA
 					   D_lyman_beta,
+#endif
 					   sourcefn_fname);
     }
   }
@@ -239,13 +249,17 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
       generate_source_function_plane_parallel(atm, Texo,
 					      hydrogen_RT_pp,
 					      lyman_alpha_pp,
+#ifndef ONLY_LYA
 					      lyman_beta_pp,
+#endif
 					      sourcefn_fname);
     } else {
       generate_source_function_plane_parallel(atm, Texo,
 					      deuterium_RT_pp,
 					      D_lyman_alpha_pp,
+#ifndef ONLY_LYA
 					      D_lyman_beta_pp,
+#endif
 					      sourcefn_fname);
     }
   } else {
@@ -253,13 +267,17 @@ void observation_fit::generate_source_function_variable_thermosphere(const Real 
       generate_source_function_sph_azi_sym(atm, Texo,
 					   hydrogen_RT,
 					   lyman_alpha,
+#ifndef ONLY_LYA
 					   lyman_beta,
+#endif
 					   sourcefn_fname);
     } else {
       generate_source_function_sph_azi_sym(atm, Texo,
 					   deuterium_RT,
 					   D_lyman_alpha,
+#ifndef ONLY_LYA
 					   D_lyman_beta,
+#endif
 					   sourcefn_fname);
     }
   }
@@ -279,13 +297,17 @@ void observation_fit::generate_source_function_nH_asym(const Real &nHexo, const 
     generate_source_function_sph_azi_sym(atm_asym, Texo,
 					 hydrogen_RT,
 					 lyman_alpha,
+#ifndef ONLY_LYA
 					 lyman_beta,
+#endif
 					 sourcefn_fname);
   } else {
     generate_source_function_sph_azi_sym(atm_asym, Texo,
 					 deuterium_RT,
 					 D_lyman_alpha,
+#ifndef ONLY_LYA
 					 D_lyman_beta,
+#endif
 					 sourcefn_fname);
   }
 }
@@ -349,13 +371,17 @@ void observation_fit::generate_source_function_temp_asym(const Real &nHavg,
     generate_source_function_sph_azi_sym(atm_asym, Tnoon,
 					 hydrogen_RT,
 					 lyman_alpha,
+#ifndef ONLY_LYA
 					 lyman_beta,
+#endif
 					 sourcefn_fname);
   } else {
     generate_source_function_sph_azi_sym(atm_asym, Tnoon,
 					 deuterium_RT,
 					 D_lyman_alpha,
+#ifndef ONLY_LYA
 					 D_lyman_beta,
+#endif
 					 sourcefn_fname);
   }
 }
@@ -384,13 +410,17 @@ void observation_fit::generate_source_function_tabular_atmosphere(const Real rmi
       generate_source_function_plane_parallel(atm_tabular, Texo,
 					      hydrogen_RT_pp,
 					      lyman_alpha_pp,
+#ifndef ONLY_LYA
 					      lyman_beta_pp,
+#endif
 					      sourcefn_fname);
     } else {
       generate_source_function_plane_parallel(atm_tabular, Texo,
 					      deuterium_RT_pp,
 					      D_lyman_alpha_pp,
+#ifndef ONLY_LYA
 					      D_lyman_beta_pp,
+#endif
 					      sourcefn_fname);
     }
   } else {
@@ -398,13 +428,17 @@ void observation_fit::generate_source_function_tabular_atmosphere(const Real rmi
       generate_source_function_sph_azi_sym(atm_tabular, Texo,
 					   hydrogen_RT,
 					   lyman_alpha,
+#ifndef ONLY_LYA
 					   lyman_beta,
+#endif
 					   sourcefn_fname);
     } else {
       generate_source_function_sph_azi_sym(atm_tabular, Texo,
 					   deuterium_RT,
 					   D_lyman_alpha,
+#ifndef ONLY_LYA
 					   D_lyman_beta,
+#endif
 					   sourcefn_fname);
     }
   }
@@ -731,8 +765,6 @@ vector<vector<Real>> observation_fit::O_1026_brightness() {
 
 void observation_fit::lyman_multiplet_generate_source_function(const Real &nHexo,
 							       const Real &Texo,
-							       // const Real &solar_brightness_lyman_alpha,
-							       // const Real &solar_brightness_lyman_beta,
 							       const string atmosphere_fname/* = ""*/,
 							       const string sourcefn_fname/* = ""*/)
 {
@@ -758,8 +790,58 @@ void observation_fit::lyman_multiplet_generate_source_function(const Real &nHexo
 		      &chamb_diff_1d::Temp_voxel_avg,
 		      &chamb_diff_1d::n_absorber_voxel_avg,
 		      ly_multiplet_RT.grid.voxels);
-  // ly_multiplet.set_solar_brightness(solar_brightness_lyman_alpha,
-  // 				    solar_brightness_lyman_beta);
+  
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  ly_multiplet_RT.generate_S_gpu();
+#else
+  ly_multiplet_RT.generate_S();
+#endif
+  
+  if (sourcefn_fname!="")
+    ly_multiplet_RT.save_S(sourcefn_fname);
+}
+
+void observation_fit::lyman_multiplet_generate_source_function_variable_thermosphere(const Real &nHexo,
+										     const Real &Texo,
+										     const Real nCO2rexo, // 2e8@200km  2.6e13 @ 80 km(Chaufray2008)
+										     const Real rexoo,
+										     const Real rminn,
+										     const Real rmindiffusionn,
+										     //extra args for krasnopolsky_temp
+										     const Real T_tropo,
+										     const Real r_tropo,
+										     const Real shape_parameter,
+										     const string atmosphere_fname/* = ""*/,
+										     const string sourcefn_fname/* = ""*/)
+{
+  temp = krasnopolsky_temperature(Texo, T_tropo, r_tropo, shape_parameter, true);
+  chamb_diff_1d atm(rminn,
+		    rexoo,
+		    10, //nHmin
+		    rmindiffusionn,
+		    nHexo,
+		    nCO2rexo,
+		    &temp,
+		    &H_thermosphere,
+		    thermosphere_exosphere::method_nspmin_nCO2exo);
+  atm.copy_H_options(H_cross_section_options);
+
+  if (atmosphere_fname !="")
+    atm.save(atmosphere_fname);
+  
+  atm.spherical = true;
+
+  ly_multiplet_RT.grid.setup_voxels(atm);
+  ly_multiplet_RT.grid.setup_rays();
+
+  //update the emission density values
+  ly_multiplet.define("Multiplet Lyman alpha and beta",
+		      atm,
+		      &chamb_diff_1d::n_species_voxel_avg,
+		      &chamb_diff_1d::Temp_voxel_avg,
+		      &chamb_diff_1d::n_absorber_voxel_avg,
+		      ly_multiplet_RT.grid.voxels);
   
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
@@ -800,11 +882,9 @@ vector<vector<Real>> observation_fit::lyman_multiplet_brightness() {
 }
 
 void observation_fit::lyman_singlet_generate_source_function(const Real &nHexo,
-							       const Real &Texo,
-							       // const Real &solar_brightness_lyman_alpha,
-							       // const Real &solar_brightness_lyman_beta,
-							       const string atmosphere_fname/* = ""*/,
-							       const string sourcefn_fname/* = ""*/)
+							     const Real &Texo,
+							     const string atmosphere_fname/* = ""*/,
+							     const string sourcefn_fname/* = ""*/)
 {
   temp = krasnopolsky_temperature(Texo);
   chamb_diff_1d atm(nHexo,
@@ -828,8 +908,6 @@ void observation_fit::lyman_singlet_generate_source_function(const Real &nHexo,
 		      &chamb_diff_1d::Temp_voxel_avg,
 		      &chamb_diff_1d::n_absorber_voxel_avg,
 		      ly_singlet_RT.grid.voxels);
-  // ly_singlet.set_solar_brightness(solar_brightness_lyman_alpha,
-  // 				    solar_brightness_lyman_beta);
   
   //compute source function on the GPU if compiled with NVCC
 #ifdef __CUDACC__
@@ -841,6 +919,59 @@ void observation_fit::lyman_singlet_generate_source_function(const Real &nHexo,
   if (sourcefn_fname!="")
     ly_singlet_RT.save_S(sourcefn_fname);
 }
+
+void observation_fit::lyman_singlet_generate_source_function_variable_thermosphere(const Real &nHexo,
+										   const Real &Texo,
+										   const Real nCO2rexo, // 2e8@200km  2.6e13 @ 80 km (Chaufray2008)
+										   const Real rexoo,
+										   const Real rminn,
+										   const Real rmindiffusionn,
+										   //extra args for krasnopolsky_temp
+										   const Real T_tropo,
+										   const Real r_tropo,
+										   const Real shape_parameter,
+										   const string atmosphere_fname/* = ""*/,
+										   const string sourcefn_fname/* = ""*/)
+{
+  temp = krasnopolsky_temperature(Texo, T_tropo, r_tropo, shape_parameter, true);
+  chamb_diff_1d atm(rminn,
+		    rexoo,
+		    10,
+		    rmindiffusionn,
+		    nHexo,
+		    nCO2rexo,
+		    &temp,
+		    &H_thermosphere,
+		    thermosphere_exosphere::method_nspmin_nCO2exo);
+  atm.copy_H_options(H_cross_section_options);
+
+  if (atmosphere_fname !="")
+    atm.save(atmosphere_fname);
+  
+  atm.spherical = true;
+
+  ly_singlet_RT.grid.setup_voxels(atm);
+  ly_singlet_RT.grid.setup_rays();
+
+  //update the emission density values
+  ly_singlet.define("Singlet Lyman alpha and beta",
+		      atm,
+		      &chamb_diff_1d::n_species_voxel_avg,
+		      &chamb_diff_1d::Temp_voxel_avg,
+		      &chamb_diff_1d::n_absorber_voxel_avg,
+		      ly_singlet_RT.grid.voxels);
+  
+  //compute source function on the GPU if compiled with NVCC
+#ifdef __CUDACC__
+  ly_singlet_RT.generate_S_gpu();
+#else
+  ly_singlet_RT.generate_S();
+#endif
+  
+  if (sourcefn_fname!="")
+    ly_singlet_RT.save_S(sourcefn_fname);
+}
+
 
 vector<vector<Real>> observation_fit::lyman_singlet_brightness() {
   //compute brightness on the GPU if compiled with NVCC
